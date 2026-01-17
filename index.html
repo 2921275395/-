@@ -7,6 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#f7f9fc">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIuaIkeeahOaXpeiuwppIiwKICAic2hvcnRfbmFtZSI6ICLml6XorsLmnKwiLAogICJzdGFydF91cmwiOiAiLi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmN2Y5ZmMiLAogICJ0aGVtZV9jb2xvciI6ICIjZjdmOWZjIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaHR0cHM6Ly92aWEucGxhY2Vob2xkZXIuY29tLzE5MiIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfQogIF0KfQ==">
     <title>我的日记本</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
@@ -234,7 +235,7 @@
             border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; font-weight: bold;
         }
         .test-notify-btn:active { background: rgba(0,0,0,0.05); }
-        .status-text { font-size: 0.8rem; opacity: 0.7; margin-bottom: 10px; text-align: center;}
+        .status-text { font-size: 0.8rem; opacity: 0.7; margin-bottom: 10px; text-align: center; color: var(--text-color);}
 
         /* iOS 安装指引提示框 */
         #ios-install-guide {
@@ -243,6 +244,12 @@
         }
         #ios-install-guide h3 { margin: 0 0 10px 0; color: var(--highlight); }
         #ios-install-guide ol { padding-left: 20px; margin: 0; line-height: 1.6; }
+        
+        /* 安卓 SW 缺失提示 */
+        #android-sw-missing {
+            display: none; background: #fff3e0; padding: 15px; border-radius: 12px;
+            margin-bottom: 20px; border: 1px solid #ffb74d; font-size: 0.85rem; color: #e65100;
+        }
 
         /* ================= 设置界面 ================= */
         #settings-view { background-color: var(--bg-color); z-index: 200; padding: 20px; overflow-y: auto; }
@@ -342,9 +349,28 @@
             <button class="icon-btn" onclick="closeTodo()">✕</button>
         </div>
 
-        <div class="status-text" id="sw-status">检查服务状态...</div>
+        <div class="status-text" id="sw-status">系统状态检测中...</div>
         <button id="perm-btn" class="permission-btn" onclick="requestNotifyPermission()">🔔 点击开启通知权限</button>
         
+        <!-- 安卓提示: 缺少 SW 文件 -->
+        <div id="android-sw-missing">
+            <strong>⚠️ 安卓系统特别提示：</strong><br>
+            您是安卓手机，浏览器由于安全限制，<strong>必须</strong>在 Github 上 <code>index.html</code> 的旁边新建一个名为 <code>sw.js</code> 的文件，否则无法收到通知。<br>
+            <br>
+            <strong>sw.js 的内容请看下方代码块，复制进去即可。</strong>
+        </div>
+
+        <div id="android-sw-code-block" style="display:none; margin-bottom:20px; background:#333; color:#fff; padding:10px; border-radius:8px; font-family:monospace; font-size:0.7rem; overflow-x:auto;">
+            self.addEventListener('install', e => self.skipWaiting());
+            self.addEventListener('activate', e => self.clients.claim());
+            self.addEventListener('notificationclick', e => {
+              e.notification.close();
+              e.waitUntil(clients.matchAll({type:'window'}).then(c => {
+                if(c.length && c[0].focus) c[0].focus();
+              }));
+            });
+        </div>
+
         <!-- iOS 安装指引 -->
         <div id="ios-install-guide">
             <h3>⚠️ 苹果手机必须添加到主屏幕才能收到通知</h3>
@@ -356,7 +382,7 @@
             </ol>
         </div>
 
-        <button class="test-notify-btn" onclick="testNotification()">📩 立即发送一条测试通知 (修复版)</button>
+        <button class="test-notify-btn" onclick="testNotification()">📩 立即发送一条测试通知</button>
 
         <div class="todo-input-container">
             <input type="text" id="new-todo-input" class="todo-text-input" placeholder="添加新任务...">
@@ -484,7 +510,8 @@
 
         let cropperInstance = null;
         let notifyInterval = null;
-        let swRegistration = null; // Store SW Registration
+        // SW 注册状态
+        let hasActiveSW = false;
 
         function init() {
             applySettings();
@@ -494,8 +521,8 @@
             
             setInterval(autoSave, 60000);
             
-            // 注册 Service Worker (Android Chrome 强制要求)
-            registerServiceWorker();
+            // 尝试注册真实的 SW 文件 (Github托管必备)
+            registerRealSW();
 
             startNotificationCheck();
             document.addEventListener('visibilitychange', () => {
@@ -520,45 +547,44 @@
             checkNotifyState();
         }
 
-        // === 核心修复：注册虚拟 Service Worker ===
-        function registerServiceWorker() {
-            const statusEl = document.getElementById('sw-status');
+        // === 关键修复：尝试注册 sw.js ===
+        function registerRealSW() {
             if (!('serviceWorker' in navigator)) {
-                statusEl.textContent = "当前环境不支持后台通知";
+                updateSWStatus("浏览器不支持后台");
                 return;
             }
 
-            // 创建一个虚拟的 SW 文件内容
-            const swCode = `
-                self.addEventListener('install', (e) => self.skipWaiting());
-                self.addEventListener('activate', (e) => self.clients.claim());
-                self.addEventListener('notificationclick', (event) => {
-                    event.notification.close();
-                    event.waitUntil(clients.matchAll({ type: 'window' }).then(clients => {
-                        if (clients.length && clients[0].focus) clients[0].focus();
-                    }));
-                });
-            `;
-            
-            try {
-                // 使用 Blob 创建虚拟文件
-                const blob = new Blob([swCode], {type: 'application/javascript'});
-                const swUrl = URL.createObjectURL(blob);
-                
-                navigator.serviceWorker.register(swUrl)
+            // 尝试注册同目录下的 sw.js
+            navigator.serviceWorker.register('sw.js')
                 .then(reg => {
                     console.log('SW Registered', reg);
-                    swRegistration = reg;
-                    statusEl.textContent = "后台服务已就绪 ✅";
-                    statusEl.style.color = "green";
+                    hasActiveSW = true;
+                    updateSWStatus("后台服务运行中 ✅", "green");
+                    // 隐藏安卓提示
+                    document.getElementById('android-sw-missing').style.display = 'none';
+                    document.getElementById('android-sw-code-block').style.display = 'none';
                 })
                 .catch(err => {
-                    console.error('SW Error', err);
-                    statusEl.textContent = "后台服务注册失败 (可能需要 HTTPS)";
+                    console.warn('SW Register Failed', err);
+                    updateSWStatus("后台服务未连接 (请看下方提示)");
+                    // 如果是安卓且注册失败，显示提示
+                    if (/Android/i.test(navigator.userAgent)) {
+                        document.getElementById('android-sw-missing').style.display = 'block';
+                        document.getElementById('android-sw-code-block').style.display = 'block';
+                    }
                 });
-            } catch (e) {
-                console.error(e);
-            }
+            
+            // 监听 ready 状态以防万一
+            navigator.serviceWorker.ready.then(() => {
+                hasActiveSW = true;
+                updateSWStatus("后台服务运行中 ✅", "green");
+            });
+        }
+
+        function updateSWStatus(msg, color) {
+            const el = document.getElementById('sw-status');
+            el.textContent = msg;
+            if (color) el.style.color = color;
         }
 
         function checkNotifyState() {
@@ -568,7 +594,6 @@
             if (isIOS && !isStandalone) {
                 document.getElementById('ios-install-guide').style.display = 'block';
                 document.getElementById('perm-btn').style.display = 'none'; 
-                return;
             } else {
                 document.getElementById('ios-install-guide').style.display = 'none';
             }
@@ -610,24 +635,42 @@
             }
         }
 
-        // === 修复后的发送通知函数 ===
-        function sendSafeNotification(title, body) {
-            // 优先使用 Service Worker (安卓 Chrome 必须)
-            if (swRegistration) {
-                swRegistration.showNotification(title, {
-                    body: body,
-                    icon: 'https://via.placeholder.com/128',
-                    vibrate: [200, 100, 200],
-                    requireInteraction: true
-                }).catch(e => alert("SW 通知失败: " + e));
-            } 
-            // 降级方案 (PC 或老设备)
-            else {
+        // === 彻底修复的发送函数：拒绝报错 ===
+        async function sendSafeNotification(title, body) {
+            // 1. 尝试使用 Service Worker (安卓必备)
+            if ('serviceWorker' in navigator) {
                 try {
-                    new Notification(title, { body: body, icon: 'https://via.placeholder.com/128' });
+                    // 等待 active 的注册
+                    const reg = await navigator.serviceWorker.getRegistration();
+                    if (reg) {
+                        reg.showNotification(title, {
+                            body: body,
+                            icon: 'https://via.placeholder.com/128', // 可换成你的图标URL
+                            vibrate: [200, 100, 200],
+                            requireInteraction: true
+                        });
+                        return; // 发送成功，直接退出，不执行下面的旧代码
+                    }
                 } catch (e) {
-                    alert("无法发送通知: " + e.message + "\n请确保通过 HTTPS 访问。");
+                    console.error("SW notification failed", e);
                 }
+            }
+
+            // 2. 关键判断：如果是安卓，且上面失败了，千万别调用 new Notification
+            // 否则会无限报错 Illegal constructor
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            
+            if (isAndroid) {
+                // 安卓没有 SW，只能弹窗提示，不能报错崩溃
+                showToast("⚠️ 错误：安卓未连接到 sw.js，无法发通知");
+                return;
+            }
+
+            // 3. 只有电脑或 iOS 才能用这个旧方法
+            try {
+                new Notification(title, { body: body, icon: 'https://via.placeholder.com/128' });
+            } catch (e) {
+                console.error("Standard notification failed", e);
             }
         }
 
