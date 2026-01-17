@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     
-    <!-- JS 库 (修复：补全 Cropper.js) -->
+    <!-- JS 库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
@@ -122,7 +122,7 @@
         .fmt-btn { width: 36px; height: 36px; border: none; background: transparent; color: var(--text-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
         .color-dot-btn { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
         
-        /* ================= 待办 & 左滑删除 (升级版) ================= */
+        /* ================= 待办 & 左滑删除 (修复点击问题) ================= */
         #todo-view { background-color: var(--bg-color); z-index: 300; padding: 20px; overflow-y: auto; }
         .todo-header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         .todo-input-container { display: flex; gap: 10px; margin-bottom: 20px; background: var(--paper-color); padding: 10px; border-radius: 16px; border: 1px solid var(--border-color); }
@@ -130,18 +130,15 @@
         .todo-add-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: #fff; border: none; display: flex; align-items: center; justify-content: center; }
         .todo-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 50px;}
         
-        /* 待办项容器：包含背景（删除按钮）和前景（内容） */
         .todo-item-wrapper {
             position: relative; height: auto; border-radius: 16px; overflow: hidden;
-            background-color: #ff6b6b; /* 红色背景 */
+            background-color: #ff6b6b; /* 删除红色底 */
         }
-        /* 背景层的删除操作 */
         .todo-delete-bg {
             position: absolute; top: 0; bottom: 0; right: 0; width: 80px;
             display: flex; align-items: center; justify-content: center;
             color: white; font-weight: bold; font-size: 0.9rem; z-index: 1;
         }
-        /* 前景层：实际内容 */
         .todo-item-content {
             position: relative; z-index: 2; background: var(--paper-color);
             padding: 12px 15px; border-radius: 16px; border: 1px solid var(--line-color);
@@ -152,17 +149,18 @@
         .todo-item-content.done { opacity: 0.5; }
         .todo-item-content.done .todo-text { text-decoration: line-through; }
 
-        .todo-checkbox { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; margin-top: 3px; }
+        .todo-checkbox { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; margin-top: 3px; z-index: 5; }
         .todo-checkbox.checked { background: var(--primary-color); }
         .todo-checkbox.checked::after { content: '✓'; color: #fff; font-size: 14px; font-weight: bold; }
-        .todo-content-wrapper { flex: 1; display: flex; flex-direction: column; gap: 4px; pointer-events: none; /* 防止文字影响滑动 */ }
-        .todo-text { font-size: 1rem; font-weight: bold; line-height: 1.4; pointer-events: auto; }
-        .todo-datetime { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; pointer-events: auto; }
+        
+        /* 修复：移除 pointer-events: none，确保子元素可点击 */
+        .todo-content-wrapper { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .todo-text { font-size: 1rem; font-weight: bold; line-height: 1.4; }
+        .todo-datetime { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; z-index: 5; }
         .todo-picker { border: none; background: rgba(0,0,0,0.05); border-radius: 6px; color: var(--text-color); font-size: 0.8rem; padding: 4px 6px; width: fit-content; font-family: inherit; }
         
         .permission-btn { width: 100%; padding: 12px; background: var(--highlight); color: #fff; border: none; border-radius: 12px; margin-bottom: 10px; font-weight: bold; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         
-        /* 可爱风测试按钮 */
         .test-notify-btn {
             width: 100%; padding: 12px; margin-bottom: 20px; font-size: 0.95rem; font-weight: bold;
             border: none; border-radius: 25px; cursor: pointer;
@@ -176,7 +174,6 @@
         body.theme-green .test-notify-btn { background: linear-gradient(135deg, #a8e6cf 0%, #56ab2f 100%); box-shadow: 0 4px 12px rgba(86, 171, 47, 0.3); }
 
         .status-text { font-size: 0.8rem; opacity: 0.7; margin-bottom: 10px; text-align: center; color: var(--text-color); }
-        
         #ios-install-guide { display: none; background: var(--paper-color); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--highlight); font-size: 0.9rem; }
         #ios-install-guide h3 { margin: 0 0 10px 0; color: var(--highlight); }
         #ios-install-guide ol { padding-left: 20px; margin: 0; line-height: 1.6; }
@@ -244,7 +241,7 @@
         <div id="index-tab" onclick="openDiary(event)"><span id="tab-date">10/24</span></div>
     </div>
 
-    <!-- 待办清单界面 (升级版) -->
+    <!-- 待办清单界面 -->
     <div id="todo-view" class="view hidden-right">
         <div class="todo-header">
             <span style="font-weight:bold; font-size:1.2rem">待办 & 提醒</span>
@@ -277,7 +274,6 @@
             </ol>
         </div>
 
-        <!-- 变可爱的按钮 -->
         <button class="test-notify-btn" onclick="testNotification()">
             <span class="material-icons-round" style="font-size:1.2rem">notifications_active</span>
             <span>立即发送测试通知 (点我试试)</span>
@@ -413,7 +409,6 @@
             document.getElementById('export-date-picker').valueAsDate = new Date();
             checkNotifyState();
             
-            // 点击外部关闭打开的侧滑
             document.body.addEventListener('click', (e) => {
                 if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
             });
@@ -470,37 +465,39 @@
 
         function addTodo() {
             const input = document.getElementById('new-todo-input'); const text = input.value.trim(); if(!text) return;
-            state.todoData.unshift({ id: Date.now(), text: text, done: false, date: '', time: '', notified: false }); // 默认无日期，自动置顶
+            state.todoData.unshift({ id: Date.now(), text: text, done: false, date: '', time: '', notified: false });
             input.value = ''; saveTodo(); renderTodoList();
         }
 
         function toggleTodo(id) { const item = state.todoData.find(t => t.id === id); if(item) { item.done = !item.done; saveTodo(); renderTodoList(); } }
         function deleteTodo(id) { state.todoData = state.todoData.filter(t => t.id !== id); saveTodo(); renderTodoList(); }
-        function updateTodoData(id, field, val) { const item = state.todoData.find(t => t.id === id); if(item) { item[field] = val; if(field === 'time' || field === 'date') item.notified = false; saveTodo(); renderTodoList(); } } // 更新日期后重新排序
+        function updateTodoData(id, field, val) { const item = state.todoData.find(t => t.id === id); if(item) { item[field] = val; if(field === 'time' || field === 'date') item.notified = false; saveTodo(); renderTodoList(); } }
         function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
 
-        // === 排序与渲染 (新逻辑) ===
+        // === 修复后的排序逻辑 ===
         function renderTodoList() {
             const list = document.getElementById('todo-list'); list.innerHTML = '';
             
-            // 排序逻辑：
-            // 1. 没有具体时间 (date 或 time 为空) 的排在最前面
-            // 2. 有具体时间的，按时间先后顺序排列
+            // 安全排序：处理空日期，防止 Invalid Date 导致列表崩溃
             const sortedData = [...state.todoData].sort((a, b) => {
-                const aHasTime = a.date && a.time;
-                const bHasTime = b.date && b.time;
-                if (!aHasTime && bHasTime) return -1; // A 无时间，A 排前
-                if (aHasTime && !bHasTime) return 1;  // B 无时间，B 排前
-                if (!aHasTime && !bHasTime) return b.id - a.id; // 都无时间，按创建倒序
-                // 都有时间，按时间正序 (早的在前)
-                return new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`);
+                // 如果有日期+时间，计算时间戳；如果没有，记为 0
+                const aTime = (a.date && a.time) ? new Date(`${a.date}T${a.time}`).getTime() : 0;
+                const bTime = (b.date && b.time) ? new Date(`${b.date}T${b.time}`).getTime() : 0;
+
+                // 1. 如果 A 是没时间的(0)，B 是有时间的(>0)，A 排前面
+                if (aTime === 0 && bTime > 0) return -1;
+                // 2. 如果 A 是有时间的，B 是没时间的，B 排前面
+                if (aTime > 0 && bTime === 0) return 1;
+                // 3. 如果都没时间，按 ID（创建时间）倒序，最新的在最前
+                if (aTime === 0 && bTime === 0) return b.id - a.id;
+                // 4. 如果都有时间，按时间正序，越早的越靠前
+                return aTime - bTime;
             });
 
             sortedData.forEach(item => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'todo-item-wrapper';
                 
-                // 内部结构：背景层(删除) + 前景层(内容)
                 wrapper.innerHTML = `
                     <div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div>
                     <div class="todo-item-content ${item.done ? 'done' : ''}" id="todo-content-${item.id}">
@@ -515,45 +512,41 @@
                     </div>
                 `;
                 
-                // 绑定左滑事件
                 const contentEl = wrapper.querySelector('.todo-item-content');
                 attachSwipeEvents(contentEl);
                 list.appendChild(wrapper);
             });
         }
 
-        // === 左滑删除逻辑 ===
+        // === 左滑逻辑 ===
         let currentOpenSwipe = null;
-
         function attachSwipeEvents(el) {
             let startX, currentX;
             let isDragging = false;
             
             el.addEventListener('touchstart', (e) => {
-                // 如果有其他打开的，先关闭
                 if(currentOpenSwipe && currentOpenSwipe !== el) {
                     currentOpenSwipe.style.transform = 'translateX(0)';
                     currentOpenSwipe = null;
                 }
                 startX = e.touches[0].clientX;
-                el.style.transition = 'none'; // 拖动时移除过渡，跟手
+                el.style.transition = 'none';
             }, {passive: true});
 
             el.addEventListener('touchmove', (e) => {
                 currentX = e.touches[0].clientX;
                 let deltaX = currentX - startX;
-                // 只能向左滑，最大滑到 -80px
                 if (deltaX > 0) deltaX = 0;
                 if (deltaX < -80) deltaX = -80;
                 
-                if (deltaX < -10) isDragging = true; // 防误触
+                if (deltaX < -10) isDragging = true;
                 el.style.transform = `translateX(${deltaX}px)`;
             }, {passive: true});
 
             el.addEventListener('touchend', (e) => {
                 el.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
                 const deltaX = currentX - startX;
-                if (deltaX < -40) { // 滑动超过一半，展开
+                if (deltaX < -40) {
                     el.style.transform = 'translateX(-80px)';
                     currentOpenSwipe = el;
                 } else {
@@ -597,7 +590,7 @@
             });
         }
 
-        // === 基础功能 (保持不变) ===
+        // === 基础功能 ===
         function initDraggable(el, type) {
             let isDragging = false; let startX, startY, initialLeft, initialTop; const screenW = window.innerWidth; const screenH = window.innerHeight;
             el.addEventListener('touchstart', (e) => { isDragging = false; el.classList.remove('snap-transition'); const touch = e.touches[0]; startX = touch.clientX; startY = touch.clientY; const rect = el.getBoundingClientRect(); initialLeft = rect.left; initialTop = rect.top; }, {passive: false});
@@ -622,8 +615,6 @@
         function resetFont() { state.settings.customFont = ""; document.getElementById('font-url-input').value = ""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原默认字体"); }
         function loadCustomFont(url) { if(url.includes('fonts.googleapis.com')) { const link = document.createElement('link'); link.href = url; link.rel = 'stylesheet'; document.head.appendChild(link); return; } const fontName = 'MyCustomFont'; const fontFace = new FontFace(fontName, `url(${url})`); fontFace.load().then(loadedFace => { document.fonts.add(loadedFace); document.documentElement.style.setProperty('--font-main', `"${fontName}", "Nunito", sans-serif`); }).catch(e => { console.error(e); }); }
         function exportDiaryImage() { const picker = document.getElementById('export-date-picker'); if(!picker.value) { alert("请选择日期"); return; } const dateStr = picker.value; const parts = dateStr.split('-'); const targetDate = new Date(parts[0], parts[1]-1, parts[2]); const dateKey = formatDateKey(targetDate); const content = state.diaryData[dateKey]; if(!content) { alert("这一天没有日记哦"); return; } showToast("正在生成图片..."); const container = document.getElementById('screenshot-container'); container.innerHTML = ''; const paper = document.createElement('div'); paper.className = `paper-container ${state.settings.paper}`; if(state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } paper.style.height = 'auto'; paper.style.minHeight = '800px'; paper.style.position = 'relative'; paper.style.overflow = 'visible'; paper.style.borderRadius = '0'; const header = document.createElement('div'); header.className = 'paper-header'; header.innerHTML = `<span class="date-display">${targetDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'})}</span>`; header.style.background = 'none'; paper.appendChild(header); const body = document.createElement('div'); body.className = 'paper-content'; body.style.overflow = 'visible'; body.innerHTML = content; paper.appendChild(body); container.appendChild(paper); html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: state.settings.theme === 'theme-beige' ? '#fffbf0' : null }).then(canvas => { const link = document.createElement('a'); link.download = `diary_${dateKey}.png`; link.href = canvas.toDataURL(); link.click(); container.innerHTML = ''; showToast("图片已保存！"); }).catch(err => { console.error(err); alert("生成失败，请重试"); container.innerHTML = ''; }); }
-        
-        // 修复：添加了 cropper.js 脚本，现在可以正常工作了
         function startCrop(input) {
             const file = input.files[0]; if (!file) return; const reader = new FileReader();
             reader.onload = (e) => {
