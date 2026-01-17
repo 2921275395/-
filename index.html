@@ -3,204 +3,577 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>日记本</title>
+    <title>我的日记本</title>
     <style>
         :root {
-            /* 默认主题色 - 米黄色系 */
-            --bg-color: #FDFBF7;
-            --main-color: #F2EFE5;
-            --accent-color: #D4C5A8;
-            --text-color: #4A4A4A;
-            --paper-bg: #FFFFFF;
-            --line-color: #E0E0E0;
-            --shadow: 0 4px 12px rgba(0,0,0,0.08);
-            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --primary-color: #333;
+            --bg-color: #f8f9fa; /* App背景 */
+            --paper-color: #fffef8; /* 纸张颜色 */
+            --line-color: #e0e0e0;
+            --highlight: #ff6b6b; /* 今天/选中的颜色 */
+            --text-color: #2c3e50;
+            --tab-color: #e74c3c;
+            --shadow: 0 4px 15px rgba(0,0,0,0.08);
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            
+            /* 纸张样式变量 */
+            --paper-pattern: none;
+            --paper-size: 100% 100%;
         }
 
-        /* 黑暗模式覆盖 */
+        /* 夜间模式变量 */
         body.dark-mode {
+            --primary-color: #ecf0f1;
             --bg-color: #1a1a1a;
-            --main-color: #2c2c2c;
-            --accent-color: #444;
-            --text-color: #e0e0e0;
-            --paper-bg: #2a2a2a;
-            --line-color: #333;
-            --shadow: 0 4px 12px rgba(0,0,0,0.5);
+            --paper-color: #2d2d2d;
+            --line-color: #444;
+            --text-color: #dcdcdc;
+            --shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        /* 颜色主题类 */
+        body.theme-green { --paper-color: #e8f5e9; --bg-color: #dcedc8; }
+        body.theme-pink { --paper-color: #fff0f5; --bg-color: #f8bbd0; }
+        body.theme-beige { --paper-color: #fffef8; --bg-color: #f5f5dc; }
+
+        /* 纸张纹理类 */
+        body.paper-lines {
+            --paper-pattern: linear-gradient(transparent 95%, var(--line-color) 96%);
+            --paper-size: 100% 30px;
+        }
+        body.paper-grid {
+            --paper-pattern: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px);
+            --paper-size: 20px 20px;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; padding: 0; font-family: var(--font-stack); background: var(--bg-color); color: var(--text-color); transition: background 0.3s, color 0.3s; overflow: hidden; height: 100vh; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); overflow: hidden; transition: background-color 0.3s; }
 
-        /* 通用按钮 */
-        button { border: none; background: none; font-size: 16px; color: var(--text-color); cursor: pointer; padding: 8px; }
-        
-        /* === 主界面：日历 === */
-        #calendar-view {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            position: relative;
-            z-index: 1;
-        }
+        /* 通用图标按钮 */
+        .icon-btn { border: none; background: none; font-size: 1.2rem; cursor: pointer; color: var(--text-color); padding: 10px; }
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding: 0 10px;
-        }
-
-        h1 { font-size: 24px; font-weight: 600; margin: 0; letter-spacing: 1px; }
-
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 10px;
-            text-align: center;
-        }
-
-        .weekday { font-size: 12px; color: #999; margin-bottom: 10px; font-weight: bold; }
-        
-        .day {
-            aspect-ratio: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            border-radius: 50%;
-            font-size: 14px;
-            position: relative;
-            transition: all 0.2s;
-            cursor: pointer;
-        }
-
-        .day.selected { background-color: var(--accent-color); color: white; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .day.has-diary::after {
-            content: ''; width: 4px; height: 4px; background-color: #FF6B6B; border-radius: 50%; position: absolute; bottom: 6px;
-        }
-        .day.empty { cursor: default; }
-
-        /* === 侧边索引贴 (Side Tab) === */
-        #side-tab {
-            position: fixed;
-            top: 50%;
-            right: -120px; /* 默认隐藏 */
-            transform: translateY(-50%);
-            width: 100px;
-            height: 60px;
-            background: var(--accent-color);
-            border-radius: 12px 0 0 12px;
-            box-shadow: -2px 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 10;
-            cursor: pointer;
-        }
-        #side-tab.show { right: 0; }
-        #side-tab::before { content: '✎'; margin-right: 5px; font-size: 18px; }
-
-        /* === 日记界面 (Diary View) === */
-        #diary-view {
-            position: fixed;
+        /* ================= 页面容器 ================= */
+        .view {
+            position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 20;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            opacity: 0; pointer-events: none;
-            transition: opacity 0.3s;
+            display: flex; flex-direction: column;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            background-color: var(--bg-color);
         }
-        
-        #diary-view.active { opacity: 1; pointer-events: auto; }
 
-        .diary-paper {
-            width: 90%; height: 85%;
-            background: var(--paper-bg);
-            border-radius: 8px;
+        .hidden-right { transform: translateX(100%); pointer-events: none; }
+        .hidden-left { transform: translateX(-100%); pointer-events: none; }
+
+        /* ================= 主界面 (日历) ================= */
+        #home-view header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px; font-weight: bold; font-size: 1.2rem;
+        }
+
+        /* 日历样式 */
+        .calendar-container { padding: 10px; flex: 1; overflow-y: auto; }
+        .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.9rem; margin-bottom: 10px; opacity: 0.6; }
+        .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+        .day {
+            aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; cursor: pointer; position: relative; font-size: 1rem;
+            transition: background 0.2s;
+        }
+        .day.today { color: var(--highlight); font-weight: bold; border: 2px solid var(--highlight); }
+        .day.selected { background-color: var(--primary-color); color: var(--bg-color); }
+        .day.has-entry::after {
+            content: ''; position: absolute; bottom: 4px; width: 4px; height: 4px;
+            background-color: var(--highlight); border-radius: 50%;
+        }
+
+        /* 侧边索引贴 */
+        #index-tab {
+            position: absolute; left: 0; top: 50%; transform: translate(-90%, -50%);
+            width: 80px; height: 50px;
+            background-color: var(--tab-color);
+            color: white;
+            border-radius: 0 10px 10px 0;
+            display: flex; align-items: center; justify-content: flex-end;
+            padding-right: 15px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+            cursor: pointer; z-index: 100;
+        }
+        #index-tab.visible { transform: translate(-10px, -50%); } /* 露出一部分 */
+        #index-tab:active { transform: translate(0, -50%); }
+
+        /* ================= 日记界面 (仿真纸张) ================= */
+        #diary-view { background-color: #333; /* 底色深一点衬托纸张 */ }
+        
+        .paper-container {
+            width: 100%; height: 100%;
+            background-color: var(--paper-color);
+            background-image: var(--paper-pattern);
+            background-size: var(--paper-size);
+            background-attachment: local; /* 让背景随文字滚动 */
+            display: flex; flex-direction: column;
             box-shadow: var(--shadow);
-            display: flex;
-            flex-direction: column;
             position: relative;
-            overflow: hidden;
-            transform: translateY(50px);
-            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transition: transform 0.3s; /* 翻页动画用 */
         }
-
-        #diary-view.active .diary-paper { transform: translateY(0); }
-
-        .diary-header {
-            padding: 15px;
-            border-bottom: 1px solid var(--line-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(255,255,255,0.1);
-        }
-
-        .date-display { font-size: 18px; font-weight: bold; color: var(--text-color); font-family: serif; }
-
-        #diary-content {
-            flex: 1;
-            width: 100%;
-            border: none;
-            resize: none;
-            outline: none;
-            padding: 20px;
-            font-size: 16px;
-            line-height: 1.8; /* 行高配合背景线 */
-            background-color: transparent;
-            color: var(--text-color);
-            overflow-y: auto;
-        }
-
-        /* 纸张样式 - CSS生成 */
-        .paper-blank { background-image: none; }
-        .paper-lined {
-            background-image: repeating-linear-gradient(transparent, transparent 31px, var(--line-color) 31px, var(--line-color) 32px);
-            background-attachment: local;
-            line-height: 32px !important;
-        }
-        .paper-grid {
-            background-image: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px);
-            background-size: 20px 20px;
-        }
-
-        .diary-footer {
-            padding: 10px;
-            display: flex;
-            justify-content: space-between;
-            border-top: 1px solid var(--line-color);
-            font-size: 12px;
-            color: #999;
-        }
-
-        /* 翻页按钮 */
-        .nav-btn { font-size: 20px; padding: 0 15px; color: var(--accent-color); }
-
-        /* === 设置界面 === */
-        #settings-modal {
-            position: fixed; bottom: -100%; left: 0; width: 100%;
-            background: var(--bg-color);
-            border-radius: 20px 20px 0 0;
-            padding: 20px;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
-            z-index: 30;
-            transition: bottom 0.3s;
-            max-height: 80vh; overflow-y: auto;
-        }
-        #settings-modal.active { bottom: 0; }
         
-        .setting-group { margin-bottom: 20px; }
-        .setting-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #888; }
+        .paper-header {
+            padding: 20px; border-bottom: 1px solid rgba(0,0,0,0.05);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .date-display { font-size: 1.5rem; font-weight: bold; font-family: serif; color: var(--text-color); }
         
-        .theme-options, .paper-options { display: flex; gap: 10px; }
-        .color-circle { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #ddd; cursor: pointer; }
+        .paper-content {
+            flex: 1; padding: 20px; 
+            overflow-y: auto; 
+            font-size: 1.1rem; line-height: 30px; /* 配合横线高度 */
+            outline: none; border: none; resize: none;
+            background: transparent; color: var(--text-color);
+            font-family: inherit;
+        }
+
+        /* 翻页按钮区域 (底部) */
+        .page-nav {
+            display: flex; justify-content: space-between; padding: 10px 20px;
+            background: rgba(255,255,255,0.1); backdrop-filter: blur(5px);
+        }
+
+        /* ================= 设置界面 ================= */
+        #settings-view { background-color: var(--bg-color); z-index: 200; padding: 20px; overflow-y: auto; }
+        .setting-group { margin-bottom: 30px; }
+        .setting-title { font-size: 0.9rem; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
         
+        button.btn {
+            padding: 8px 16px; border-radius: 20px; border: 1px solid var(--text-color);
+            background: transparent; color: var(--text-color); font-size: 0.9rem; cursor: pointer;
+        }
+        button.btn-primary { background: var(--text-color); color: var(--bg-color); border: none; }
+
+        /* 颜色选择器圆点 */
+        .color-dots { display: flex; gap: 10px; }
+        .dot { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #ccc; cursor: pointer; }
+
+        /* 翻页动画类 */
+        .anim-slide-left { animation: slideLeft 0.4s forwards; }
+        .anim-slide-right { animation: slideRight 0.4s forwards; }
+
+        @keyframes slideLeft {
+            0% { transform: translateX(0) rotateY(0); transform-origin: left; }
+            100% { transform: translateX(-100%) rotateY(-20deg); opacity: 0; }
+        }
+        @keyframes slideRight {
+            0% { transform: translateX(0) rotateY(0); transform-origin: right; }
+            100% { transform: translateX(100%) rotateY(20deg); opacity: 0; }
+        }
+
+        /* 自定义背景图片图层 */
+        #bg-image-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            opacity: 0.15; pointer-events: none; z-index: -1; display: none;
+        }
+
+        /* 自动保存提示 */
+        #save-toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); color: white; padding: 5px 15px;
+            border-radius: 20px; font-size: 0.8rem; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; z-index: 500;
+        }
+
+    </style>
+</head>
+<body class="theme-beige paper-lines">
+
+    <div id="bg-image-layer"></div>
+    <div id="save-toast">已自动保存</div>
+
+    <!-- 主界面：日历 -->
+    <div id="home-view" class="view">
+        <header>
+            <span id="current-month-label">2023年 10月</span>
+            <button class="icon-btn" onclick="openSettings()">⚙️</button>
+        </header>
+        
+        <div class="calendar-container">
+            <div class="weekdays">
+                <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+            </div>
+            <div id="calendar-days" class="days">
+                <!-- JS生成日期 -->
+            </div>
+        </div>
+
+        <!-- 左侧索引贴 -->
+        <div id="index-tab" onclick="openDiary()">
+            <span id="tab-date">10/24</span>
+        </div>
+    </div>
+
+    <!-- 日记界面 -->
+    <div id="diary-view" class="view hidden-right">
+        <div class="paper-container" id="paper-layer">
+            <div class="paper-header">
+                <span class="date-display" id="diary-date-display">10月24日</span>
+                <button class="icon-btn" onclick="closeDiary()">✕</button>
+            </div>
+            <!-- 输入区域 -->
+            <textarea id="diary-input" class="paper-content" placeholder="记录今天的故事..." spellcheck="false"></textarea>
+            
+            <div class="page-nav">
+                <button class="icon-btn" onclick="changeDay(-1)">← 前一天</button>
+                <button class="icon-btn" onclick="saveDiaryManual()">保存</button>
+                <button class="icon-btn" onclick="changeDay(1)">后一天 →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置界面 -->
+    <div id="settings-view" class="view hidden-right">
+        <header>
+            <span>设置</span>
+            <button class="icon-btn" onclick="closeSettings()">✕</button>
+        </header>
+
+        <div class="setting-group">
+            <div class="setting-title">外观</div>
+            <div class="setting-row">
+                <span>夜间模式</span>
+                <button class="btn" onclick="toggleDarkMode()">切换</button>
+            </div>
+            <div class="setting-row">
+                <span>纸张背景色</span>
+                <div class="color-dots">
+                    <div class="dot" style="background:#fffef8" onclick="setTheme('theme-beige')"></div>
+                    <div class="dot" style="background:#fff" onclick="setTheme('theme-white')"></div>
+                    <div class="dot" style="background:#e8f5e9" onclick="setTheme('theme-green')"></div>
+                    <div class="dot" style="background:#fff0f5" onclick="setTheme('theme-pink')"></div>
+                </div>
+            </div>
+            <div class="setting-row">
+                <span>纸张样式</span>
+                <div>
+                    <button class="btn" onclick="setPaper('paper-lines')">横线</button>
+                    <button class="btn" onclick="setPaper('paper-grid')">方格</button>
+                    <button class="btn" onclick="setPaper('')">空白</button>
+                </div>
+            </div>
+            <div class="setting-row">
+                <span>自定义背景图</span>
+                <input type="file" id="bg-upload" accept="image/*" style="display:none" onchange="handleBgUpload(this)">
+                <button class="btn" onclick="document.getElementById('bg-upload').click()">选择图片</button>
+            </div>
+            <div class="setting-row">
+                <span>清除自定义背景</span>
+                <button class="btn" onclick="clearBgImage()">清除</button>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <div class="setting-title">数据管理</div>
+            <div class="setting-row">
+                <span>导出数据 (JSON)</span>
+                <button class="btn btn-primary" onclick="exportData()">导出</button>
+            </div>
+            <div class="setting-row">
+                <span>导入数据</span>
+                <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
+                <button class="btn" onclick="document.getElementById('import-file').click()">导入</button>
+            </div>
+             <div class="setting-row" style="color:red; font-size:0.8rem">
+                <span>*数据存储在浏览器缓存中，清除缓存会丢失。请定期导出备份。</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === 状态管理 ===
+        const state = {
+            currentDate: new Date(), // 日历当前显示的月份
+            selectedDate: new Date(), // 当前选中的具体日期
+            diaryData: JSON.parse(localStorage.getItem('myDiaryData') || '{}'),
+            settings: JSON.parse(localStorage.getItem('myDiarySettings') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false}'),
+            bgImage: localStorage.getItem('myDiaryBg') || null
+        };
+
+        // === 初始化 ===
+        function init() {
+            applySettings();
+            renderCalendar();
+            
+            // 自动保存定时器 (每30秒)
+            setInterval(autoSave, 30000);
+            
+            // 绑定输入框变化事件用于快速自动保存逻辑
+            document.getElementById('diary-input').addEventListener('input', () => {
+                state.isDirty = true;
+            });
+        }
+
+        // === 日历逻辑 ===
+        function renderCalendar() {
+            const year = state.currentDate.getFullYear();
+            const month = state.currentDate.getMonth();
+            
+            document.getElementById('current-month-label').textContent = `${year}年 ${month + 1}月`;
+            
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysContainer = document.getElementById('calendar-days');
+            daysContainer.innerHTML = '';
+
+            // 填充前面的空白
+            for (let i = 0; i < firstDay.getDay(); i++) {
+                const empty = document.createElement('div');
+                daysContainer.appendChild(empty);
+            }
+
+            // 填充日期
+            const today = new Date();
+            for (let i = 1; i <= lastDay.getDate(); i++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'day';
+                dayEl.textContent = i;
+                
+                const dateKey = formatDateKey(new Date(year, month, i));
+                
+                // 标记今天
+                if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                    dayEl.classList.add('today');
+                }
+
+                // 标记选中
+                if (dateKey === formatDateKey(state.selectedDate)) {
+                    dayEl.classList.add('selected');
+                }
+
+                // 标记有日记
+                if (state.diaryData[dateKey] && state.diaryData[dateKey].trim() !== '') {
+                    dayEl.classList.add('has-entry');
+                }
+
+                dayEl.onclick = () => selectDate(new Date(year, month, i));
+                daysContainer.appendChild(dayEl);
+            }
+        }
+
+        function selectDate(date) {
+            state.selectedDate = date;
+            renderCalendar(); // 重绘以显示选中状态
+            showIndexTab(date);
+        }
+
+        function formatDateKey(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        // === 索引贴逻辑 ===
+        function showIndexTab(date) {
+            const tab = document.getElementById('index-tab');
+            const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+            document.getElementById('tab-date').textContent = dateStr;
+            tab.classList.add('visible');
+            
+            // 3秒后自动隐藏，或者如果不点击的话
+            setTimeout(() => {
+                // 如果用户没有正在操作，可以考虑缩回去，这里保持显示直到切换日期
+            }, 3000);
+        }
+
+        // === 日记界面逻辑 ===
+        function openDiary() {
+            const dateKey = formatDateKey(state.selectedDate);
+            const diaryView = document.getElementById('diary-view');
+            
+            // 设置标题
+            const options = { month: 'long', day: 'numeric', weekday: 'long' };
+            document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', options);
+            
+            // 读取内容
+            document.getElementById('diary-input').value = state.diaryData[dateKey] || '';
+            
+            // 动画入场
+            diaryView.classList.remove('hidden-right');
+            state.isDirty = false;
+        }
+
+        function closeDiary() {
+            saveDiaryManual(); // 关闭前保存
+            document.getElementById('diary-view').classList.add('hidden-right');
+            renderCalendar(); // 更新日历上的小点
+        }
+
+        function changeDay(offset) {
+            // 保存当前
+            saveDiaryManual();
+
+            // 计算新日期
+            const newDate = new Date(state.selectedDate);
+            newDate.setDate(newDate.getDate() + offset);
+            state.selectedDate = newDate;
+
+            // 仿真翻页动画
+            const paper = document.getElementById('paper-layer');
+            const animClass = offset > 0 ? 'anim-slide-left' : 'anim-slide-right';
+            
+            paper.classList.add(animClass);
+
+            setTimeout(() => {
+                // 动画中途切换数据
+                openDiary(); // 重新加载数据
+                paper.classList.remove(animClass);
+                // 简单的复位动画效果
+                paper.style.opacity = '0';
+                setTimeout(()=> paper.style.opacity = '1', 50);
+            }, 300);
+        }
+
+        function saveDiaryManual() {
+            if (!state.isDirty && !document.getElementById('diary-input').value) return;
+            
+            const dateKey = formatDateKey(state.selectedDate);
+            const content = document.getElementById('diary-input').value;
+            
+            if (content.trim() === "") {
+                delete state.diaryData[dateKey];
+            } else {
+                state.diaryData[dateKey] = content;
+            }
+            
+            localStorage.setItem('myDiaryData', JSON.stringify(state.diaryData));
+            showToast("已保存");
+            state.isDirty = false;
+        }
+
+        function autoSave() {
+            if (state.isDirty) {
+                saveDiaryManual();
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('save-toast');
+            toast.textContent = msg;
+            toast.style.opacity = 1;
+            setTimeout(() => toast.style.opacity = 0, 2000);
+        }
+
+        // === 设置逻辑 ===
+        function openSettings() {
+            document.getElementById('settings-view').classList.remove('hidden-right');
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-view').classList.add('hidden-right');
+            saveSettings();
+        }
+
+        function saveSettings() {
+            localStorage.setItem('myDiarySettings', JSON.stringify(state.settings));
+        }
+
+        function applySettings() {
+            document.body.className = `${state.settings.theme} ${state.settings.paper}`;
+            if (state.settings.darkMode) document.body.classList.add('dark-mode');
+            
+            if (state.bgImage) {
+                const layer = document.getElementById('bg-image-layer');
+                layer.style.backgroundImage = `url(${state.bgImage})`;
+                layer.style.display = 'block';
+            } else {
+                document.getElementById('bg-image-layer').style.display = 'none';
+            }
+        }
+
+        function setTheme(themeClass) {
+            // 清除旧主题，保留纸张和夜间模式
+            const currentPaper = state.settings.paper;
+            const isDark = state.settings.darkMode;
+            state.settings.theme = themeClass;
+            document.body.className = `${themeClass} ${currentPaper}`;
+            if (isDark) document.body.classList.add('dark-mode');
+            saveSettings();
+        }
+
+        function setPaper(paperClass) {
+            state.settings.paper = paperClass;
+            applySettings();
+            saveSettings();
+        }
+
+        function toggleDarkMode() {
+            state.settings.darkMode = !state.settings.darkMode;
+            document.body.classList.toggle('dark-mode');
+            saveSettings();
+        }
+
+        // === 图片处理 ===
+        function handleBgUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // 压缩图片逻辑 (简单截断，防止localStorage溢出)
+                const result = e.target.result;
+                // 警告：localStorage 一般只有 5MB，大图存不进去。
+                try {
+                    localStorage.setItem('myDiaryBg', result);
+                    state.bgImage = result;
+                    applySettings();
+                    showToast("背景已更换");
+                } catch (err) {
+                    alert("图片太大了，请选择小一点的图片(建议小于2MB)");
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearBgImage() {
+            localStorage.removeItem('myDiaryBg');
+            state.bgImage = null;
+            applySettings();
+            showToast("背景已清除");
+        }
+
+        // === 导入导出 ===
+        function exportData() {
+            const dataStr = JSON.stringify(state.diaryData);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const exportFileDefaultName = 'diary_backup_' + formatDateKey(new Date()) + '.json';
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    state.diaryData = json;
+                    localStorage.setItem('myDiaryData', JSON.stringify(json));
+                    renderCalendar();
+                    alert("导入成功！");
+                } catch (err) {
+                    alert("文件格式错误，无法导入");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // 启动
+        init();
+
+    </script>
+</body>
+</html>
