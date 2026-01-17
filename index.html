@@ -24,7 +24,7 @@
         :root {
             --primary-color: #8faec9; --bg-color: #f7f9fc; --paper-color: #fffbf0;
             --line-color: #e6e6e6; --highlight: #eeb8c3; --text-color: #555d66;
-            --tab-color: #aed9e0; --tab-todo-color: #eeb8c3; /* 待办标签颜色 */
+            --tab-color: #aed9e0; --tab-todo-color: #eeb8c3;
             --icon-color: #8faec9; --border-color: transparent;
             --shadow: 0 8px 20px rgba(143, 174, 201, 0.15);
             --font-main: "Nunito", "Quicksand", -apple-system, sans-serif; --radius: 24px;
@@ -51,7 +51,6 @@
             border: 1px solid var(--border-color); background: var(--paper-color); 
             width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
             box-shadow: var(--shadow); cursor: pointer; color: var(--icon-color); transition: transform 0.2s, box-shadow 0.2s;
-            /* 移除了高 z-index，避免透视 */
         }
         .icon-btn:active { transform: scale(0.9); }
         .icon-btn svg, .icon-btn .material-icons-round { width: 22px; height: 22px; fill: currentColor; font-size: 22px; }
@@ -66,7 +65,6 @@
         }
         .hidden-right { transform: translateX(100%); pointer-events: none; }
         
-        /* 还原简约头部 */
         #home-view header { padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; }
         .date-picker-wrapper { position: relative; font-size: 1.4rem; font-weight: 800; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; flex: 1; }
         #month-picker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
@@ -84,26 +82,19 @@
         body.dark-mode .day.selected { box-shadow: none; }
         .day.has-entry::after { content: ''; position: absolute; bottom: 5px; width: 5px; height: 5px; background-color: var(--highlight); border-radius: 50%; }
         
-        /* === 侧边悬浮标签 (左侧) === */
+        /* === 侧边悬浮标签 === */
         .side-tab {
             position: fixed; left: 0; width: 60px; height: 44px; 
             border-radius: 0 20px 20px 0; display: flex; align-items: center; justify-content: center;
             box-shadow: 2px 2px 10px rgba(0,0,0,0.1); cursor: grab; z-index: 100; 
             font-weight: bold; font-size: 0.9rem; border: 1px solid var(--border-color); border-left: none; 
             touch-action: none; color: #fff;
-            transition: transform 0.3s ease; /* 用于隐藏/显示动画 */
+            transition: transform 0.3s ease;
         }
-        
-        /* 待办标签 */
         #todo-tab { top: 35%; background-color: var(--tab-todo-color); }
-        /* 日记标签 */
         #index-tab { top: 50%; background-color: var(--tab-color); transform: translateX(-100%); }
-        
-        /* 隐藏状态 (如打开日记时，侧边栏缩回去) */
         .side-tab.hidden-ui { transform: translateX(-100%) !important; }
-        /* 显示状态 (日记标签选中日期后显示) */
         #index-tab.visible { transform: translateX(0); }
-        
         .snap-transition { transition: top 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.3s ease !important; }
 
         /* === 日记界面 === */
@@ -155,9 +146,29 @@
         
         .todo-item-wrapper { position: relative; height: auto; border-radius: 16px; overflow: hidden; background-color: #ff6b6b; }
         .todo-delete-bg { position: absolute; top: 0; bottom: 0; right: 0; width: 80px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.9rem; z-index: 1; }
-        .todo-item-content { position: relative; z-index: 2; background: var(--paper-color); padding: 12px 15px; border-radius: 16px; border: 1px solid var(--line-color); display: flex; align-items: flex-start; gap: 10px; transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); transform: translateX(0); }
-        .todo-item-content.done { opacity: 0.5; }
-        .todo-item-content.done .todo-text { text-decoration: line-through; }
+        
+        /* 修复后的内容层：不透明背景 */
+        .todo-item-content { 
+            position: relative; z-index: 2; 
+            background: var(--paper-color); /* 默认纸张色 */
+            padding: 12px 15px; border-radius: 16px; border: 1px solid var(--line-color); 
+            display: flex; align-items: flex-start; gap: 10px; 
+            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); 
+            transform: translateX(0); 
+        }
+        
+        /* 完成后的样式：不透明，改为文字变灰 + 背景变灰 */
+        .todo-item-content.done { 
+            background-color: #f0f0f0; /* 浅灰色背景，不透明，遮挡红色 */
+        }
+        body.dark-mode .todo-item-content.done { background-color: #2a2a2a; }
+
+        .todo-item-content.done .todo-text,
+        .todo-item-content.done .todo-picker { 
+            text-decoration: line-through; 
+            color: #999; /* 文字变灰 */
+        }
+
         .todo-checkbox { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; margin-top: 3px; }
         .todo-checkbox.checked { background: var(--primary-color); }
         .todo-checkbox.checked::after { content: '✓'; color: #fff; font-size: 14px; font-weight: bold; }
@@ -168,7 +179,6 @@
         
         .permission-btn { width: 100%; padding: 12px; background: var(--highlight); color: #fff; border: none; border-radius: 12px; margin-bottom: 10px; font-weight: bold; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         
-        /* 简约可爱风格测试按钮 (保持不变) */
         .test-notify-btn {
             width: 100%; padding: 12px; margin-bottom: 20px; font-size: 0.9rem; font-weight: bold;
             border: 2px dashed var(--highlight); background: transparent; color: var(--text-color);
@@ -231,7 +241,7 @@
         <span class="material-icons-round">checklist</span>
     </div>
 
-    <!-- 左侧悬浮标签：日记索引 (默认隐藏，选中日期显示) -->
+    <!-- 左侧悬浮标签：日记索引 -->
     <div id="index-tab" class="side-tab" onclick="openDiary(event)">
         <span id="tab-date">10/24</span>
     </div>
@@ -239,7 +249,6 @@
     <!-- 主界面：日历 -->
     <div id="home-view" class="view">
         <header>
-            <!-- 占位符，保持平衡 -->
             <div style="width: 40px;"></div> 
             <label class="date-picker-wrapper" style="justify-content:center;">
                 <span id="current-month-label">2026年 01月</span>
@@ -288,7 +297,6 @@
             </ol>
         </div>
 
-        <!-- 简约可爱风格测试按钮 -->
         <button class="test-notify-btn" onclick="testNotification()">
             <span class="material-icons-round" style="font-size:1.2rem">notifications_none</span>
             <span>发送测试通知 (点我)</span>
@@ -340,6 +348,9 @@
         <div class="setting-group">
             <div class="setting-title">个性化</div>
             <div class="setting-row"><span>夜间模式</span><button class="btn" onclick="toggleDarkMode()" id="btn-dark">OFF</button></div>
+            <!-- 新增待办开关 -->
+            <div class="setting-row"><span>待办清单入口</span><button class="btn" onclick="toggleTodoSetting()" id="btn-todo-toggle">ON</button></div>
+            
             <div class="setting-row">
                 <span>纸张颜色</span>
                 <div class="color-dots">
@@ -397,7 +408,8 @@
             selectedDate: new Date(),
             diaryData: JSON.parse(localStorage.getItem('myDiaryData_v2') || '{}'),
             todoData: JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]'),
-            settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":""}'),
+            // 新增 showTodo 设置，默认为 true
+            settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":"","showTodo":true}'),
             bgImage: localStorage.getItem('myDiaryBg_v2') || null,
             isDirty: false
         };
@@ -420,7 +432,6 @@
             toast.addEventListener('touchstart', e => startY = e.touches[0].clientY);
             toast.addEventListener('touchmove', e => { if (startY - e.touches[0].clientY > 10) hideToast(); });
             
-            // 初始化两个左侧标签的拖拽
             initDraggable(document.getElementById('index-tab'), 'left');
             initDraggable(document.getElementById('todo-tab'), 'left');
             initDraggable(document.getElementById('fmt-toggle'), 'any');
@@ -434,21 +445,50 @@
         }
 
         function toggleUI(show) {
-            // 打开日记或设置时，隐藏左侧标签，保持界面干净
+            // 打开日记或设置时，隐藏左侧标签
             const tabs = document.querySelectorAll('.side-tab');
             tabs.forEach(tab => {
-                if(show) tab.classList.remove('hidden-ui');
-                else tab.classList.add('hidden-ui');
+                if(show) {
+                    // 如果显示 UI，检查是否应该显示 todo tab
+                    if(tab.id === 'todo-tab') {
+                        // 只有在设置开启时才显示
+                        if(state.settings.showTodo) tab.classList.remove('hidden-ui');
+                    } else {
+                        tab.classList.remove('hidden-ui');
+                    }
+                } else {
+                    tab.classList.add('hidden-ui');
+                }
             });
+        }
+        
+        // 更新 todo 标签的可见性 (用于设置更改后)
+        function updateTodoTabVisibility() {
+            const tab = document.getElementById('todo-tab');
+            if(state.settings.showTodo) {
+                tab.style.display = 'flex';
+                // 确保它不带有 hidden-ui (除非当前正处于日记/设置界面，但这里假设是在主界面调用)
+                const isViewOpen = !document.getElementById('settings-view').classList.contains('hidden-right') || !document.getElementById('diary-view').classList.contains('hidden-right');
+                if(!isViewOpen) tab.classList.remove('hidden-ui');
+            } else {
+                tab.style.display = 'none';
+            }
         }
 
         function openTodo() {
             document.getElementById('todo-view').classList.remove('hidden-right');
-            toggleUI(false); // 隐藏标签
+            toggleUI(false); 
         }
         function closeTodo() {
             document.getElementById('todo-view').classList.add('hidden-right');
-            toggleUI(true); // 显示标签
+            toggleUI(true);
+        }
+        
+        // 设置开关功能
+        function toggleTodoSetting() {
+            state.settings.showTodo = !state.settings.showTodo;
+            saveSettings();
+            applySettings(); // 刷新按钮文本和标签显示
         }
 
         function registerRealSW() {
@@ -502,21 +542,36 @@
 
         function addTodo() {
             const input = document.getElementById('new-todo-input'); const text = input.value.trim(); if(!text) return;
-            state.todoData.unshift({ id: Date.now(), text: text, done: false, date: '', time: '', notified: false }); // 默认无日期，自动置顶
+            state.todoData.unshift({ id: Date.now(), text: text, done: false, date: '', time: '', notified: false }); 
             input.value = ''; saveTodo(); renderTodoList();
         }
 
-        function toggleTodo(id) { const item = state.todoData.find(t => t.id === id); if(item) { item.done = !item.done; saveTodo(); renderTodoList(); } }
+        function toggleTodo(id) { 
+            const item = state.todoData.find(t => t.id === id); 
+            if(item) { 
+                item.done = !item.done; 
+                saveTodo(); 
+                renderTodoList(); // 重新渲染以触发排序
+            } 
+        }
         function deleteTodo(id) { state.todoData = state.todoData.filter(t => t.id !== id); saveTodo(); renderTodoList(); }
-        function updateTodoData(id, field, val) { const item = state.todoData.find(t => t.id === id); if(item) { item[field] = val; if(field === 'time' || field === 'date') item.notified = false; saveTodo(); renderTodoList(); } } // 更新日期后重新排序
+        function updateTodoData(id, field, val) { const item = state.todoData.find(t => t.id === id); if(item) { item[field] = val; if(field === 'time' || field === 'date') item.notified = false; saveTodo(); renderTodoList(); } } 
         function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
 
-        // === 排序与渲染 ===
+        // === 排序与渲染 (新逻辑：完成的沉底) ===
         function renderTodoList() {
             const list = document.getElementById('todo-list'); list.innerHTML = '';
+            
             const sortedData = [...state.todoData].sort((a, b) => {
+                // 1. 完成状态排序：未完成在前 (false)，完成在后 (true)
+                if (a.done !== b.done) {
+                    return a.done ? 1 : -1;
+                }
+                
+                // 2. 内部排序（时间排序）
                 const aHasTime = a.date && a.time;
                 const bHasTime = b.date && b.time;
+                
                 if (!aHasTime && bHasTime) return -1; 
                 if (aHasTime && !bHasTime) return 1;  
                 if (!aHasTime && !bHasTime) return b.id - a.id; 
@@ -626,7 +681,14 @@
         function toggleDarkMode() { state.settings.darkMode = !state.settings.darkMode; applySettings(); }
         function setTheme(theme) { state.settings.theme = theme; applySettings(); }
         function setPaper(paper) { state.settings.paper = paper; applySettings(); }
-        function applySettings() { document.body.className = `${state.settings.theme} ${state.settings.paper}`; if (state.settings.darkMode) document.body.classList.add('dark-mode'); else document.body.classList.remove('dark-mode'); document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF"; applyBgImage(); }
+        function applySettings() { 
+            document.body.className = `${state.settings.theme} ${state.settings.paper}`; 
+            if (state.settings.darkMode) document.body.classList.add('dark-mode'); else document.body.classList.remove('dark-mode'); 
+            document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF";
+            document.getElementById('btn-todo-toggle').textContent = state.settings.showTodo ? "ON" : "OFF";
+            applyBgImage(); 
+            updateTodoTabVisibility();
+        }
         function formatDateKey(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
         function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
         function exportData() { const blob = new Blob([JSON.stringify(state.diaryData)], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `diary_backup_${formatDateKey(new Date())}.json`; a.click(); }
