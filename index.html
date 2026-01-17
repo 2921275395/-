@@ -47,10 +47,10 @@
         body.dark-mode .day.selected { background-color: #333; border: 1px solid #fff; }
         body.dark-mode .day.today { color: #fff; border-color: #fff; }
 
-        /* === 主题色系 (修正黄色主题主界面颜色) === */
+        /* === 主题色系 === */
         body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; }
         body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; }
-        /* 修正后的黄色主题：背景更暖，像奶油 */
+        /* 黄色主题：背景更暖，像奶油 */
         body:not(.dark-mode).theme-beige { --paper-color: #fffbf0; --bg-color: #fdf6e3; } 
         body:not(.dark-mode).theme-white { --paper-color: #ffffff; --bg-color: #f0f0f0; }
 
@@ -147,14 +147,13 @@
         }
         .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
 
-        /* 改为 ContentEditable Div */
+        /* ContentEditable Div */
         .paper-content {
             flex: 1; padding: 10px 25px; overflow-y: auto; 
             font-size: 1.15rem; line-height: 32px; 
             border: none; background: transparent; color: var(--text-color); font-family: inherit;
             white-space: pre-wrap; word-break: break-word;
         }
-        /* 占位符 hack */
         .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.5; }
         
         .page-nav {
@@ -342,7 +341,14 @@
             </div>
             <!-- 字体设置 -->
             <div class="setting-row" style="display:block">
-                <div style="display:flex; justify-content:space-between"><span>自定义字体 URL</span><button class="btn" onclick="applyFont()">应用</button></div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>自定义字体 URL</span>
+                    <div>
+                        <!-- 新增的还原按钮 -->
+                        <button class="btn" style="margin-right:5px; border-color:#bbb; color:#999;" onclick="resetFont()">还原</button>
+                        <button class="btn" onclick="applyFont()">应用</button>
+                    </div>
+                </div>
                 <div class="input-row">
                     <input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接...">
                 </div>
@@ -524,7 +530,13 @@
         }
 
         function autoSave() { if (state.isDirty) saveDiaryManual(true); }
-        function showToast() { const t=document.getElementById('save-toast'); t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+        function showToast(msg) { 
+            const t=document.getElementById('save-toast'); 
+            if(msg) t.textContent = msg; 
+            else t.textContent = "☁️ 已自动保存";
+            t.classList.add('show'); 
+            setTimeout(()=>t.classList.remove('show'),3000); 
+        }
         function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
 
         // === 字体逻辑 ===
@@ -534,7 +546,16 @@
             state.settings.customFont = url;
             loadCustomFont(url);
             saveSettings();
-            alert("正在尝试加载字体...");
+            showToast("正在尝试加载字体...");
+        }
+
+        function resetFont() {
+            state.settings.customFont = "";
+            document.getElementById('font-url-input').value = "";
+            // 移除自定义属性，恢复CSS中定义的默认字体
+            document.documentElement.style.removeProperty('--font-main');
+            saveSettings();
+            showToast("已还原默认字体");
         }
 
         function loadCustomFont(url) {
@@ -544,12 +565,8 @@
                 link.href = url;
                 link.rel = 'stylesheet';
                 document.head.appendChild(link);
-                // 简单的正则猜测字体名，通常不准确，建议用户输入CSS链接后App自动应用
-                // 这里做一个简化假设：如果是CSS链接，我们无法轻易知道Font Family名
-                // 为了简化，我们假设用户输入的是直接的字体文件URL (woff2/ttf)
                 return; 
             }
-
             // 假设是字体文件 URL
             const fontName = 'MyCustomFont';
             const fontFace = new FontFace(fontName, `url(${url})`);
@@ -558,7 +575,6 @@
                 document.documentElement.style.setProperty('--font-main', `"${fontName}", "Nunito", sans-serif`);
             }).catch(e => {
                 console.error("字体加载失败", e);
-                // 尝试作为CSS Link加载 (后备方案)
                 const link = document.createElement('link');
                 link.href = url;
                 link.rel = 'stylesheet';
