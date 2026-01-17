@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- PWA 配置: 允许全屏运行，看起来像个APP -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>我的日记本</title>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -222,11 +226,21 @@
         .permission-btn {
             width: 100%; padding: 12px; background: var(--highlight); color: #fff; border: none;
             border-radius: 12px; margin-bottom: 10px; font-weight: bold; display: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
         .test-notify-btn {
-             width: 100%; padding: 10px; background: transparent; color: var(--text-color); border: 1px dashed var(--text-color);
-            border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; opacity: 0.7;
+             width: 100%; padding: 12px; background: transparent; color: var(--text-color); border: 2px dashed var(--line-color);
+            border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; font-weight: bold;
         }
+        .test-notify-btn:active { background: rgba(0,0,0,0.05); }
+
+        /* iOS 安装指引提示框 */
+        #ios-install-guide {
+            display: none; background: var(--paper-color); padding: 15px; border-radius: 12px;
+            margin-bottom: 20px; border: 1px solid var(--highlight); font-size: 0.9rem;
+        }
+        #ios-install-guide h3 { margin: 0 0 10px 0; color: var(--highlight); }
+        #ios-install-guide ol { padding-left: 20px; margin: 0; line-height: 1.6; }
 
         /* ================= 设置界面 ================= */
         #settings-view { background-color: var(--bg-color); z-index: 200; padding: 20px; overflow-y: auto; }
@@ -327,7 +341,19 @@
         </div>
 
         <button id="perm-btn" class="permission-btn" onclick="requestNotifyPermission()">🔔 点击开启通知权限</button>
-        <button class="test-notify-btn" onclick="testNotification()">📩 立即发送一条测试通知</button>
+        
+        <!-- iOS 安装指引 -->
+        <div id="ios-install-guide">
+            <h3>⚠️ 苹果手机必须添加到主屏幕才能收到通知</h3>
+            <ol>
+                <li>点击浏览器底部的 <strong>分享图标</strong> (Share)</li>
+                <li>向下划找到 <strong>添加到主屏幕</strong></li>
+                <li>回到桌面，打开刚刚添加的“我的日记本”图标</li>
+                <li>再点击上方的“开启通知权限”</li>
+            </ol>
+        </div>
+
+        <button class="test-notify-btn" onclick="testNotification()">📩 立即发送一条测试通知 (排查问题)</button>
 
         <div class="todo-input-container">
             <input type="text" id="new-todo-input" class="todo-text-input" placeholder="添加新任务...">
@@ -464,12 +490,11 @@
             
             setInterval(autoSave, 60000);
             
-            // 启动定时检查
             startNotificationCheck();
             // 每次页面重新可见时（比如手机解锁），立即检查是否有错过的通知
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {
-                    checkNotifications(true); // true = 补发模式
+                    checkNotifications(true); 
                 }
             });
 
@@ -486,8 +511,31 @@
             initDraggable(document.getElementById('fmt-toggle'), 'any');
             document.getElementById('export-date-picker').valueAsDate = new Date();
 
-            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            checkNotifyState();
+        }
+
+        function checkNotifyState() {
+            // iOS 引导逻辑
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const isStandalone = window.navigator.standalone || (window.matchMedia('(display-mode: standalone)').matches);
+            
+            if (isIOS && !isStandalone) {
+                document.getElementById('ios-install-guide').style.display = 'block';
+                document.getElementById('perm-btn').style.display = 'none'; // 未安装前无法申请权限
+                return;
+            } else {
+                document.getElementById('ios-install-guide').style.display = 'none';
+            }
+
+            // 权限按钮逻辑
+            if (!("Notification" in window)) {
+                // 不支持
+                document.getElementById('perm-btn').innerText = "❌ 此浏览器不支持通知";
                 document.getElementById('perm-btn').style.display = 'block';
+            } else if (Notification.permission !== "granted") {
+                document.getElementById('perm-btn').style.display = 'block';
+            } else {
+                document.getElementById('perm-btn').style.display = 'none';
             }
         }
 
@@ -496,23 +544,41 @@
         function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); }
 
         function requestNotifyPermission() {
+            if (!("Notification" in window)) {
+                alert("抱歉，您的浏览器完全不支持 Web 通知。");
+                return;
+            }
+            
             Notification.requestPermission().then(permission => {
                 if (permission === "granted") {
                     document.getElementById('perm-btn').style.display = 'none';
                     showToast("通知已开启 ✅");
-                    new Notification("我的日记本", { body: "权限已获取，请勿完全关闭浏览器，否则无法收到提醒。" });
+                    new Notification("我的日记本", { body: "权限已获取，请勿完全关闭后台，否则无法收到提醒。" });
                 } else {
-                    alert("您拒绝了通知权限，或系统已屏蔽。请在系统设置中允许浏览器发送通知。");
+                    alert("权限被拒绝。如果是安卓，请在设置中开启；如果是 iPhone，必须添加到主屏幕才能使用。");
                 }
             });
         }
 
         function testNotification() {
+            // 1. 检查 API 是否存在
+            if (!("Notification" in window)) {
+                alert("❌ 失败：当前浏览器不支持 Notification API。");
+                return;
+            }
+
+            // 2. 检查权限状态
             if (Notification.permission === "granted") {
-                new Notification("测试通知", { body: "如果您看到这条消息，说明通知功能正常！📱", icon: 'https://via.placeholder.com/128' });
-                showToast("已发送，请看顶部横幅 👆");
+                try {
+                    new Notification("测试通知", { body: "如果您看到这条消息，说明通知功能正常！📱" });
+                    showToast("消息已发送 (没收到请检查系统通知中心)");
+                } catch (e) {
+                    alert("❌ 发送出错：" + e.message);
+                }
+            } else if (Notification.permission === "denied") {
+                alert("❌ 失败：通知权限被【禁止】。请去手机系统设置里找到浏览器，打开通知权限。");
             } else {
-                alert("没有通知权限！请先点击上方的开启按钮，或检查手机设置。");
+                alert("⚠️ 提示：通知权限尚未开启，请先点击上方的“开启通知权限”按钮。");
             }
         }
 
@@ -521,7 +587,6 @@
             const text = input.value.trim();
             if(!text) return;
             
-            // 默认选中今天
             const todayStr = formatDateKey(new Date());
             
             state.todoData.unshift({
@@ -591,7 +656,7 @@
         }
 
         function checkNotifications(isCatchUp) {
-            if (Notification.permission !== "granted") return;
+            if (!("Notification" in window) || Notification.permission !== "granted") return;
 
             const now = new Date();
             const currentStrDate = formatDateKey(now); // YYYY-MM-DD
@@ -604,10 +669,6 @@
                         const [h, m] = item.time.split(':').map(Number);
                         const targetTotalMinutes = h * 60 + m;
 
-                        // 触发条件：
-                        // 1. 时间正好到了 (误差在2分钟内)
-                        // 2. 或者 isCatchUp=true (刚解锁手机)，且时间已经过去了，但还没通知过
-                        
                         const isTime = Math.abs(currentTotalMinutes - targetTotalMinutes) <= 1;
                         const isMissed = isCatchUp && (currentTotalMinutes > targetTotalMinutes);
 
@@ -616,7 +677,7 @@
                             if (isMissed) bodyText = "[错过提醒] " + bodyText;
                             
                             sendNotification(bodyText);
-                            item.notified = true; // 标记为已通知
+                            item.notified = true; 
                             saveTodo();
                         }
                     }
@@ -626,11 +687,13 @@
 
         function sendNotification(text) {
             try {
-                // 尝试 Service Worker (Android PWA 支持更好)
-                navigator.serviceWorker.getRegistration().then(reg => {
-                     if(reg) reg.showNotification("日记本提醒", { body: text, icon: 'https://via.placeholder.com/128', requireInteraction: true });
-                     else new Notification("日记本提醒", { body: text, requireInteraction: true });
-                }).catch(() => new Notification("日记本提醒", { body: text, requireInteraction: true }));
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                     navigator.serviceWorker.ready.then(reg => {
+                         reg.showNotification("日记本提醒", { body: text, icon: 'https://via.placeholder.com/128', requireInteraction: true });
+                     });
+                } else {
+                     new Notification("日记本提醒", { body: text, requireInteraction: true });
+                }
             } catch(e) {
                 console.log("Notification error", e);
             }
