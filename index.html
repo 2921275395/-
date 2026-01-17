@@ -32,6 +32,13 @@
         }
         body.dark-mode .day.selected { background-color: #333; border: 1px solid #fff; }
         body.dark-mode .day.today { color: #fff; border-color: #fff; }
+
+        /* === 修复：补回丢失的纸张颜色定义 === */
+        body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; }
+        body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; }
+        body:not(.dark-mode).theme-beige { --paper-color: #fffbf0; --bg-color: #fdf6e3; } 
+        body:not(.dark-mode).theme-white { --paper-color: #ffffff; --bg-color: #f0f0f0; }
+
         body.paper-lines { --paper-pattern: linear-gradient(transparent 95%, var(--line-color) 96%); --paper-size: 100% 32px; }
         body.paper-grid { --paper-pattern: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px); --paper-size: 20px 20px; }
         body.paper-blank { --paper-pattern: none; --paper-size: auto; }
@@ -124,7 +131,7 @@
         .fmt-btn { width: 36px; height: 36px; border: none; background: transparent; color: var(--text-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
         .color-dot-btn { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
         
-        /* ================= 待办 & 左滑删除 (严格修复) ================= */
+        /* ================= 待办 & 左滑删除 ================= */
         #todo-view { background-color: var(--bg-color); z-index: 300; padding: 20px; overflow-y: auto; }
         .todo-header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         .todo-input-container { display: flex; gap: 10px; margin-bottom: 20px; background: var(--paper-color); padding: 10px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
@@ -132,7 +139,6 @@
         .todo-add-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: #fff; border: none; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; }
         .todo-list { display: flex; flex-direction: column; gap: 12px; padding-bottom: 50px;}
         
-        /* 核心修复：Item Wrapper & Content 结构 */
         .todo-item-wrapper { position: relative; height: auto; border-radius: 16px; overflow: hidden; background-color: #ff6b6b; flex-shrink: 0; }
         .todo-delete-bg { position: absolute; top: 0; bottom: 0; right: 0; width: 80px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.9rem; z-index: 1; }
         .todo-item-content { 
@@ -206,7 +212,7 @@
         @keyframes slideLeft { to { transform: translateX(-100%) rotateY(-10deg); opacity: 0; } }
         @keyframes slideRight { to { transform: translateX(100%) rotateY(10deg); opacity: 0; } }
 
-        /* ================= 隐私锁屏样式 (指纹按钮确保可见) ================= */
+        /* ================= 隐私锁屏样式 ================= */
         #lock-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(247, 249, 252, 0.6);
@@ -261,7 +267,6 @@
             <div class="pin-btn" onclick="enterPin(7)">7</div>
             <div class="pin-btn" onclick="enterPin(8)">8</div>
             <div class="pin-btn" onclick="enterPin(9)">9</div>
-            <!-- 指纹按钮：确保它存在 -->
             <div class="pin-btn bio-btn" onclick="tryBiometric()">
                 <span class="material-icons-round">fingerprint</span>
             </div>
@@ -298,7 +303,7 @@
                 <input type="month" id="month-picker" onchange="changeMonth(this.value)">
             </label>
             <button class="icon-btn" onclick="openSettings()">
-                <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+                <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12-0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
             </button>
         </header>
         <div class="calendar-container">
@@ -307,14 +312,13 @@
         </div>
     </div>
 
-    <!-- 待办清单界面 (已简化还原) -->
+    <!-- 待办清单界面 -->
     <div id="todo-view" class="view hidden-right">
         <div class="todo-header">
             <span style="font-weight:bold; font-size:1.2rem">待办 & 提醒</span>
             <button class="icon-btn" onclick="closeTodo()">✕</button>
         </div>
 
-        <!-- 权限区域：仅在需要时显示，减少干扰 -->
         <div class="notification-area">
             <div id="android-sw-missing">
                 ⚠️ <strong>推送配置：</strong>请确保目录包含 sw.js
@@ -382,7 +386,6 @@
                 <span>密码保护 (PIN)</span>
                 <button class="btn" onclick="togglePinLock()" id="btn-pin-toggle">OFF</button>
             </div>
-            <!-- 指纹开关：确保存在 -->
             <div class="setting-row" id="row-bio" style="display:none">
                 <span>生物识别解锁 (指纹/面容)</span>
                 <button class="btn" onclick="toggleBiometrics()" id="btn-bio-toggle">OFF</button>
@@ -520,8 +523,8 @@
                 el.className = 'search-item';
                 el.innerHTML = `<div class="search-date">${dateStr}</div><div class="search-snippet">${highlightSnippet}</div>`;
                 el.onclick = () => {
-                    document.getElementById('search-input').value = ''; // 清空搜索框
-                    container.innerHTML = ''; // 清空结果
+                    document.getElementById('search-input').value = '';
+                    container.innerHTML = '';
                     closeSettings();
                     selectDate(dateObj);
                     setTimeout(openDiary, 300);
@@ -538,7 +541,6 @@
             if (state.security.enabled) {
                 document.getElementById('lock-screen').classList.add('active');
                 updatePinDots();
-                // 确保有 ID 且功能开启才自动尝试
                 if (state.security.biometrics && state.security.credentialId) {
                     setTimeout(tryBiometric, 500);
                 }
@@ -571,7 +573,6 @@
             currentPinInput = ""; updatePinDots(); showToast("解锁成功");
         }
 
-        // 注册
         async function registerBiometric() {
             if (!window.PublicKeyCredential) { alert("环境不支持生物识别"); return false; }
             const publicKey = {
@@ -590,9 +591,7 @@
             } catch (e) { console.error(e); alert("注册失败: " + e.message); return false; }
         }
 
-        // 验证
         async function tryBiometric() {
-            // 如果没开启或没ID，就不执行，避免报错
             if (!state.security.credentialId) { if(state.security.enabled) showToast("未绑定指纹"); return; }
             try {
                 const publicKey = {
@@ -660,19 +659,13 @@
         function toggleTodoSetting() { state.settings.showTodo = !state.settings.showTodo; saveSettings(); applySettings(); }
 
         function registerRealSW() {
-            if (!('serviceWorker' in navigator)) { updateSWStatus("浏览器不支持后台"); return; }
-            navigator.serviceWorker.register('sw.js').then(reg => {
-                updateSWStatus("后台服务运行中 ✅", "green");
-                document.getElementById('android-sw-missing').style.display = 'none';
-            }).catch(err => {
-                updateSWStatus("后台服务未连接");
+            if (!('serviceWorker' in navigator)) { return; }
+            navigator.serviceWorker.register('sw.js').catch(err => {
                 if (/Android/i.test(navigator.userAgent)) {
                     document.getElementById('android-sw-missing').style.display = 'block';
                 }
             });
-            navigator.serviceWorker.ready.then(() => updateSWStatus("后台服务运行中 ✅", "green"));
         }
-        function updateSWStatus(msg, color) { const el = document.getElementById('sw-status'); el.textContent = msg; if (color) el.style.color = color; }
 
         function checkNotifyState() {
             if (!("Notification" in window)) { document.getElementById('perm-btn').innerText = "❌ 不支持通知"; document.getElementById('perm-btn').style.display = 'block'; } 
