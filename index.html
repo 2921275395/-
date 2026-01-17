@@ -4,66 +4,65 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>我的日记本</title>
-    <!-- 引入 Cropper.js 样式 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <!-- 引入一些常用图标库 -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <style>
         :root {
             /* 莫兰迪色系 / 低饱和度可爱风 */
             --primary-color: #8faec9; /* 雾霾蓝 */
-            --bg-color: #f7f9fc;      /* 极淡的灰蓝背景 */
+            --bg-color: #f7f9fc;      /* 默认背景 */
             --paper-color: #fffbf0;   /* 米白色纸张 */
             --line-color: #e6e6e6;
             --highlight: #eeb8c3;     /* 脏粉色（高亮/今天） */
-            --text-color: #555d66;    /* 深灰文字（不刺眼） */
+            --text-color: #555d66;    /* 深灰文字 */
             --tab-color: #aed9e0;     /* 浅蓝色索引贴 */
             --icon-color: #8faec9;
-            --border-color: transparent; /* 默认无边框 */
+            --border-color: transparent;
             
             --shadow: 0 8px 20px rgba(143, 174, 201, 0.15);
             --font-main: "Nunito", "Quicksand", -apple-system, sans-serif;
             --radius: 24px;
 
-            /* 默认纸张纹理变量 */
+            /* 纸张纹理 */
             --paper-pattern: none;
             --paper-size: 100% 32px;
         }
 
         /* === 极致夜间模式 === */
         body.dark-mode {
-            --primary-color: #ffffff; 
-            --bg-color: #000000;      
-            --paper-color: #000000;   
-            --line-color: #333333;    
-            --text-color: #ffffff;    
-            --highlight: #ffffff;     
-            --tab-color: #333333;     
-            --icon-color: #ffffff;    
-            --border-color: #333;     
+            --primary-color: #ffffff;
+            --bg-color: #000000;
+            --paper-color: #000000;
+            --line-color: #333333;
+            --text-color: #ffffff;
+            --highlight: #ffffff;
+            --tab-color: #333333;
+            --icon-color: #ffffff;
+            --border-color: #333;
             --shadow: none;
         }
 
-        body.dark-mode .day.selected { background-color: #333; border: 1px solid #fff; box-shadow: none; }
+        /* 覆盖夜间模式下的日历选中状态 */
+        body.dark-mode .day.selected { background-color: #333; border: 1px solid #fff; }
         body.dark-mode .day.today { color: #fff; border-color: #fff; }
 
-        /* === 主题色系调整 === */
-        /* 绿色主题 */
-        body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; --primary-color: #81c784; }
-        /* 粉色主题 */
-        body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; --primary-color: #f48fb1; }
-        /* 纯白主题 */
-        body:not(.dark-mode).theme-white { --paper-color: #ffffff; --bg-color: #e0e0e0; --primary-color: #9e9e9e; }
-        
-        /* 修复：米色(黄色)主题 - 增加对比度 */
-        body:not(.dark-mode).theme-beige { 
-            --paper-color: #fffbf0;   /* 奶油色纸张 */
-            --bg-color: #f0eadd;      /* 拿铁色背景，比纸张深，形成对比 */
-            --primary-color: #d4b595; /* 咖色 */
-            --highlight: #e6a57e;
-        }
+        /* === 主题色系 (修正黄色主题主界面颜色) === */
+        body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; }
+        body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; }
+        /* 修正后的黄色主题：背景更暖，像奶油 */
+        body:not(.dark-mode).theme-beige { --paper-color: #fffbf0; --bg-color: #fdf6e3; } 
+        body:not(.dark-mode).theme-white { --paper-color: #ffffff; --bg-color: #f0f0f0; }
 
-        /* 纸张纹理定义 */
-        body.paper-lines { --paper-pattern: linear-gradient(transparent 95%, var(--line-color) 96%); --paper-size: 100% 32px; }
-        body.paper-grid { --paper-pattern: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px); --paper-size: 20px 20px; }
+        /* 纸张样式 */
+        body.paper-lines {
+            --paper-pattern: linear-gradient(transparent 95%, var(--line-color) 96%);
+            --paper-size: 100% 32px;
+        }
+        body.paper-grid {
+            --paper-pattern: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px);
+            --paper-size: 20px 20px;
+        }
         body.paper-blank { --paper-pattern: none; --paper-size: auto; }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
@@ -76,10 +75,20 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: var(--shadow);
             cursor: pointer; color: var(--icon-color); 
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
         .icon-btn:active { transform: scale(0.9); }
         .icon-btn svg { width: 22px; height: 22px; fill: currentColor; }
+        
+        /* 美化后的保存按钮 */
+        .save-btn {
+            background-color: var(--highlight) !important;
+            color: #fff !important;
+            border: none !important;
+            box-shadow: 0 4px 15px rgba(238, 184, 195, 0.4);
+        }
+        .save-btn svg { fill: #fff; }
+        body.dark-mode .save-btn { background-color: #333 !important; color: #fff !important; box-shadow: none; border: 1px solid #555 !important; }
 
         /* ================= 页面容器 ================= */
         .view {
@@ -91,7 +100,7 @@
         .hidden-right { transform: translateX(100%); pointer-events: none; }
         
         /* ================= 主界面 (日历) ================= */
-        #home-view header { display: flex; justify-content: space-between; align-items: center; padding: 20px 25px; }
+        #home-view header { padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; }
         .date-picker-wrapper { position: relative; font-size: 1.4rem; font-weight: 800; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; }
         .date-picker-wrapper::after { content: '▼'; font-size: 0.8rem; opacity: 0.5; margin-left: 5px; }
         #month-picker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
@@ -106,9 +115,11 @@
             transition: all 0.2s; color: var(--text-color); border: 1px solid transparent;
         }
         .day.today { color: var(--highlight); font-weight: 900; border: 2px solid var(--highlight); }
-        .day.selected { background-color: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: scale(1.1); }
+        .day.selected { background-color: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(143, 174, 201, 0.4); transform: scale(1.1); }
+        body.dark-mode .day.selected { box-shadow: none; }
         .day.has-entry::after { content: ''; position: absolute; bottom: 5px; width: 5px; height: 5px; background-color: var(--highlight); border-radius: 50%; }
 
+        /* 侧边索引贴 */
         #index-tab {
             position: absolute; left: 0; top: 50%; transform: translate(-100%, -50%);
             width: 70px; height: 50px; background-color: var(--tab-color); color: #fff;
@@ -119,118 +130,97 @@
         body.dark-mode #index-tab { color: var(--text-color); box-shadow: none; }
         #index-tab.visible { transform: translate(0, -50%); }
 
-        /* ================= 日记界面 ================= */
-        #diary-view { background-color: var(--bg-color); } 
-        
+        /* ================= 日记界面 (富文本) ================= */
+        #diary-view { background-color: var(--bg-color); }
         .paper-container {
-            width: 100%; height: 100%;
-            background-color: var(--paper-color);
-            background-image: var(--paper-pattern);
-            background-size: var(--paper-size);
-            background-attachment: local;
-            background-repeat: repeat;
-            display: flex; flex-direction: column;
-            position: relative;
-            transition: transform 0.3s;
-            border: 1px solid var(--border-color);
+            width: 100%; height: 100%; background-color: var(--paper-color);
+            background-image: var(--paper-pattern); background-size: var(--paper-size);
+            background-attachment: local; background-repeat: repeat;
+            display: flex; flex-direction: column; position: relative;
+            transition: transform 0.3s; border: 1px solid var(--border-color);
         }
         .paper-container.has-custom-bg { background-repeat: no-repeat; background-position: center; background-size: cover; }
-
+        
         .paper-header {
             padding: 25px 20px; display: flex; justify-content: space-between; align-items: center;
             background: linear-gradient(to bottom, var(--paper-color) 80%, transparent); z-index: 5;
         }
         .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
-        
-        /* 富文本编辑器 (div) */
+
+        /* 改为 ContentEditable Div */
         .paper-content {
-            flex: 1; padding: 10px 25px; 
-            overflow-y: auto; 
+            flex: 1; padding: 10px 25px; overflow-y: auto; 
             font-size: 1.15rem; line-height: 32px; 
-            border: none; background: transparent; 
-            color: var(--text-color); font-family: inherit;
+            border: none; background: transparent; color: var(--text-color); font-family: inherit;
             white-space: pre-wrap; word-break: break-word;
         }
-        .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.6; }
-
-        /* 底部导航 */
+        /* 占位符 hack */
+        .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.5; }
+        
         .page-nav {
-            display: flex; justify-content: space-between; align-items: center; padding: 15px 25px;
-            background: var(--paper-color); border-top: 1px solid var(--border-color);
-            position: relative; z-index: 10;
+            display: flex; justify-content: space-between; padding: 15px 25px;
+            background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 10;
         }
-        
-        /* 美化后的保存按钮 */
-        .save-btn-pill {
-            height: 44px; padding: 0 30px;
-            border-radius: 22px; border: none;
-            background-color: var(--primary-color);
-            color: #fff; font-weight: bold; font-size: 1rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            cursor: pointer; transition: all 0.2s;
-        }
-        body.dark-mode .save-btn-pill { color: #000; }
-        .save-btn-pill:active { transform: scale(0.95); opacity: 0.9; }
 
-        /* ================= 格式侧边栏 ================= */
-        .format-toggle {
-            position: fixed; right: 0; top: 120px;
-            width: 40px; height: 40px;
-            background: var(--paper-color);
-            border: 1px solid var(--line-color); border-right: none;
-            border-radius: 20px 0 0 20px;
+        /* ================= 格式化工具栏 (侧边) ================= */
+        .format-toolbar-toggle {
+            position: absolute; right: 0; top: 100px;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 10px 0 0 10px;
             display: flex; align-items: center; justify-content: center;
-            box-shadow: -2px 2px 10px rgba(0,0,0,0.05);
-            z-index: 50; cursor: pointer; color: var(--text-color); font-weight: bold; font-family: serif;
-        }
-        
-        .format-sidebar {
-            position: fixed; right: 0; top: 120px;
-            background: var(--paper-color);
+            cursor: pointer; box-shadow: -2px 2px 10px rgba(0,0,0,0.05);
+            z-index: 50; color: var(--text-color);
             border: 1px solid var(--line-color); border-right: none;
-            border-radius: 12px 0 0 12px;
-            display: flex; flex-direction: column; gap: 8px; padding: 10px 5px;
+        }
+        .format-toolbar {
+            position: absolute; right: 0; top: 100px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 10px 0 0 10px;
             box-shadow: -5px 5px 20px rgba(0,0,0,0.1);
-            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-            z-index: 49;
+            display: flex; flex-direction: column;
+            gap: 5px; padding: 8px;
+            transform: translateX(120%); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            z-index: 51;
+            border: 1px solid var(--line-color);
         }
-        .format-sidebar.open { transform: translateX(0); }
+        body.dark-mode .format-toolbar, body.dark-mode .format-toolbar-toggle { background: #222; border-color: #444; }
+        .format-toolbar.active { transform: translateX(0); }
         
-        .format-btn {
-            width: 36px; height: 36px; border-radius: 8px; border: none; background: transparent;
-            color: var(--text-color); cursor: pointer; font-size: 1rem;
+        .fmt-btn {
+            width: 36px; height: 36px; border: none; background: transparent;
+            color: var(--text-color); border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
         }
-        .format-btn:active { background: rgba(0,0,0,0.05); }
-        .format-btn.active { background: var(--primary-color); color: white; }
+        .fmt-btn:active { background: rgba(0,0,0,0.05); }
+        .fmt-btn.active-state { background: var(--primary-color); color: #fff; }
 
         /* ================= 设置界面 ================= */
         #settings-view { background-color: var(--bg-color); z-index: 200; padding: 20px; overflow-y: auto; }
         .setting-group { background: var(--paper-color); padding: 20px; border-radius: var(--radius); margin-bottom: 20px; border: 1px solid var(--border-color); }
         .setting-title { font-size: 0.85rem; color: var(--text-color); opacity: 0.5; margin-bottom: 15px; font-weight: bold; }
-        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed var(--line-color); flex-wrap: wrap; gap: 10px; }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed var(--line-color); flex-wrap: wrap; }
         .setting-row:last-child { border-bottom: none; }
         
         button.btn {
             padding: 8px 18px; border-radius: 20px; border: 1px solid var(--text-color);
             background: transparent; color: var(--text-color); font-size: 0.85rem; cursor: pointer;
         }
-        input.text-input {
-            flex: 1; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line-color);
-            background: rgba(255,255,255,0.5); color: var(--text-color); font-family: inherit;
-        }
         .color-dots { display: flex; gap: 12px; }
         .dot { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ccc; cursor: pointer; }
+        
+        /* 字体输入框 */
+        .input-row { width: 100%; display: flex; gap: 10px; margin-top: 10px; }
+        .input-text { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--line-color); background: transparent; color: var(--text-color); }
 
         /* ================= 弹窗与裁剪 ================= */
         #save-toast {
             position: fixed; top: 0; left: 0; right: 0; height: 80px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px); color: #333;
-            display: flex; align-items: flex-end; justify-content: center;
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
+            color: #333; display: flex; align-items: flex-end; justify-content: center;
             padding-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-            border-radius: 0 0 30px 30px;
-            transform: translateY(-100%); transition: transform 0.4s;
+            border-radius: 0 0 30px 30px; transform: translateY(-100%); transition: transform 0.4s;
             z-index: 500; font-weight: bold; font-size: 0.9rem;
         }
         body.dark-mode #save-toast { background: #1a1a1a; color: #fff; border-bottom: 1px solid #333; }
@@ -247,9 +237,9 @@
         }
         .crop-btn { color: white; background: none; border: none; font-size: 1rem; padding: 10px 20px; }
         .crop-btn.confirm { color: var(--primary-color); font-weight: bold; }
+        
         input[type="file"] { display: none; }
 
-        /* 动画 */
         .anim-slide-left { animation: slideLeft 0.4s forwards; }
         .anim-slide-right { animation: slideRight 0.4s forwards; }
         @keyframes slideLeft { to { transform: translateX(-100%) rotateY(-10deg); opacity: 0; } }
@@ -286,41 +276,40 @@
             <div class="weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
             <div id="calendar-days" class="days"></div>
         </div>
-
-        <div id="index-tab" onclick="openDiary(event)">
-            <span id="tab-date">10/24</span>
-        </div>
+        <div id="index-tab" onclick="openDiary(event)"><span id="tab-date">10/24</span></div>
     </div>
 
     <!-- 日记界面 -->
     <div id="diary-view" class="view hidden-right">
-        <!-- 格式侧边栏开关 -->
-        <div class="format-toggle" onclick="toggleFormatSidebar(event)">Aa</div>
-        <!-- 格式工具栏 -->
-        <div class="format-sidebar" id="format-bar">
-            <button class="format-btn" style="font-weight:bold" onclick="execCmd('bold')">B</button>
-            <button class="format-btn" style="font-style:italic" onclick="execCmd('italic')">I</button>
-            <button class="format-btn" style="text-decoration:underline" onclick="execCmd('underline')">U</button>
-            <button class="format-btn" style="text-decoration:line-through" onclick="execCmd('strikeThrough')">S</button>
-            <div style="width:100%; height:1px; background:var(--line-color); margin:2px 0;"></div>
-            <button class="format-btn" onclick="execCmd('fontSize', '5')">A+</button>
-            <button class="format-btn" onclick="execCmd('fontSize', '3')">A-</button>
-        </div>
-
         <div class="paper-container" id="paper-layer">
             <div class="paper-header">
                 <span class="date-display" id="diary-date-display">10月24日</span>
                 <button class="icon-btn" onclick="closeDiary()">✕</button>
             </div>
             
-            <!-- 富文本输入区域 -->
-            <div id="diary-input" class="paper-content" contenteditable="true" placeholder="记录此刻的心情..." spellcheck="false"></div>
+            <!-- 格式化工具栏唤醒按钮 -->
+            <div class="format-toolbar-toggle" onclick="toggleFormatToolbar(event)">
+                <span class="material-icons-round">text_format</span>
+            </div>
+            <!-- 格式化工具栏 -->
+            <div class="format-toolbar" id="fmt-bar">
+                <button class="fmt-btn" onclick="execCmd('bold')"><span class="material-icons-round">format_bold</span></button>
+                <button class="fmt-btn" onclick="execCmd('italic')"><span class="material-icons-round">format_italic</span></button>
+                <button class="fmt-btn" onclick="execCmd('underline')"><span class="material-icons-round">format_underlined</span></button>
+                <button class="fmt-btn" onclick="execCmd('strikeThrough')"><span class="material-icons-round">strikethrough_s</span></button>
+                <div style="height:1px; background:var(--line-color); margin:5px 0;"></div>
+                <button class="fmt-btn" onclick="execCmd('fontSize', 3)"><span class="material-icons-round" style="font-size:1rem">text_decrease</span></button>
+                <button class="fmt-btn" onclick="execCmd('fontSize', 5)"><span class="material-icons-round" style="font-size:1.4rem">text_increase</span></button>
+            </div>
+
+            <!-- 可编辑 Div 代替 Textarea -->
+            <div id="diary-input" class="paper-content" contenteditable="true" placeholder="记录此刻的心情... (选中文本可调整格式)"></div>
             
             <div class="page-nav">
                 <button class="icon-btn" onclick="changeDay(-1)">←</button>
-                <!-- 美化的保存按钮 -->
-                <button class="save-btn-pill" onclick="saveDiaryManual()">
-                    <span>保存日记</span>
+                <!-- 美化后的保存按钮 -->
+                <button class="icon-btn save-btn" onclick="saveDiaryManual()">
+                    <svg viewBox="0 0 24 24"><path d="M17,3H5C3.89,3,3,3.9,3,5v14c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V7L17,3z M12,19c-1.66,0-3-1.34-3-3s1.34-3,3-3 s3,1.34,3,3S13.66,19,12,19z M15,9H5V5h10V9z"/></svg>
                 </button>
                 <button class="icon-btn" onclick="changeDay(1)">→</button>
             </div>
@@ -329,17 +318,11 @@
 
     <!-- 设置界面 -->
     <div id="settings-view" class="view hidden-right">
-        <header>
-            <span style="font-weight:bold; font-size:1.2rem">设置</span>
-            <button class="icon-btn" onclick="closeSettings()">✕</button>
-        </header>
-
+        <header><span style="font-weight:bold; font-size:1.2rem">设置</span><button class="icon-btn" onclick="closeSettings()">✕</button></header>
+        
         <div class="setting-group">
             <div class="setting-title">个性化</div>
-            <div class="setting-row">
-                <span>夜间模式</span>
-                <button class="btn" onclick="toggleDarkMode()" id="btn-dark">OFF</button>
-            </div>
+            <div class="setting-row"><span>夜间模式</span><button class="btn" onclick="toggleDarkMode()" id="btn-dark">OFF</button></div>
             <div class="setting-row">
                 <span>纸张颜色</span>
                 <div class="color-dots">
@@ -358,12 +341,12 @@
                 </div>
             </div>
             <!-- 字体设置 -->
-            <div class="setting-row" style="flex-direction:column; align-items:flex-start;">
-                <span style="margin-bottom:8px">全局字体 URL (.woff2/ttf)</span>
-                <div style="display:flex; width:100%; gap:8px;">
-                    <input type="text" id="font-url-input" class="text-input" placeholder="例如: https://...font.woff2">
-                    <button class="btn" onclick="applyCustomFont()">应用</button>
+            <div class="setting-row" style="display:block">
+                <div style="display:flex; justify-content:space-between"><span>自定义字体 URL</span><button class="btn" onclick="applyFont()">应用</button></div>
+                <div class="input-row">
+                    <input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接...">
                 </div>
+                <div style="font-size:0.75rem; color:#999; margin-top:5px">提示: 输入 Google Fonts CSS 或字体文件链接</div>
             </div>
 
             <div class="setting-row">
@@ -371,18 +354,12 @@
                 <input type="file" id="bg-upload" accept="image/*" onchange="startCrop(this)">
                 <button class="btn" onclick="document.getElementById('bg-upload').click()">选图裁剪</button>
             </div>
-            <div class="setting-row">
-                <span>还原默认背景</span>
-                <button class="btn" onclick="clearBgImage()">还原</button>
-            </div>
+            <div class="setting-row"><span>还原默认背景</span><button class="btn" onclick="clearBgImage()">还原</button></div>
         </div>
 
         <div class="setting-group">
             <div class="setting-title">数据</div>
-            <div class="setting-row">
-                <span>导出备份</span>
-                <button class="btn" onclick="exportData()">导出</button>
-            </div>
+            <div class="setting-row"><span>导出备份</span><button class="btn" onclick="exportData()">导出</button></div>
             <div class="setting-row">
                 <span>恢复备份</span>
                 <input type="file" id="import-file" accept=".json" onchange="importData(this)">
@@ -391,32 +368,27 @@
         </div>
     </div>
 
+    <!-- 脚本 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script>
-        // === 核心状态 ===
         const state = {
             currentDate: new Date(),
             selectedDate: new Date(),
             diaryData: JSON.parse(localStorage.getItem('myDiaryData_v2') || '{}'),
-            settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"fontUrl":""}'),
+            settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":""}'),
             bgImage: localStorage.getItem('myDiaryBg_v2') || null,
             isDirty: false
         };
 
         let cropperInstance = null;
-        let autoSaveTimer = null;
 
-        // === 初始化 ===
         function init() {
             applySettings();
-            applyCustomFont(true); // 加载保存的字体
+            if(state.settings.customFont) loadCustomFont(state.settings.customFont);
             renderCalendar();
             setInterval(autoSave, 60000);
             
-            // 监听输入
-            document.getElementById('diary-input').addEventListener('input', () => {
-                state.isDirty = true;
-            });
+            document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
 
             // 弹窗手势关闭
             const toast = document.getElementById('save-toast');
@@ -428,57 +400,14 @@
         }
 
         function handleGlobalClick(e) {
-            // 隐藏侧边索引
             const tab = document.getElementById('index-tab');
             if (tab.classList.contains('visible') && !e.target.closest('#index-tab') && !e.target.closest('.day')) {
                 tab.classList.remove('visible');
             }
-            // 隐藏格式栏 (点击外部时)
-            const formatBar = document.getElementById('format-bar');
-            const formatToggle = document.querySelector('.format-toggle');
-            if (formatBar.classList.contains('open') && !e.target.closest('#format-bar') && !e.target.closest('.format-toggle')) {
-                formatBar.classList.remove('open');
-            }
-        }
-
-        // === 富文本逻辑 ===
-        function toggleFormatSidebar(e) {
-            e.stopPropagation();
-            document.getElementById('format-bar').classList.toggle('open');
-        }
-
-        function execCmd(command, value = null) {
-            document.execCommand(command, false, value);
-            document.getElementById('diary-input').focus();
-        }
-
-        // === 字体逻辑 ===
-        function applyCustomFont(initLoad = false) {
-            const input = document.getElementById('font-url-input');
-            const url = initLoad ? state.settings.fontUrl : input.value.trim();
-            
-            if (!url) return;
-            
-            // 动态注入 CSS
-            const styleId = 'custom-font-style';
-            let styleTag = document.getElementById(styleId);
-            if (!styleTag) {
-                styleTag = document.createElement('style');
-                styleTag.id = styleId;
-                document.head.appendChild(styleTag);
-            }
-            
-            styleTag.textContent = `
-                @font-face { font-family: 'MyCustomFont'; src: url('${url}'); }
-                :root { --font-main: 'MyCustomFont', "Nunito", sans-serif; }
-            `;
-            
-            if (!initLoad) {
-                state.settings.fontUrl = url;
-                localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings));
-                alert('字体已应用');
-            } else {
-                input.value = url;
+            // 隐藏格式栏
+            const fmtBar = document.getElementById('fmt-bar');
+            if(fmtBar.classList.contains('active') && !e.target.closest('.format-toolbar') && !e.target.closest('.format-toolbar-toggle')) {
+                fmtBar.classList.remove('active');
             }
         }
 
@@ -494,9 +423,7 @@
             const daysContainer = document.getElementById('calendar-days');
             daysContainer.innerHTML = '';
 
-            for (let i = 0; i < firstDay.getDay(); i++) {
-                daysContainer.appendChild(document.createElement('div'));
-            }
+            for (let i = 0; i < firstDay.getDay(); i++) daysContainer.appendChild(document.createElement('div'));
 
             const today = new Date();
             for (let i = 1; i <= lastDay.getDate(); i++) {
@@ -514,31 +441,34 @@
                 daysContainer.appendChild(dayEl);
             }
         }
-
         function changeMonth(val) {
             if(!val) return;
             const [y, m] = val.split('-');
             state.currentDate = new Date(parseInt(y), parseInt(m) - 1, 1);
             renderCalendar();
         }
-
         function selectDate(date) {
             state.selectedDate = date;
             renderCalendar();
-            const tab = document.getElementById('index-tab');
             document.getElementById('tab-date').textContent = `${date.getMonth() + 1}/${date.getDate()}`;
-            tab.classList.add('visible');
+            document.getElementById('index-tab').classList.add('visible');
         }
 
-        // === 日记界面 ===
+        // === 日记界面 (富文本支持) ===
         function openDiary(e) {
             if(e) e.stopPropagation();
             const dateKey = formatDateKey(state.selectedDate);
-            const opts = { month: 'long', day: 'numeric', weekday: 'long' };
-            document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', opts);
+            document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'});
             
-            // 使用 innerHTML 加载富文本
-            document.getElementById('diary-input').innerHTML = state.diaryData[dateKey] || '';
+            const content = state.diaryData[dateKey] || '';
+            const inputDiv = document.getElementById('diary-input');
+            
+            // 简单的数据迁移：如果是旧的纯文本，转换换行符；如果是HTML，直接渲染
+            if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) {
+                 inputDiv.innerText = content; // 纯文本模式
+            } else {
+                 inputDiv.innerHTML = content; // HTML模式
+            }
             
             document.getElementById('diary-view').classList.remove('hidden-right');
             state.isDirty = false;
@@ -547,8 +477,7 @@
         function closeDiary() {
             saveDiaryManual(false); 
             document.getElementById('diary-view').classList.add('hidden-right');
-            // 关闭格式栏
-            document.getElementById('format-bar').classList.remove('open');
+            document.getElementById('fmt-bar').classList.remove('active');
             renderCalendar();
         }
 
@@ -557,11 +486,9 @@
             const newDate = new Date(state.selectedDate);
             newDate.setDate(newDate.getDate() + offset);
             state.selectedDate = newDate;
-            
             const paper = document.getElementById('paper-layer');
             const anim = offset > 0 ? 'anim-slide-left' : 'anim-slide-right';
             paper.classList.add(anim);
-            
             setTimeout(() => {
                 openDiary(); 
                 paper.classList.remove(anim);
@@ -570,39 +497,76 @@
             }, 350);
         }
 
-        // === 保存逻辑 (修改为 innerHTML) ===
+        // === 富文本编辑逻辑 ===
+        function toggleFormatToolbar(e) {
+            e.stopPropagation();
+            document.getElementById('fmt-bar').classList.toggle('active');
+        }
+        function execCmd(command, value = null) {
+            document.execCommand(command, false, value);
+            document.getElementById('diary-input').focus();
+        }
+
         function saveDiaryManual(showToastFlag = true) {
             const inputDiv = document.getElementById('diary-input');
             if (!state.isDirty && inputDiv.innerText.trim() === "") return;
             
             const dateKey = formatDateKey(state.selectedDate);
-            // 保存 HTML 结构
+            // 保存 innerHTML 以保留格式
             const content = inputDiv.innerHTML;
             
-            if (inputDiv.innerText.trim() === "" && !content.includes('<img')) {
-                 delete state.diaryData[dateKey];
-            } else {
-                state.diaryData[dateKey] = content;
-            }
+            if (inputDiv.innerText.trim() === "" && !content.includes('<img')) delete state.diaryData[dateKey];
+            else state.diaryData[dateKey] = content;
             
             localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData));
             state.isDirty = false;
-            
             if (showToastFlag) showToast();
         }
 
-        function autoSave() {
-            if (state.isDirty) saveDiaryManual(true);
-        }
-
-        function showToast() {
-            const toast = document.getElementById('save-toast');
-            toast.classList.add('show');
-            setTimeout(hideToast, 3000);
-        }
+        function autoSave() { if (state.isDirty) saveDiaryManual(true); }
+        function showToast() { const t=document.getElementById('save-toast'); t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
         function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
 
-        // === 图片裁剪、设置、辅助函数 (保持不变) ===
+        // === 字体逻辑 ===
+        function applyFont() {
+            const url = document.getElementById('font-url-input').value.trim();
+            if(!url) return;
+            state.settings.customFont = url;
+            loadCustomFont(url);
+            saveSettings();
+            alert("正在尝试加载字体...");
+        }
+
+        function loadCustomFont(url) {
+            // 如果是 Google Fonts CSS
+            if(url.includes('fonts.googleapis.com')) {
+                const link = document.createElement('link');
+                link.href = url;
+                link.rel = 'stylesheet';
+                document.head.appendChild(link);
+                // 简单的正则猜测字体名，通常不准确，建议用户输入CSS链接后App自动应用
+                // 这里做一个简化假设：如果是CSS链接，我们无法轻易知道Font Family名
+                // 为了简化，我们假设用户输入的是直接的字体文件URL (woff2/ttf)
+                return; 
+            }
+
+            // 假设是字体文件 URL
+            const fontName = 'MyCustomFont';
+            const fontFace = new FontFace(fontName, `url(${url})`);
+            fontFace.load().then(loadedFace => {
+                document.fonts.add(loadedFace);
+                document.documentElement.style.setProperty('--font-main', `"${fontName}", "Nunito", sans-serif`);
+            }).catch(e => {
+                console.error("字体加载失败", e);
+                // 尝试作为CSS Link加载 (后备方案)
+                const link = document.createElement('link');
+                link.href = url;
+                link.rel = 'stylesheet';
+                document.head.appendChild(link);
+            });
+        }
+
+        // === 图片裁剪 & 设置 ===
         function startCrop(input) {
             const file = input.files[0];
             if (!file) return;
@@ -617,10 +581,7 @@
             reader.readAsDataURL(file);
             input.value = '';
         }
-        function cancelCrop() {
-            document.getElementById('cropper-modal').style.display = 'none';
-            if (cropperInstance) cropperInstance.destroy();
-        }
+        function cancelCrop() { document.getElementById('cropper-modal').style.display = 'none'; if(cropperInstance) cropperInstance.destroy(); }
         function finishCrop() {
             if (!cropperInstance) return;
             const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 });
@@ -635,22 +596,30 @@
         }
         function applyBgImage() {
             const paper = document.getElementById('paper-layer');
-            if (state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } 
-            else { paper.style.backgroundImage = ''; paper.classList.remove('has-custom-bg'); }
+            if (state.bgImage) {
+                paper.style.backgroundImage = `url(${state.bgImage})`;
+                paper.classList.add('has-custom-bg');
+            } else {
+                paper.style.backgroundImage = '';
+                paper.classList.remove('has-custom-bg');
+            }
         }
-        function clearBgImage() {
-            state.bgImage = null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("背景已还原");
+        function clearBgImage() { state.bgImage = null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("背景已还原"); }
+
+        function openSettings() { 
+            document.getElementById('settings-view').classList.remove('hidden-right'); 
+            document.getElementById('font-url-input').value = state.settings.customFont || '';
         }
-        function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); }
-        function closeSettings() { 
-            document.getElementById('settings-view').classList.add('hidden-right'); 
-            localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings));
-        }
+        function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); saveSettings(); }
+        function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
+        
         function toggleDarkMode() {
-            state.settings.darkMode = !state.settings.darkMode; applySettings();
+            state.settings.darkMode = !state.settings.darkMode;
+            applySettings();
         }
         function setTheme(theme) { state.settings.theme = theme; applySettings(); }
         function setPaper(paper) { state.settings.paper = paper; applySettings(); }
+        
         function applySettings() {
             document.body.className = `${state.settings.theme} ${state.settings.paper}`;
             if (state.settings.darkMode) document.body.classList.add('dark-mode');
@@ -658,19 +627,30 @@
             document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF";
             applyBgImage();
         }
+
         function formatDateKey(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
         function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
+
         function exportData() {
             const blob = new Blob([JSON.stringify(state.diaryData)], {type: "application/json"});
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-            a.download = `diary_backup_${formatDateKey(new Date())}.json`; a.click();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `diary_backup_${formatDateKey(new Date())}.json`;
+            a.click();
         }
         function importData(input) {
-            const file = input.files[0]; if (!file) return;
+            const file = input.files[0];
+            if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
-                try { state.diaryData = JSON.parse(e.target.result); localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); renderCalendar(); alert("导入成功"); } catch(err) { alert("格式错误"); }
-            }; reader.readAsText(file);
+                try {
+                    state.diaryData = JSON.parse(e.target.result);
+                    localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData));
+                    renderCalendar();
+                    alert("导入成功");
+                } catch(err) { alert("文件格式错误"); }
+            };
+            reader.readAsText(file);
         }
 
         init();
