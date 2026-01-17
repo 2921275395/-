@@ -164,7 +164,7 @@
         .pin-btn.bio-btn { border: none; box-shadow: none; background: transparent; color: var(--primary-color); }
         .pin-btn.del-btn { border: none; box-shadow: none; background: transparent; font-size: 1rem; }
 
-        /* ================= 📖 仿真翻页书模式 (横屏强制版) ================= */
+        /* ================= 📖 仿真翻页书模式 (宽幅修复版) ================= */
         #book-view {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #2e2824 url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjMmUyODI0Ii8+CjxwYXRoIGQ9Ik0wIDBMNCA0Wk00IDBMMCA0WiIHN0cm9rZT0iIzNlMzUzMCIgc3Ryb2tlLXdpZHRoPSIxIi8+Cjwvc3ZnPg==');
@@ -177,7 +177,7 @@
         #book-rotator {
             width: 100vw; height: 100vh;
             display: flex; align-items: center; justify-content: center;
-            transition: transform 0.5s ease, width 0.5s, height 0.5s;
+            transition: transform 0.5s ease;
         }
 
         @media screen and (max-aspect-ratio: 1/1) {
@@ -194,15 +194,15 @@
             display: flex; align-items: center; justify-content: center;
             backdrop-filter: blur(5px);
         }
-        /* 竖屏时，关闭按钮需要反向调整位置，因为它被旋转了，这里简单处理固定在角落 */
+        /* 竖屏时，关闭按钮需要反向调整位置 */
         @media screen and (max-aspect-ratio: 1/1) {
             .book-close-btn { top: 20px; left: 20px; right: auto; transform: rotate(-90deg); }
         }
 
-        /* 书本容器 */
+        /* 书本容器 - 加宽 */
         .book-stage {
-            width: 80%; height: 80%;
-            max-width: 900px; aspect-ratio: 1.5; /* 横屏书本比例 */
+            width: 96%; /* 增加宽度占比 */
+            height: 90%;
             position: relative; 
             perspective: 2500px;
         }
@@ -258,8 +258,6 @@
         .book-text p { margin: 0 0 10px 0; text-indent: 2em; }
         .book-text img { max-width: 100%; border-radius: 4px; margin: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); filter: sepia(0.2); }
         .book-page-num { position: absolute; bottom: 15px; width: 100%; text-align: center; font-size: 0.7rem; color: #bbb; left: 0; font-family: monospace; }
-        
-        /* 空白页严格仿真：只有日期头 */
         .empty-day-visual { width: 100%; height: 100%; }
 
         /* 翻页状态类 */
@@ -435,7 +433,7 @@
             document.body.addEventListener('click', (e) => { if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes(); });
         }
 
-        /* ============ 📖 仿真翻页书逻辑 (横屏强制定制版) ============ */
+        /* ============ 📖 仿真翻页书逻辑 (宽幅修复版) ============ */
         function openBookMode() {
             const container = document.getElementById('book-stage');
             // 清理除了书脊线以外的内容
@@ -478,12 +476,7 @@
                 contentPages.push({ type: 'empty', date: '' });
             }
 
-            // 渲染纸张 (Sheets)
-            // 逻辑：每张纸 Sheet 包含 Front(i) 和 Back(i+1)
-            // 初始堆叠在右侧：
-            // Sheet 0: Front=Pg1, Back=Pg2. Z-Index=High.
-            // Sheet 1: Front=Pg3, Back=Pg4. Z-Index=Low.
-            
+            // 渲染纸张
             const totalSheets = contentPages.length / 2;
             
             for (let i = 0; i < totalSheets; i++) {
@@ -493,9 +486,8 @@
                 
                 const sheet = document.createElement('div');
                 sheet.className = 'sheet';
-                // 未翻页状态下，越靠前的页在上面
+                // 初始堆叠在右侧：越靠前的页面层级越高 (Total - i)
                 sheet.style.zIndex = totalSheets - i; 
-                sheet.dataset.zIndexBase = totalSheets - i;
                 sheet.dataset.index = i;
                 sheet.dataset.total = totalSheets;
 
@@ -548,28 +540,24 @@
         }
 
         function initSheetTouch(sheet) {
-            let startX = 0;
-            let currentX = 0;
+            let startVal = 0;
+            let currentVal = 0;
             let isDragging = false;
             let isFlipped = false;
 
             sheet.addEventListener('touchstart', (e) => {
                 isFlipped = sheet.classList.contains('flipped');
-                startX = e.touches[0].clientX;
+                
+                // 关键修复：判断屏幕方向，自动映射坐标轴
+                // 如果屏幕高度大于宽度，说明是竖屏（视觉上被CSS旋转了），这时候滑动用 Y 轴
+                // 如果屏幕宽度大于高度，说明是真横屏，这时候滑动用 X 轴
+                const isRotatedPortrait = window.innerHeight > window.innerWidth;
+                startVal = isRotatedPortrait ? e.touches[0].clientY : e.touches[0].clientX;
+                
                 sheet.style.transition = 'none';
                 
-                // 翻页层级修正：
-                // 如果是向左翻（翻过去），当前页必须是所有未翻页中最高的（默认就是）
-                // 如果是向右翻（翻回来），当前页必须是所有已翻页中最高的
-                if (isFlipped) {
-                    // 翻回来时，确保我在最上面
-                    let maxZ = 0;
-                    document.querySelectorAll('.sheet.flipped').forEach(s => {
-                        let z = parseInt(s.style.zIndex || 0);
-                        if(z > maxZ) maxZ = z;
-                    });
-                    sheet.style.zIndex = maxZ + 1;
-                }
+                // 拖动时层级置顶，防止穿模
+                sheet.style.zIndex = 1000;
                 
                 isDragging = true;
             });
@@ -578,23 +566,17 @@
                 if (!isDragging) return;
                 e.preventDefault();
                 
-                // 由于可能有 rotate(90deg) 的父容器，clientX/Y 的坐标系可能需要转换
-                // 但这里我们简单化，只取相对位移。
-                // 竖屏下转90度后，屏幕的 Y 轴变成了书的 X 轴
-                const isPortrait = window.innerHeight > window.innerWidth;
+                const isRotatedPortrait = window.innerHeight > window.innerWidth;
+                currentVal = isRotatedPortrait ? e.touches[0].clientY : e.touches[0].clientX;
                 
-                let delta = 0;
-                if (isPortrait) {
-                     // 竖屏物理滑动 Y 轴 -> 对应书本逻辑 X 轴
-                     // 向上滑 (Y减小) -> 书本向左翻
-                    currentX = e.touches[0].clientY; 
-                } else {
-                    currentX = e.touches[0].clientX;
-                }
+                let delta = currentVal - startVal;
                 
-                delta = currentX - startX;
-                const dist = isPortrait ? window.innerHeight : window.innerWidth;
-
+                // 竖屏时，手指向上滑(Y变小) = 视觉向左翻 = Delta变小
+                // 横屏时，手指向左滑(X变小) = 视觉向左翻 = Delta变小
+                // 逻辑一致，不需要反转符号
+                
+                const dist = isRotatedPortrait ? window.innerHeight : window.innerWidth;
+                
                 if (!isFlipped) {
                     // 向左翻 (delta < 0)
                     if (delta > 0) delta = 0; 
@@ -602,7 +584,7 @@
                     if (angle < -180) angle = -180;
                     sheet.style.transform = `rotateY(${angle}deg)`;
                 } else {
-                    // 向右翻 (delta > 0)
+                    // 向右翻回 (delta > 0)
                     if (delta < 0) delta = 0;
                     let angle = -180 + (delta / (dist * 0.6)) * 180;
                     if (angle > 0) angle = 0;
@@ -615,34 +597,36 @@
                 isDragging = false;
                 sheet.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
                 
-                const isPortrait = window.innerHeight > window.innerWidth;
-                let delta = currentX - startX;
+                let delta = currentVal - startVal;
                 const threshold = 50; 
-                
-                // 恢复Z-index逻辑
-                // 翻过去后，Z-index 应该变成 (Total + Index)，保证它盖在之前的翻页纸上
-                // 比如 Sheet 0 翻过去，Z=Total. Sheet 1 翻过去，Z=Total+1.
                 
                 const idx = parseInt(sheet.dataset.index);
                 const total = parseInt(sheet.dataset.total);
 
                 if (!isFlipped) {
                     if (delta < -threshold) {
+                        // 成功翻到左边
                         sheet.classList.add('flipped');
                         sheet.style.transform = ''; 
-                        // 翻到左边，层级变高，盖住之前的左边页
-                        sheet.style.zIndex = total + idx;
+                        // 翻到左边后，层级逻辑变化：左侧堆叠，越晚翻过来的在越上面
+                        // 左侧层级 = index
+                        sheet.style.zIndex = idx;
                     } else {
+                        // 回弹到右边
                         sheet.style.transform = 'rotateY(0deg)';
+                        sheet.style.zIndex = total - idx;
                     }
                 } else {
                     if (delta > threshold) {
+                        // 成功翻回右边
                         sheet.classList.remove('flipped');
                         sheet.style.transform = '';
-                        // 翻回右边，恢复初始层级
-                        sheet.style.zIndex = sheet.dataset.zIndexBase;
+                        // 回到右侧堆叠，越早的(index小的)在越上面
+                        sheet.style.zIndex = total - idx;
                     } else {
+                        // 保持在左边
                         sheet.style.transform = 'rotateY(-180deg)';
+                        sheet.style.zIndex = idx;
                     }
                 }
             });
