@@ -6,7 +6,6 @@
     <title>我的日记本</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <!-- 引入 html2canvas 用于截图 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
@@ -29,7 +28,6 @@
             --paper-size: 100% 32px;
         }
 
-        /* === 极致夜间模式 === */
         body.dark-mode {
             --primary-color: #ffffff;
             --bg-color: #000000;
@@ -46,21 +44,13 @@
         body.dark-mode .day.selected { background-color: #333; border: 1px solid #fff; }
         body.dark-mode .day.today { color: #fff; border-color: #fff; }
 
-        /* === 主题色系 === */
         body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; }
         body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; }
         body:not(.dark-mode).theme-beige { --paper-color: #fffbf0; --bg-color: #fdf6e3; } 
         body:not(.dark-mode).theme-white { --paper-color: #ffffff; --bg-color: #f0f0f0; }
 
-        /* 纸张样式 */
-        body.paper-lines {
-            --paper-pattern: linear-gradient(transparent 95%, var(--line-color) 96%);
-            --paper-size: 100% 32px;
-        }
-        body.paper-grid {
-            --paper-pattern: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px);
-            --paper-size: 20px 20px;
-        }
+        body.paper-lines { --paper-pattern: linear-gradient(transparent 95%, var(--line-color) 96%); --paper-size: 100% 32px; }
+        body.paper-grid { --paper-pattern: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px); --paper-size: 20px 20px; }
         body.paper-blank { --paper-pattern: none; --paper-size: auto; }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
@@ -75,7 +65,7 @@
             transition: transform 0.2s, box-shadow 0.2s;
         }
         .icon-btn:active { transform: scale(0.9); }
-        .icon-btn svg { width: 22px; height: 22px; fill: currentColor; }
+        .icon-btn svg, .icon-btn .material-icons-round { width: 22px; height: 22px; fill: currentColor; font-size: 22px; }
         
         .save-btn {
             background-color: var(--highlight) !important;
@@ -85,7 +75,6 @@
         .save-btn svg { fill: #fff; }
         body.dark-mode .save-btn { background-color: #333 !important; color: #fff !important; box-shadow: none; border: 1px solid #555 !important; }
 
-        /* ================= 页面容器 ================= */
         .view {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column;
@@ -94,7 +83,6 @@
         }
         .hidden-right { transform: translateX(100%); pointer-events: none; }
         
-        /* ================= 主界面 (日历) ================= */
         #home-view header { padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; }
         .date-picker-wrapper { position: relative; font-size: 1.4rem; font-weight: 800; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; }
         .date-picker-wrapper::after { content: '▼'; font-size: 0.8rem; opacity: 0.5; margin-left: 5px; }
@@ -114,23 +102,16 @@
         body.dark-mode .day.selected { box-shadow: none; }
         .day.has-entry::after { content: ''; position: absolute; bottom: 5px; width: 5px; height: 5px; background-color: var(--highlight); border-radius: 50%; }
 
-        /* 侧边索引贴 (可拖动) */
         #index-tab {
-            position: fixed; 
-            left: 0; top: 50%; 
-            width: 70px; height: 50px; background-color: var(--tab-color); color: #fff;
+            position: fixed; left: 0; top: 50%; width: 70px; height: 50px; background-color: var(--tab-color); color: #fff;
             border-radius: 0 16px 16px 0; display: flex; align-items: center; justify-content: center;
-            box-shadow: 2px 2px 15px rgba(0,0,0,0.1); 
-            cursor: grab; z-index: 100; font-weight: bold; font-size: 0.9rem; 
-            border: 1px solid var(--border-color); border-left: none;
-            touch-action: none; 
-            transform: translateX(-100%); 
+            box-shadow: 2px 2px 15px rgba(0,0,0,0.1); cursor: grab; z-index: 100; font-weight: bold; font-size: 0.9rem; 
+            border: 1px solid var(--border-color); border-left: none; touch-action: none; transform: translateX(-100%); 
         }
         body.dark-mode #index-tab { color: var(--text-color); box-shadow: none; }
         #index-tab.visible { transform: translateX(0); }
         .snap-transition { transition: top 0.3s cubic-bezier(0.25, 1, 0.5, 1), left 0.3s cubic-bezier(0.25, 1, 0.5, 1), right 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.3s !important; }
 
-        /* ================= 日记界面 (富文本) ================= */
         #diary-view { background-color: var(--bg-color); }
         .paper-container {
             width: 100%; height: 100%; background-color: var(--paper-color);
@@ -143,9 +124,7 @@
         
         .paper-header {
             padding: 25px 20px; display: flex; justify-content: space-between; align-items: center;
-            /* 这里是界面显示的渐变，截图时我们会去掉它 */
-            background: linear-gradient(to bottom, var(--paper-color) 80%, transparent); 
-            z-index: 5;
+            background: linear-gradient(to bottom, var(--paper-color) 80%, transparent); z-index: 5;
         }
         .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
 
@@ -162,17 +141,13 @@
             background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 10;
         }
 
-        /* ================= 格式化工具栏 (可拖动悬浮球) ================= */
         .format-toolbar-toggle {
             position: fixed; right: 0; top: 150px; width: 40px; height: 40px;
             background: rgba(255,255,255,0.9); border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             cursor: grab; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            z-index: 150; color: var(--text-color);
-            border: 1px solid var(--line-color);
-            touch-action: none;
+            z-index: 150; color: var(--text-color); border: 1px solid var(--line-color); touch-action: none;
         }
-        
         .format-toolbar {
             position: absolute; top: 100px; right: 50px; 
             background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
@@ -192,6 +167,56 @@
         }
         .fmt-btn:active { background: rgba(0,0,0,0.05); }
         .color-dot-btn { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
+
+        /* ================= 待办事项界面 (Todo) ================= */
+        #todo-view { background-color: var(--bg-color); z-index: 300; padding: 20px; overflow-y: auto; }
+        .todo-header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .todo-input-container {
+            display: flex; gap: 10px; margin-bottom: 20px; background: var(--paper-color);
+            padding: 10px; border-radius: 16px; border: 1px solid var(--border-color);
+        }
+        .todo-text-input {
+            flex: 1; border: none; background: transparent; color: var(--text-color); font-size: 1rem;
+        }
+        .todo-add-btn {
+            width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color);
+            color: #fff; border: none; display: flex; align-items: center; justify-content: center;
+        }
+
+        .todo-list { display: flex; flex-direction: column; gap: 10px; }
+        .todo-item {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--paper-color); padding: 12px 15px; border-radius: 16px;
+            border: 1px solid var(--line-color); transition: opacity 0.3s;
+        }
+        .todo-item.done { opacity: 0.5; }
+        .todo-item.done .todo-text { text-decoration: line-through; }
+        
+        .todo-checkbox {
+            width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary-color);
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer;
+        }
+        .todo-checkbox.checked { background: var(--primary-color); }
+        .todo-checkbox.checked::after { content: '✓'; color: #fff; font-size: 14px; font-weight: bold; }
+        
+        .todo-content-wrapper { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .todo-text { font-size: 1rem; font-weight: bold; }
+        .todo-time-picker {
+            border: none; background: rgba(0,0,0,0.05); border-radius: 4px; color: var(--text-color);
+            font-size: 0.8rem; padding: 2px 5px; width: fit-content; margin-top: 4px;
+        }
+        
+        .todo-actions { display: flex; gap: 5px; }
+        .todo-action-btn { 
+            padding: 5px; background: transparent; border: none; color: #999; cursor: pointer; 
+        }
+        .todo-action-btn:active { color: var(--highlight); }
+
+        .permission-btn {
+            width: 100%; padding: 12px; background: var(--highlight); color: #fff; border: none;
+            border-radius: 12px; margin-bottom: 20px; font-weight: bold; display: none;
+        }
 
         /* ================= 设置界面 ================= */
         #settings-view { background-color: var(--bg-color); z-index: 200; padding: 20px; overflow-y: auto; }
@@ -262,10 +287,16 @@
     <!-- 主界面：日历 -->
     <div id="home-view" class="view">
         <header>
-            <label class="date-picker-wrapper">
+            <!-- 左侧新增 待办列表 按钮 -->
+            <button class="icon-btn" onclick="openTodo()" style="margin-right:10px">
+                <span class="material-icons-round">checklist</span>
+            </button>
+
+            <label class="date-picker-wrapper" style="flex:1; justify-content:center;">
                 <span id="current-month-label">2026年 01月</span>
                 <input type="month" id="month-picker" onchange="changeMonth(this.value)">
             </label>
+            
             <button class="icon-btn" onclick="openSettings()">
                 <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
             </button>
@@ -276,6 +307,25 @@
             <div id="calendar-days" class="days"></div>
         </div>
         <div id="index-tab" onclick="openDiary(event)"><span id="tab-date">10/24</span></div>
+    </div>
+
+    <!-- 待办清单界面 (新) -->
+    <div id="todo-view" class="view hidden-right">
+        <div class="todo-header">
+            <span style="font-weight:bold; font-size:1.2rem">待办事项 & 提醒</span>
+            <button class="icon-btn" onclick="closeTodo()">✕</button>
+        </div>
+
+        <button id="perm-btn" class="permission-btn" onclick="requestNotifyPermission()">开启通知权限 (以便锁屏提醒)</button>
+
+        <div class="todo-input-container">
+            <input type="text" id="new-todo-input" class="todo-text-input" placeholder="添加新任务...">
+            <button class="todo-add-btn" onclick="addTodo()">＋</button>
+        </div>
+
+        <div class="todo-list" id="todo-list">
+            <!-- JS 生成内容 -->
+        </div>
     </div>
 
     <!-- 日记界面 -->
@@ -386,18 +436,27 @@
             currentDate: new Date(),
             selectedDate: new Date(),
             diaryData: JSON.parse(localStorage.getItem('myDiaryData_v2') || '{}'),
+            todoData: JSON.parse(localStorage.getItem('myDiaryTodo_v1') || '[]'),
             settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":""}'),
             bgImage: localStorage.getItem('myDiaryBg_v2') || null,
             isDirty: false
         };
 
         let cropperInstance = null;
+        let notifyInterval = null;
 
         function init() {
             applySettings();
             if(state.settings.customFont) loadCustomFont(state.settings.customFont);
             renderCalendar();
+            renderTodoList();
+            
+            // 定时保存
             setInterval(autoSave, 60000);
+            
+            // 启动定时检查提醒任务
+            startNotificationCheck();
+
             document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
 
             // 弹窗手势关闭
@@ -411,8 +470,163 @@
             initDraggable(document.getElementById('index-tab'), 'left');
             initDraggable(document.getElementById('fmt-toggle'), 'any');
             document.getElementById('export-date-picker').valueAsDate = new Date();
+
+            // 检查权限显示按钮
+            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                document.getElementById('perm-btn').style.display = 'block';
+            }
         }
 
+        // === 待办清单 & 通知逻辑 (新增) ===
+        function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); }
+        function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); }
+
+        function requestNotifyPermission() {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    document.getElementById('perm-btn').style.display = 'none';
+                    showToast("通知已开启 ✅");
+                    new Notification("我的日记本", { body: "测试通知：如果看到这个，说明提醒功能正常！" });
+                }
+            });
+        }
+
+        function addTodo() {
+            const input = document.getElementById('new-todo-input');
+            const text = input.value.trim();
+            if(!text) return;
+            
+            state.todoData.unshift({
+                id: Date.now(),
+                text: text,
+                done: false,
+                time: '' // 格式 'HH:MM'
+            });
+            input.value = '';
+            saveTodo();
+            renderTodoList();
+        }
+
+        function toggleTodo(id) {
+            const item = state.todoData.find(t => t.id === id);
+            if(item) { item.done = !item.done; saveTodo(); renderTodoList(); }
+        }
+
+        function deleteTodo(id) {
+            state.todoData = state.todoData.filter(t => t.id !== id);
+            saveTodo();
+            renderTodoList();
+        }
+
+        function updateTodoTime(id, val) {
+            const item = state.todoData.find(t => t.id === id);
+            if(item) { item.time = val; saveTodo(); }
+        }
+
+        function saveTodo() {
+            localStorage.setItem('myDiaryTodo_v1', JSON.stringify(state.todoData));
+        }
+
+        function renderTodoList() {
+            const list = document.getElementById('todo-list');
+            list.innerHTML = '';
+            state.todoData.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `todo-item ${item.done ? 'done' : ''}`;
+                
+                div.innerHTML = `
+                    <div class="todo-checkbox ${item.done ? 'checked' : ''}" onclick="toggleTodo(${item.id})"></div>
+                    <div class="todo-content-wrapper">
+                        <div class="todo-text">${item.text}</div>
+                        <input type="time" class="todo-time-picker" value="${item.time || ''}" onchange="updateTodoTime(${item.id}, this.value)">
+                    </div>
+                    <div class="todo-actions">
+                        ${item.time ? `<button class="todo-action-btn" title="添加到系统日历" onclick="addToSystemCalendar('${item.text}', '${item.time}')"><span class="material-icons-round">event_available</span></button>` : ''}
+                        <button class="todo-action-btn" onclick="deleteTodo(${item.id})"><span class="material-icons-round">delete</span></button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // 添加到系统日历 (生成 .ics 文件)
+        function addToSystemCalendar(text, time) {
+            if(!time) return;
+            // 构造今天的日期 + 时间
+            const now = new Date();
+            const [hours, mins] = time.split(':');
+            const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, mins);
+            
+            // 如果时间已经过了，假设是明天的这个时间
+            if (targetDate < new Date()) { targetDate.setDate(targetDate.getDate() + 1); }
+
+            // 格式化为 ICS 需要的格式 YYYYMMDDTHHmmSS
+            const formatDate = (date) => date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            const start = formatDate(targetDate);
+            const end = formatDate(new Date(targetDate.getTime() + 15 * 60000)); // 15分钟后结束
+
+            const icsContent = 
+`BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//MyDiary//Todo//CN
+BEGIN:VEVENT
+UID:${Date.now()}@mydiary
+DTSTAMP:${formatDate(new Date())}
+DTSTART:${start}
+DTEND:${end}
+SUMMARY:${text}
+DESCRIPTION:来自“我的日记本”的提醒
+BEGIN:VALARM
+TRIGGER:-PT0M
+ACTION:DISPLAY
+DESCRIPTION:Reminder
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'reminder.ics';
+            link.click();
+            showToast("已下载日历文件，请打开导入📅");
+        }
+
+        // 后台检查通知逻辑
+        function startNotificationCheck() {
+            if(notifyInterval) clearInterval(notifyInterval);
+            notifyInterval = setInterval(() => {
+                const now = new Date();
+                const currentStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+                
+                state.todoData.forEach(item => {
+                    if(!item.done && item.time === currentStr) {
+                        // 防止一分钟内重复提醒，标记一个临时 flag (这里简单处理，实际可加 lastNotified 字段)
+                        if (!item.lastNotified || (Date.now() - item.lastNotified > 60000)) {
+                            sendNotification(item.text);
+                            item.lastNotified = Date.now();
+                        }
+                    }
+                });
+            }, 5000); // 每5秒检查一次
+        }
+
+        function sendNotification(text) {
+            if (Notification.permission === "granted") {
+                try {
+                    // 尝试发送 Web Notification
+                    // 在移动端，如果 PWA 已安装或浏览器支持，这会在锁屏显示
+                    navigator.serviceWorker.getRegistration().then(reg => {
+                         if(reg) reg.showNotification("日记本提醒", { body: text, icon: 'https://via.placeholder.com/128' });
+                         else new Notification("日记本提醒", { body: text });
+                    }).catch(() => new Notification("日记本提醒", { body: text }));
+                } catch(e) {
+                    console.log("Notification error", e);
+                }
+            }
+        }
+
+        // === 拖拽逻辑 (保持不变) ===
         function initDraggable(el, type) {
             let isDragging = false;
             let startX, startY, initialLeft, initialTop;
@@ -459,7 +673,6 @@
             el.addEventListener('touchend', (e) => {
                 if (!isDragging) return; 
                 el.classList.add('snap-transition');
-                
                 if (type === 'any') {
                     const rect = el.getBoundingClientRect();
                     const centerX = rect.left + rect.width / 2;
@@ -596,7 +809,12 @@
             if (showToastFlag) showToast();
         }
         function autoSave() { if (state.isDirty) saveDiaryManual(true); }
-        function showToast() { const t=document.getElementById('save-toast'); t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+        function showToast(msg) { 
+            const t=document.getElementById('save-toast'); 
+            t.innerText = msg || "☁️ 已自动保存";
+            t.classList.add('show'); 
+            setTimeout(()=>t.classList.remove('show'),3000); 
+        }
         function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
 
         function applyFont() {
@@ -627,7 +845,7 @@
             }).catch(e => { console.error(e); });
         }
 
-        // === 截图导出 (修复阴影问题) ===
+        // === 截图导出 ===
         function exportDiaryImage() {
             const picker = document.getElementById('export-date-picker');
             if(!picker.value) { alert("请选择日期"); return; }
@@ -658,8 +876,7 @@
             const header = document.createElement('div');
             header.className = 'paper-header';
             header.innerHTML = `<span class="date-display">${targetDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'})}</span>`;
-            // 修复：强制移除渐变背景，解决截图黑线问题
-            header.style.background = 'none';
+            header.style.background = 'none'; // Fix shadow
             paper.appendChild(header);
             
             const body = document.createElement('div');
