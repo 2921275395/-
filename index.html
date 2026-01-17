@@ -143,32 +143,19 @@
         .todo-text-input { flex: 1; border: none; background: transparent; color: var(--text-color); font-size: 1rem; }
         .todo-add-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: #fff; border: none; display: flex; align-items: center; justify-content: center; }
         .todo-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 50px;}
-        
         .todo-item-wrapper { position: relative; height: auto; border-radius: 16px; overflow: hidden; background-color: #ff6b6b; }
         .todo-delete-bg { position: absolute; top: 0; bottom: 0; right: 0; width: 80px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.9rem; z-index: 1; }
-        
-        /* 修复后的内容层：不透明背景 */
         .todo-item-content { 
             position: relative; z-index: 2; 
-            background: var(--paper-color); /* 默认纸张色 */
+            background: var(--paper-color); 
             padding: 12px 15px; border-radius: 16px; border: 1px solid var(--line-color); 
             display: flex; align-items: flex-start; gap: 10px; 
             transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); 
             transform: translateX(0); 
         }
-        
-        /* 完成后的样式：不透明，改为文字变灰 + 背景变灰 */
-        .todo-item-content.done { 
-            background-color: #f0f0f0; /* 浅灰色背景，不透明，遮挡红色 */
-        }
+        .todo-item-content.done { background-color: #f0f0f0; }
         body.dark-mode .todo-item-content.done { background-color: #2a2a2a; }
-
-        .todo-item-content.done .todo-text,
-        .todo-item-content.done .todo-picker { 
-            text-decoration: line-through; 
-            color: #999; /* 文字变灰 */
-        }
-
+        .todo-item-content.done .todo-text, .todo-item-content.done .todo-picker { text-decoration: line-through; color: #999; }
         .todo-checkbox { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; margin-top: 3px; }
         .todo-checkbox.checked { background: var(--primary-color); }
         .todo-checkbox.checked::after { content: '✓'; color: #fff; font-size: 14px; font-weight: bold; }
@@ -176,9 +163,7 @@
         .todo-text { font-size: 1rem; font-weight: bold; line-height: 1.4; pointer-events: auto; }
         .todo-datetime { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; pointer-events: auto; }
         .todo-picker { border: none; background: rgba(0,0,0,0.05); border-radius: 6px; color: var(--text-color); font-size: 0.8rem; padding: 4px 6px; width: fit-content; font-family: inherit; }
-        
         .permission-btn { width: 100%; padding: 12px; background: var(--highlight); color: #fff; border: none; border-radius: 12px; margin-bottom: 10px; font-weight: bold; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        
         .test-notify-btn {
             width: 100%; padding: 12px; margin-bottom: 20px; font-size: 0.9rem; font-weight: bold;
             border: 2px dashed var(--highlight); background: transparent; color: var(--text-color);
@@ -187,9 +172,7 @@
         }
         .test-notify-btn:active { transform: scale(0.95); background: rgba(0,0,0,0.03); opacity: 1; }
         body.dark-mode .test-notify-btn { border-color: #666; color: #ccc; }
-
         .status-text { font-size: 0.8rem; opacity: 0.7; margin-bottom: 10px; text-align: center; color: var(--text-color); }
-        
         #ios-install-guide { display: none; background: var(--paper-color); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--highlight); font-size: 0.9rem; }
         #ios-install-guide h3 { margin: 0 0 10px 0; color: var(--highlight); }
         #ios-install-guide ol { padding-left: 20px; margin: 0; line-height: 1.6; }
@@ -221,11 +204,69 @@
         .anim-slide-right { animation: slideRight 0.4s forwards; }
         @keyframes slideLeft { to { transform: translateX(-100%) rotateY(-10deg); opacity: 0; } }
         @keyframes slideRight { to { transform: translateX(100%) rotateY(10deg); opacity: 0; } }
+
+        /* ================= 隐私锁屏样式 ================= */
+        #lock-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(247, 249, 252, 0.6);
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            z-index: 9999; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            transition: opacity 0.3s, visibility 0.3s;
+            opacity: 0; visibility: hidden; pointer-events: none;
+        }
+        body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
+        #lock-screen.active { opacity: 1; visibility: visible; pointer-events: auto; }
+        
+        .lock-icon { margin-bottom: 20px; color: var(--primary-color); }
+        .lock-icon span { font-size: 48px; }
+        .pin-dots { display: flex; gap: 15px; margin-bottom: 40px; }
+        .pin-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--text-color); opacity: 0.3; transition: all 0.2s; }
+        .pin-dot.filled { background-color: var(--text-color); opacity: 0.8; }
+        
+        .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 300px; width: 100%; padding: 0 20px; }
+        .pin-btn { 
+            width: 65px; height: 65px; border-radius: 50%; border: 1px solid rgba(128,128,128,0.2); 
+            background: rgba(255,255,255,0.5); font-size: 1.5rem; color: var(--text-color);
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            transition: background 0.2s; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        body.dark-mode .pin-btn { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.1); }
+        .pin-btn:active { background: var(--primary-color); color: #fff; }
+        .pin-btn.bio-btn { border: none; box-shadow: none; background: transparent; color: var(--primary-color); }
+        .pin-btn.del-btn { border: none; box-shadow: none; background: transparent; font-size: 1rem; }
     </style>
 </head>
 <body class="theme-beige paper-lines" onclick="handleGlobalClick(event)">
 
     <div id="save-toast">☁️ 已自动保存</div>
+
+    <!-- 隐私锁屏界面 -->
+    <div id="lock-screen">
+        <div class="lock-icon">
+            <span class="material-icons-round">lock</span>
+        </div>
+        <div class="status-text" style="margin-bottom:20px; font-weight:bold;">日记本已锁定</div>
+        <div class="pin-dots" id="pin-dots">
+            <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+        </div>
+        <div class="pin-pad">
+            <div class="pin-btn" onclick="enterPin(1)">1</div>
+            <div class="pin-btn" onclick="enterPin(2)">2</div>
+            <div class="pin-btn" onclick="enterPin(3)">3</div>
+            <div class="pin-btn" onclick="enterPin(4)">4</div>
+            <div class="pin-btn" onclick="enterPin(5)">5</div>
+            <div class="pin-btn" onclick="enterPin(6)">6</div>
+            <div class="pin-btn" onclick="enterPin(7)">7</div>
+            <div class="pin-btn" onclick="enterPin(8)">8</div>
+            <div class="pin-btn" onclick="enterPin(9)">9</div>
+            <div class="pin-btn bio-btn" onclick="tryBiometric()">
+                <span class="material-icons-round">fingerprint</span>
+            </div>
+            <div class="pin-btn" onclick="enterPin(0)">0</div>
+            <div class="pin-btn del-btn" onclick="deletePin()">删除</div>
+        </div>
+    </div>
 
     <!-- 裁剪器界面 -->
     <div id="cropper-modal">
@@ -345,10 +386,23 @@
     <!-- 设置界面 -->
     <div id="settings-view" class="view hidden-right">
         <header><span style="font-weight:bold; font-size:1.2rem">设置</span><button class="icon-btn" onclick="closeSettings()">✕</button></header>
+        
+        <!-- 新增：安全与隐私 -->
+        <div class="setting-group">
+            <div class="setting-title">安全与隐私</div>
+            <div class="setting-row">
+                <span>密码保护 (PIN)</span>
+                <button class="btn" onclick="togglePinLock()" id="btn-pin-toggle">OFF</button>
+            </div>
+            <div class="setting-row" id="row-bio" style="display:none">
+                <span>生物识别解锁 (指纹/面容)</span>
+                <button class="btn" onclick="toggleBiometrics()" id="btn-bio-toggle">OFF</button>
+            </div>
+        </div>
+
         <div class="setting-group">
             <div class="setting-title">个性化</div>
             <div class="setting-row"><span>夜间模式</span><button class="btn" onclick="toggleDarkMode()" id="btn-dark">OFF</button></div>
-            <!-- 新增待办开关 -->
             <div class="setting-row"><span>待办清单入口</span><button class="btn" onclick="toggleTodoSetting()" id="btn-todo-toggle">ON</button></div>
             
             <div class="setting-row">
@@ -408,16 +462,20 @@
             selectedDate: new Date(),
             diaryData: JSON.parse(localStorage.getItem('myDiaryData_v2') || '{}'),
             todoData: JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]'),
-            // 新增 showTodo 设置，默认为 true
             settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":"","showTodo":true}'),
+            security: JSON.parse(localStorage.getItem('myDiarySecurity_v2') || '{"enabled":false, "pin":"", "biometrics":false}'),
             bgImage: localStorage.getItem('myDiaryBg_v2') || null,
             isDirty: false
         };
 
         let cropperInstance = null;
         let notifyInterval = null;
+        let currentPinInput = ""; // 当前输入的PIN
 
         function init() {
+            // 🔒 启动时立即检查锁定状态
+            checkLockStatus();
+
             applySettings();
             if(state.settings.customFont) loadCustomFont(state.settings.customFont);
             renderCalendar();
@@ -444,14 +502,138 @@
             });
         }
 
+        /* ============ 🔒 隐私锁逻辑 ============ */
+        function checkLockStatus() {
+            if (state.security.enabled) {
+                document.getElementById('lock-screen').classList.add('active');
+                updatePinDots();
+                // 如果开启了生物识别，尝试自动唤起（如果浏览器允许）
+                if (state.security.biometrics) {
+                    // 稍微延迟一点，避免阻塞 UI 渲染
+                    setTimeout(tryBiometric, 500);
+                }
+            } else {
+                document.getElementById('lock-screen').classList.remove('active');
+            }
+        }
+
+        function enterPin(num) {
+            if (currentPinInput.length < 4) {
+                currentPinInput += num;
+                updatePinDots();
+                if (currentPinInput.length === 4) {
+                    setTimeout(verifyPin, 100);
+                }
+            }
+        }
+
+        function deletePin() {
+            currentPinInput = currentPinInput.slice(0, -1);
+            updatePinDots();
+        }
+
+        function updatePinDots() {
+            const dots = document.querySelectorAll('.pin-dot');
+            dots.forEach((dot, index) => {
+                if (index < currentPinInput.length) dot.classList.add('filled');
+                else dot.classList.remove('filled');
+            });
+        }
+
+        function verifyPin() {
+            if (currentPinInput === state.security.pin) {
+                // 解锁成功
+                document.getElementById('lock-screen').classList.remove('active');
+                currentPinInput = "";
+                updatePinDots();
+            } else {
+                // 解锁失败
+                navigator.vibrate?.([100, 50, 100]); // 震动反馈
+                showToast("密码错误");
+                currentPinInput = "";
+                updatePinDots();
+            }
+        }
+
+        // 简易 WebAuthn 生物识别
+        async function tryBiometric() {
+            if (!window.PublicKeyCredential) {
+                if(state.security.enabled) showToast("当前环境不支持生物识别");
+                return;
+            }
+            try {
+                // 这里创建一个虚拟的挑战，纯本地无法进行真实的服务器验证
+                // 但我们可以利用“验证流程完成”这个动作来作为解锁依据
+                // 注意：在 file:// 协议下通常会被浏览器拦截，需要 localhost 或 https
+                const publicKey = {
+                    challenge: new Uint8Array(32), // 虚拟挑战
+                    rpId: window.location.hostname, // 当前域名
+                    userVerification: "required",
+                    timeout: 60000,
+                };
+                
+                // 尝试调用系统认证器
+                await navigator.credentials.get({ publicKey });
+                // 如果没有报错，说明用户通过了验证（指纹/面容正确）
+                document.getElementById('lock-screen').classList.remove('active');
+                currentPinInput = "";
+                updatePinDots();
+                showToast("解锁成功");
+            } catch (e) {
+                console.log("Biometric skipped or failed", e);
+                // 只有当用户主动点击按钮时才提示错误，自动调用时不提示
+                // 此处不做处理，依靠 PIN 码兜底
+            }
+        }
+
+        /* ============ 安全设置 ============ */
+        function togglePinLock() {
+            if (state.security.enabled) {
+                // 关闭锁：需要验证旧密码
+                const pin = prompt("请输入当前 4 位 PIN 码以关闭：");
+                if (pin === state.security.pin) {
+                    state.security.enabled = false;
+                    state.security.biometrics = false;
+                    saveSecurity();
+                    applySettings();
+                    showToast("已关闭密码保护");
+                } else if (pin !== null) {
+                    alert("密码错误");
+                }
+            } else {
+                // 开启锁：设置新密码
+                const newPin = prompt("请设置 4 位数字 PIN 码：");
+                if (newPin && newPin.length === 4 && !isNaN(newPin)) {
+                    state.security.enabled = true;
+                    state.security.pin = newPin;
+                    saveSecurity();
+                    applySettings();
+                    showToast("密码保护已开启");
+                } else if (newPin !== null) {
+                    alert("请输入 4 位纯数字");
+                }
+            }
+        }
+
+        function toggleBiometrics() {
+            if (!state.security.enabled) { alert("请先开启 PIN 码保护"); return; }
+            state.security.biometrics = !state.security.biometrics;
+            saveSecurity();
+            applySettings();
+            if (state.security.biometrics) showToast("已开启生物识别辅助");
+        }
+
+        function saveSecurity() {
+            localStorage.setItem('myDiarySecurity_v2', JSON.stringify(state.security));
+        }
+
+        /* ============ 现有逻辑 ============ */
+
         function toggleUI(show) {
-            // 打开日记或设置时，隐藏左侧标签
             const tabs = document.querySelectorAll('.side-tab');
             tabs.forEach(tab => {
                 if(show) {
-                    // 如果显示 UI，检查是否应该显示 todo tab
                     if(tab.id === 'todo-tab') {
-                        // 只有在设置开启时才显示
                         if(state.settings.showTodo) tab.classList.remove('hidden-ui');
                     } else {
                         tab.classList.remove('hidden-ui');
@@ -462,12 +644,10 @@
             });
         }
         
-        // 更新 todo 标签的可见性 (用于设置更改后)
         function updateTodoTabVisibility() {
             const tab = document.getElementById('todo-tab');
             if(state.settings.showTodo) {
                 tab.style.display = 'flex';
-                // 确保它不带有 hidden-ui (除非当前正处于日记/设置界面，但这里假设是在主界面调用)
                 const isViewOpen = !document.getElementById('settings-view').classList.contains('hidden-right') || !document.getElementById('diary-view').classList.contains('hidden-right');
                 if(!isViewOpen) tab.classList.remove('hidden-ui');
             } else {
@@ -484,11 +664,10 @@
             toggleUI(true);
         }
         
-        // 设置开关功能
         function toggleTodoSetting() {
             state.settings.showTodo = !state.settings.showTodo;
             saveSettings();
-            applySettings(); // 刷新按钮文本和标签显示
+            applySettings();
         }
 
         function registerRealSW() {
@@ -551,36 +730,23 @@
             if(item) { 
                 item.done = !item.done; 
                 saveTodo(); 
-                renderTodoList(); // 重新渲染以触发排序
+                renderTodoList(); 
             } 
         }
         function deleteTodo(id) { state.todoData = state.todoData.filter(t => t.id !== id); saveTodo(); renderTodoList(); }
         function updateTodoData(id, field, val) { const item = state.todoData.find(t => t.id === id); if(item) { item[field] = val; if(field === 'time' || field === 'date') item.notified = false; saveTodo(); renderTodoList(); } } 
         function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
 
-        // === 排序与渲染 (新逻辑：完成的沉底) ===
         function renderTodoList() {
             const list = document.getElementById('todo-list'); list.innerHTML = '';
-            
             const sortedData = [...state.todoData].sort((a, b) => {
-                // 1. 完成状态排序：未完成在前 (false)，完成在后 (true)
-                if (a.done !== b.done) {
-                    return a.done ? 1 : -1;
-                }
-                
-                // 2. 内部排序（时间排序）
-                const aHasTime = a.date && a.time;
-                const bHasTime = b.date && b.time;
-                
-                if (!aHasTime && bHasTime) return -1; 
-                if (aHasTime && !bHasTime) return 1;  
-                if (!aHasTime && !bHasTime) return b.id - a.id; 
+                if (a.done !== b.done) return a.done ? 1 : -1;
+                const aHasTime = a.date && a.time; const bHasTime = b.date && b.time;
+                if (!aHasTime && bHasTime) return -1; if (aHasTime && !bHasTime) return 1; if (!aHasTime && !bHasTime) return b.id - a.id; 
                 return new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`);
             });
-
             sortedData.forEach(item => {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'todo-item-wrapper';
+                const wrapper = document.createElement('div'); wrapper.className = 'todo-item-wrapper';
                 wrapper.innerHTML = `
                     <div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div>
                     <div class="todo-item-content ${item.done ? 'done' : ''}" id="todo-content-${item.id}">
@@ -594,13 +760,10 @@
                         </div>
                     </div>
                 `;
-                const contentEl = wrapper.querySelector('.todo-item-content');
-                attachSwipeEvents(contentEl);
-                list.appendChild(wrapper);
+                const contentEl = wrapper.querySelector('.todo-item-content'); attachSwipeEvents(contentEl); list.appendChild(wrapper);
             });
         }
 
-        // === 左滑删除逻辑 ===
         let currentOpenSwipe = null;
         function attachSwipeEvents(el) {
             let startX, currentX; let isDragging = false;
@@ -638,7 +801,6 @@
             });
         }
 
-        // === 基础功能 ===
         function initDraggable(el, type) {
             let isDragging = false; let startX, startY, initialLeft, initialTop; const screenW = window.innerWidth; const screenH = window.innerHeight;
             el.addEventListener('touchstart', (e) => { isDragging = false; el.classList.remove('snap-transition'); const touch = e.touches[0]; startX = touch.clientX; startY = touch.clientY; const rect = el.getBoundingClientRect(); initialLeft = rect.left; initialTop = rect.top; }, {passive: false});
@@ -686,6 +848,12 @@
             if (state.settings.darkMode) document.body.classList.add('dark-mode'); else document.body.classList.remove('dark-mode'); 
             document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF";
             document.getElementById('btn-todo-toggle').textContent = state.settings.showTodo ? "ON" : "OFF";
+            
+            // 安全设置 UI 更新
+            document.getElementById('btn-pin-toggle').textContent = state.security.enabled ? "ON" : "OFF";
+            document.getElementById('btn-bio-toggle').textContent = state.security.biometrics ? "ON" : "OFF";
+            document.getElementById('row-bio').style.display = state.security.enabled ? 'flex' : 'none';
+
             applyBgImage(); 
             updateTodoTabVisibility();
         }
