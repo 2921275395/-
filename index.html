@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- PWA 核心配置 -->
+    <!-- PWA 配置 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -24,7 +24,8 @@
         :root {
             --primary-color: #8faec9; --bg-color: #f7f9fc; --paper-color: #fffbf0;
             --line-color: #e6e6e6; --highlight: #eeb8c3; --text-color: #555d66;
-            --tab-color: #aed9e0; --icon-color: #8faec9; --border-color: transparent;
+            --tab-color: #aed9e0; --tab-todo-color: #eeb8c3; /* 待办标签颜色 */
+            --icon-color: #8faec9; --border-color: transparent;
             --shadow: 0 8px 20px rgba(143, 174, 201, 0.15);
             --font-main: "Nunito", "Quicksand", -apple-system, sans-serif; --radius: 24px;
             --paper-pattern: none; --paper-size: 100% 32px;
@@ -32,7 +33,7 @@
         body.dark-mode {
             --primary-color: #ffffff; --bg-color: #000000; --paper-color: #000000;
             --line-color: #333333; --text-color: #ffffff; --highlight: #ffffff;
-            --tab-color: #333333; --icon-color: #ffffff; --border-color: #333; --shadow: none;
+            --tab-color: #333333; --tab-todo-color: #444; --icon-color: #ffffff; --border-color: #333; --shadow: none;
         }
         body.dark-mode .day.selected { background-color: #333; border: 1px solid #fff; }
         body.dark-mode .day.today { color: #fff; border-color: #fff; }
@@ -50,7 +51,7 @@
             border: 1px solid var(--border-color); background: var(--paper-color); 
             width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
             box-shadow: var(--shadow); cursor: pointer; color: var(--icon-color); transition: transform 0.2s, box-shadow 0.2s;
-            position: relative; z-index: 50; /* 提高层级 */
+            /* 移除了高 z-index，避免透视 */
         }
         .icon-btn:active { transform: scale(0.9); }
         .icon-btn svg, .icon-btn .material-icons-round { width: 22px; height: 22px; fill: currentColor; font-size: 22px; }
@@ -65,23 +66,11 @@
         }
         .hidden-right { transform: translateX(100%); pointer-events: none; }
         
-        /* === 彻底修复头部的布局 === */
-        #home-view header { 
-            padding: 20px 25px; 
-            display: grid; 
-            grid-template-columns: 44px 1fr 44px; /* 左按钮-中间撑满-右按钮 */
-            align-items: center;
-        }
-        /* 日期选择器：居中，且不许超过自己的格子 */
-        .date-picker-wrapper { 
-            justify-self: center; /* 格子内居中 */
-            position: relative; 
-            font-size: 1.4rem; font-weight: 800; color: var(--text-color); 
-            display: flex; align-items: center; gap: 5px; cursor: pointer;
-            z-index: 10;
-        }
-        #month-picker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 11; }
-
+        /* 还原简约头部 */
+        #home-view header { padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; }
+        .date-picker-wrapper { position: relative; font-size: 1.4rem; font-weight: 800; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; flex: 1; }
+        #month-picker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
+        
         .calendar-container { padding: 10px 20px; flex: 1; overflow-y: auto; }
         .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.9rem; margin-bottom: 15px; opacity: 0.5; font-weight: bold; }
         .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
@@ -94,14 +83,30 @@
         .day.selected { background-color: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(143, 174, 201, 0.4); transform: scale(1.1); }
         body.dark-mode .day.selected { box-shadow: none; }
         .day.has-entry::after { content: ''; position: absolute; bottom: 5px; width: 5px; height: 5px; background-color: var(--highlight); border-radius: 50%; }
-        #index-tab {
-            position: fixed; left: 0; top: 50%; width: 70px; height: 50px; background-color: var(--tab-color); color: #fff;
-            border-radius: 0 16px 16px 0; display: flex; align-items: center; justify-content: center;
-            box-shadow: 2px 2px 15px rgba(0,0,0,0.1); cursor: grab; z-index: 100; font-weight: bold; font-size: 0.9rem; 
-            border: 1px solid var(--border-color); border-left: none; touch-action: none; transform: translateX(-100%); 
+        
+        /* === 侧边悬浮标签 (左侧) === */
+        .side-tab {
+            position: fixed; left: 0; width: 60px; height: 44px; 
+            border-radius: 0 20px 20px 0; display: flex; align-items: center; justify-content: center;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1); cursor: grab; z-index: 100; 
+            font-weight: bold; font-size: 0.9rem; border: 1px solid var(--border-color); border-left: none; 
+            touch-action: none; color: #fff;
+            transition: transform 0.3s ease; /* 用于隐藏/显示动画 */
         }
+        
+        /* 待办标签 */
+        #todo-tab { top: 35%; background-color: var(--tab-todo-color); }
+        /* 日记标签 */
+        #index-tab { top: 50%; background-color: var(--tab-color); transform: translateX(-100%); }
+        
+        /* 隐藏状态 (如打开日记时，侧边栏缩回去) */
+        .side-tab.hidden-ui { transform: translateX(-100%) !important; }
+        /* 显示状态 (日记标签选中日期后显示) */
         #index-tab.visible { transform: translateX(0); }
-        .snap-transition { transition: top 0.3s cubic-bezier(0.25, 1, 0.5, 1), left 0.3s cubic-bezier(0.25, 1, 0.5, 1), right 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.3s !important; }
+        
+        .snap-transition { transition: top 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.3s ease !important; }
+
+        /* === 日记界面 === */
         #diary-view { background-color: var(--bg-color); }
         .paper-container {
             width: 100%; height: 100%; background-color: var(--paper-color);
@@ -163,19 +168,13 @@
         
         .permission-btn { width: 100%; padding: 12px; background: var(--highlight); color: #fff; border: none; border-radius: 12px; margin-bottom: 10px; font-weight: bold; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         
-        /* === 简约可爱风测试按钮 === */
+        /* 简约可爱风格测试按钮 (保持不变) */
         .test-notify-btn {
             width: 100%; padding: 12px; margin-bottom: 20px; font-size: 0.9rem; font-weight: bold;
-            border: 2px dashed var(--highlight); /* 虚线边框 */
-            background: transparent; /* 透明背景 */
-            color: var(--text-color);
-            border-radius: 20px; 
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            transition: all 0.2s;
-            opacity: 0.8;
+            border: 2px dashed var(--highlight); background: transparent; color: var(--text-color);
+            border-radius: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: all 0.2s; opacity: 0.8;
         }
-        /* 简约模式下 active 效果 */
         .test-notify-btn:active { transform: scale(0.95); background: rgba(0,0,0,0.03); opacity: 1; }
         body.dark-mode .test-notify-btn { border-color: #666; color: #ccc; }
 
@@ -227,17 +226,26 @@
         </div>
     </div>
 
+    <!-- 左侧悬浮标签：待办 -->
+    <div id="todo-tab" class="side-tab" onclick="openTodo()">
+        <span class="material-icons-round">checklist</span>
+    </div>
+
+    <!-- 左侧悬浮标签：日记索引 (默认隐藏，选中日期显示) -->
+    <div id="index-tab" class="side-tab" onclick="openDiary(event)">
+        <span id="tab-date">10/24</span>
+    </div>
+
     <!-- 主界面：日历 -->
     <div id="home-view" class="view">
         <header>
-            <button class="icon-btn" onclick="openTodo()" style="justify-self: start;">
-                <span class="material-icons-round">checklist</span>
-            </button>
-            <label class="date-picker-wrapper">
+            <!-- 占位符，保持平衡 -->
+            <div style="width: 40px;"></div> 
+            <label class="date-picker-wrapper" style="justify-content:center;">
                 <span id="current-month-label">2026年 01月</span>
                 <input type="month" id="month-picker" onchange="changeMonth(this.value)">
             </label>
-            <button class="icon-btn" onclick="openSettings()" style="justify-self: end;">
+            <button class="icon-btn" onclick="openSettings()">
                 <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
             </button>
         </header>
@@ -245,7 +253,6 @@
             <div class="weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
             <div id="calendar-days" class="days"></div>
         </div>
-        <div id="index-tab" onclick="openDiary(event)"><span id="tab-date">10/24</span></div>
     </div>
 
     <!-- 待办清单界面 -->
@@ -412,15 +419,36 @@
             let startY = 0;
             toast.addEventListener('touchstart', e => startY = e.touches[0].clientY);
             toast.addEventListener('touchmove', e => { if (startY - e.touches[0].clientY > 10) hideToast(); });
+            
+            // 初始化两个左侧标签的拖拽
             initDraggable(document.getElementById('index-tab'), 'left');
+            initDraggable(document.getElementById('todo-tab'), 'left');
             initDraggable(document.getElementById('fmt-toggle'), 'any');
+            
             document.getElementById('export-date-picker').valueAsDate = new Date();
             checkNotifyState();
             
-            // 点击外部关闭打开的侧滑
             document.body.addEventListener('click', (e) => {
                 if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
             });
+        }
+
+        function toggleUI(show) {
+            // 打开日记或设置时，隐藏左侧标签，保持界面干净
+            const tabs = document.querySelectorAll('.side-tab');
+            tabs.forEach(tab => {
+                if(show) tab.classList.remove('hidden-ui');
+                else tab.classList.add('hidden-ui');
+            });
+        }
+
+        function openTodo() {
+            document.getElementById('todo-view').classList.remove('hidden-right');
+            toggleUI(false); // 隐藏标签
+        }
+        function closeTodo() {
+            document.getElementById('todo-view').classList.add('hidden-right');
+            toggleUI(true); // 显示标签
         }
 
         function registerRealSW() {
@@ -483,28 +511,21 @@
         function updateTodoData(id, field, val) { const item = state.todoData.find(t => t.id === id); if(item) { item[field] = val; if(field === 'time' || field === 'date') item.notified = false; saveTodo(); renderTodoList(); } } // 更新日期后重新排序
         function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
 
-        // === 排序与渲染 (新逻辑) ===
+        // === 排序与渲染 ===
         function renderTodoList() {
             const list = document.getElementById('todo-list'); list.innerHTML = '';
-            
-            // 排序逻辑：
-            // 1. 没有具体时间 (date 或 time 为空) 的排在最前面
-            // 2. 有具体时间的，按时间先后顺序排列
             const sortedData = [...state.todoData].sort((a, b) => {
                 const aHasTime = a.date && a.time;
                 const bHasTime = b.date && b.time;
-                if (!aHasTime && bHasTime) return -1; // A 无时间，A 排前
-                if (aHasTime && !bHasTime) return 1;  // B 无时间，B 排前
-                if (!aHasTime && !bHasTime) return b.id - a.id; // 都无时间，按创建倒序
-                // 都有时间，按时间正序 (早的在前)
+                if (!aHasTime && bHasTime) return -1; 
+                if (aHasTime && !bHasTime) return 1;  
+                if (!aHasTime && !bHasTime) return b.id - a.id; 
                 return new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`);
             });
 
             sortedData.forEach(item => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'todo-item-wrapper';
-                
-                // 内部结构：背景层(删除) + 前景层(内容)
                 wrapper.innerHTML = `
                     <div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div>
                     <div class="todo-item-content ${item.done ? 'done' : ''}" id="todo-content-${item.id}">
@@ -518,8 +539,6 @@
                         </div>
                     </div>
                 `;
-                
-                // 绑定左滑事件
                 const contentEl = wrapper.querySelector('.todo-item-content');
                 attachSwipeEvents(contentEl);
                 list.appendChild(wrapper);
@@ -528,80 +547,43 @@
 
         // === 左滑删除逻辑 ===
         let currentOpenSwipe = null;
-
         function attachSwipeEvents(el) {
-            let startX, currentX;
-            let isDragging = false;
-            
+            let startX, currentX; let isDragging = false;
             el.addEventListener('touchstart', (e) => {
-                // 如果有其他打开的，先关闭
-                if(currentOpenSwipe && currentOpenSwipe !== el) {
-                    currentOpenSwipe.style.transform = 'translateX(0)';
-                    currentOpenSwipe = null;
-                }
-                startX = e.touches[0].clientX;
-                el.style.transition = 'none'; // 拖动时移除过渡，跟手
+                if(currentOpenSwipe && currentOpenSwipe !== el) { currentOpenSwipe.style.transform = 'translateX(0)'; currentOpenSwipe = null; }
+                startX = e.touches[0].clientX; el.style.transition = 'none';
             }, {passive: true});
-
             el.addEventListener('touchmove', (e) => {
-                currentX = e.touches[0].clientX;
-                let deltaX = currentX - startX;
-                // 只能向左滑，最大滑到 -80px
-                if (deltaX > 0) deltaX = 0;
-                if (deltaX < -80) deltaX = -80;
-                
-                if (deltaX < -10) isDragging = true; // 防误触
-                el.style.transform = `translateX(${deltaX}px)`;
+                currentX = e.touches[0].clientX; let deltaX = currentX - startX;
+                if (deltaX > 0) deltaX = 0; if (deltaX < -80) deltaX = -80;
+                if (deltaX < -10) isDragging = true; el.style.transform = `translateX(${deltaX}px)`;
             }, {passive: true});
-
             el.addEventListener('touchend', (e) => {
                 el.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
                 const deltaX = currentX - startX;
-                if (deltaX < -40) { // 滑动超过一半，展开
-                    el.style.transform = 'translateX(-80px)';
-                    currentOpenSwipe = el;
-                } else {
-                    el.style.transform = 'translateX(0)';
-                    if(currentOpenSwipe === el) currentOpenSwipe = null;
-                }
+                if (deltaX < -40) { el.style.transform = 'translateX(-80px)'; currentOpenSwipe = el; } 
+                else { el.style.transform = 'translateX(0)'; if(currentOpenSwipe === el) currentOpenSwipe = null; }
                 isDragging = false;
             });
         }
-        
-        function resetAllSwipes() {
-            const openItems = document.querySelectorAll('.todo-item-content[style*="translateX(-80px)"]');
-            openItems.forEach(el => el.style.transform = 'translateX(0)');
-            currentOpenSwipe = null;
-        }
+        function resetAllSwipes() { const openItems = document.querySelectorAll('.todo-item-content[style*="translateX(-80px)"]'); openItems.forEach(el => el.style.transform = 'translateX(0)'); currentOpenSwipe = null; }
 
-        function startNotificationCheck() {
-            if(notifyInterval) clearInterval(notifyInterval);
-            notifyInterval = setInterval(() => checkNotifications(false), 5000);
-        }
+        function startNotificationCheck() { if(notifyInterval) clearInterval(notifyInterval); notifyInterval = setInterval(() => checkNotifications(false), 5000); }
         function checkNotifications(isCatchUp) {
             if (!("Notification" in window) || Notification.permission !== "granted") return;
-            const now = new Date();
-            const currentStrDate = formatDateKey(now); 
-            const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+            const now = new Date(); const currentStrDate = formatDateKey(now); const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
             state.todoData.forEach(item => {
                 if(!item.done && item.date && item.time && !item.notified) {
                     if (item.date === currentStrDate) {
-                        const [h, m] = item.time.split(':').map(Number);
-                        const targetTotalMinutes = h * 60 + m;
-                        const isTime = Math.abs(currentTotalMinutes - targetTotalMinutes) <= 1;
-                        const isMissed = isCatchUp && (currentTotalMinutes > targetTotalMinutes);
-                        if (isTime || isMissed) {
-                            let bodyText = item.text;
-                            if (isMissed) bodyText = "[错过提醒] " + bodyText;
-                            sendSafeNotification("日记本提醒", bodyText);
-                            item.notified = true; saveTodo();
-                        }
+                        const [h, m] = item.time.split(':').map(Number); const targetTotalMinutes = h * 60 + m;
+                        const isTime = Math.abs(currentTotalMinutes - targetTotalMinutes) <= 1; const isMissed = isCatchUp && (currentTotalMinutes > targetTotalMinutes);
+                        if (isTime || isMissed) { let bodyText = item.text; if (isMissed) bodyText = "[错过提醒] " + bodyText; sendSafeNotification("日记本提醒", bodyText); item.notified = true; saveTodo(); }
                     }
                 }
             });
         }
 
-        // === 基础功能 (保持不变) ===
+        // === 基础功能 ===
         function initDraggable(el, type) {
             let isDragging = false; let startX, startY, initialLeft, initialTop; const screenW = window.innerWidth; const screenH = window.innerHeight;
             el.addEventListener('touchstart', (e) => { isDragging = false; el.classList.remove('snap-transition'); const touch = e.touches[0]; startX = touch.clientX; startY = touch.clientY; const rect = el.getBoundingClientRect(); initialLeft = rect.left; initialTop = rect.top; }, {passive: false});
@@ -613,8 +595,8 @@
         function renderCalendar() { const year = state.currentDate.getFullYear(); const month = state.currentDate.getMonth(); document.getElementById('current-month-label').textContent = `${year}年 ${String(month + 1).padStart(2, '0')}月`; document.getElementById('month-picker').value = `${year}-${String(month + 1).padStart(2, '0')}`; const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0); const daysContainer = document.getElementById('calendar-days'); daysContainer.innerHTML = ''; for (let i = 0; i < firstDay.getDay(); i++) daysContainer.appendChild(document.createElement('div')); const today = new Date(); for (let i = 1; i <= lastDay.getDate(); i++) { const dayEl = document.createElement('div'); dayEl.className = 'day'; dayEl.textContent = i; const thisDate = new Date(year, month, i); const dateKey = formatDateKey(thisDate); if (isSameDay(thisDate, today)) dayEl.classList.add('today'); if (isSameDay(thisDate, state.selectedDate)) dayEl.classList.add('selected'); if (state.diaryData[dateKey]) dayEl.classList.add('has-entry'); dayEl.onclick = (e) => { e.stopPropagation(); selectDate(thisDate); }; daysContainer.appendChild(dayEl); } }
         function changeMonth(val) { if(!val) return; const [y, m] = val.split('-'); state.currentDate = new Date(parseInt(y), parseInt(m) - 1, 1); renderCalendar(); }
         function selectDate(date) { state.selectedDate = date; renderCalendar(); document.getElementById('tab-date').textContent = `${date.getMonth() + 1}/${date.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
-        function openDiary(e) { if(e) e.stopPropagation(); const dateKey = formatDateKey(state.selectedDate); document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'}); const content = state.diaryData[dateKey] || ''; const inputDiv = document.getElementById('diary-input'); if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) inputDiv.innerText = content; else inputDiv.innerHTML = content; document.getElementById('diary-view').classList.remove('hidden-right'); state.isDirty = false; }
-        function closeDiary() { saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right'); document.getElementById('fmt-bar').classList.remove('active'); renderCalendar(); }
+        function openDiary(e) { if(e) e.stopPropagation(); const dateKey = formatDateKey(state.selectedDate); document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'}); const content = state.diaryData[dateKey] || ''; const inputDiv = document.getElementById('diary-input'); if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) inputDiv.innerText = content; else inputDiv.innerHTML = content; document.getElementById('diary-view').classList.remove('hidden-right'); toggleUI(false); state.isDirty = false; }
+        function closeDiary() { saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right'); document.getElementById('fmt-bar').classList.remove('active'); toggleUI(true); renderCalendar(); }
         function changeDay(offset) { saveDiaryManual(false); const newDate = new Date(state.selectedDate); newDate.setDate(newDate.getDate() + offset); state.selectedDate = newDate; const paper = document.getElementById('paper-layer'); const anim = offset > 0 ? 'anim-slide-left' : 'anim-slide-right'; paper.classList.add(anim); setTimeout(() => { openDiary(); paper.classList.remove(anim); paper.style.opacity = '0'; requestAnimationFrame(() => paper.style.opacity = '1'); }, 350); }
         function toggleFormatToolbar(e) { e.stopPropagation(); const toggle = document.getElementById('fmt-toggle'); const rect = toggle.getBoundingClientRect(); if (rect.left < window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left'); document.getElementById('fmt-bar').classList.toggle('active'); }
         function execCmd(command, value = null) { document.execCommand(command, false, value); document.getElementById('diary-input').focus(); }
@@ -638,8 +620,8 @@
         function finishCrop() { if (!cropperInstance) return; const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 }); const dataUrl = canvas.toDataURL('image/jpeg', 0.8); state.bgImage = dataUrl; try { localStorage.setItem('myDiaryBg_v2', dataUrl); applyBgImage(); cancelCrop(); showToast("背景设置成功"); } catch (e) { alert("图片太大了"); } }
         function applyBgImage() { const paper = document.getElementById('paper-layer'); if (state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } else { paper.style.backgroundImage = ''; paper.classList.remove('has-custom-bg'); } }
         function clearBgImage() { state.bgImage = null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("背景已还原"); }
-        function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); document.getElementById('font-url-input').value = state.settings.customFont || ''; }
-        function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); saveSettings(); }
+        function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); toggleUI(false); document.getElementById('font-url-input').value = state.settings.customFont || ''; }
+        function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); toggleUI(true); saveSettings(); }
         function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
         function toggleDarkMode() { state.settings.darkMode = !state.settings.darkMode; applySettings(); }
         function setTheme(theme) { state.settings.theme = theme; applySettings(); }
