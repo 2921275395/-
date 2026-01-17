@@ -56,6 +56,8 @@
         body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; }
         body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; }
         body:not(.dark-mode).theme-beige { --paper-color: #fffbf0; --bg-color: #fafafa; }
+        /* 新增：纯白主题 */
+        body:not(.dark-mode).theme-white { --paper-color: #ffffff; --bg-color: #f0f0f0; }
 
         /* 纸张纹理定义 */
         body.paper-lines {
@@ -325,6 +327,7 @@
                 <span>纸张颜色</span>
                 <div class="color-dots">
                     <div class="dot" style="background:#fffbf0" onclick="setTheme('theme-beige')"></div>
+                    <div class="dot" style="background:#ffffff" onclick="setTheme('theme-white')"></div>
                     <div class="dot" style="background:#f1f8f3" onclick="setTheme('theme-green')"></div>
                     <div class="dot" style="background:#fff5f7" onclick="setTheme('theme-pink')"></div>
                 </div>
