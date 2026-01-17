@@ -184,9 +184,9 @@
             color: #fff; border: none; display: flex; align-items: center; justify-content: center;
         }
 
-        .todo-list { display: flex; flex-direction: column; gap: 10px; }
+        .todo-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 50px;}
         .todo-item {
-            display: flex; align-items: center; gap: 10px;
+            display: flex; align-items: flex-start; gap: 10px;
             background: var(--paper-color); padding: 12px 15px; border-radius: 16px;
             border: 1px solid var(--line-color); transition: opacity 0.3s;
         }
@@ -196,18 +196,24 @@
         .todo-checkbox {
             width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary-color);
             display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer;
+            margin-top: 3px;
         }
         .todo-checkbox.checked { background: var(--primary-color); }
         .todo-checkbox.checked::after { content: '✓'; color: #fff; font-size: 14px; font-weight: bold; }
         
-        .todo-content-wrapper { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-        .todo-text { font-size: 1rem; font-weight: bold; }
-        .todo-time-picker {
-            border: none; background: rgba(0,0,0,0.05); border-radius: 4px; color: var(--text-color);
-            font-size: 0.8rem; padding: 2px 5px; width: fit-content; margin-top: 4px;
+        .todo-content-wrapper { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .todo-text { font-size: 1rem; font-weight: bold; line-height: 1.4; }
+        
+        .todo-datetime {
+            display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
         }
         
-        .todo-actions { display: flex; gap: 5px; }
+        .todo-picker {
+            border: none; background: rgba(0,0,0,0.05); border-radius: 6px; color: var(--text-color);
+            font-size: 0.8rem; padding: 4px 6px; width: fit-content; font-family: inherit;
+        }
+        
+        .todo-actions { display: flex; gap: 5px; flex-shrink: 0; }
         .todo-action-btn { 
             padding: 5px; background: transparent; border: none; color: #999; cursor: pointer; 
         }
@@ -215,7 +221,11 @@
 
         .permission-btn {
             width: 100%; padding: 12px; background: var(--highlight); color: #fff; border: none;
-            border-radius: 12px; margin-bottom: 20px; font-weight: bold; display: none;
+            border-radius: 12px; margin-bottom: 10px; font-weight: bold; display: none;
+        }
+        .test-notify-btn {
+             width: 100%; padding: 10px; background: transparent; color: var(--text-color); border: 1px dashed var(--text-color);
+            border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; opacity: 0.7;
         }
 
         /* ================= 设置界面 ================= */
@@ -312,11 +322,12 @@
     <!-- 待办清单界面 (新) -->
     <div id="todo-view" class="view hidden-right">
         <div class="todo-header">
-            <span style="font-weight:bold; font-size:1.2rem">待办事项 & 提醒</span>
+            <span style="font-weight:bold; font-size:1.2rem">待办 & 提醒</span>
             <button class="icon-btn" onclick="closeTodo()">✕</button>
         </div>
 
-        <button id="perm-btn" class="permission-btn" onclick="requestNotifyPermission()">开启通知权限 (以便锁屏提醒)</button>
+        <button id="perm-btn" class="permission-btn" onclick="requestNotifyPermission()">🔔 点击开启通知权限</button>
+        <button class="test-notify-btn" onclick="testNotification()">📩 立即发送一条测试通知</button>
 
         <div class="todo-input-container">
             <input type="text" id="new-todo-input" class="todo-text-input" placeholder="添加新任务...">
@@ -436,7 +447,7 @@
             currentDate: new Date(),
             selectedDate: new Date(),
             diaryData: JSON.parse(localStorage.getItem('myDiaryData_v2') || '{}'),
-            todoData: JSON.parse(localStorage.getItem('myDiaryTodo_v1') || '[]'),
+            todoData: JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]'),
             settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":""}'),
             bgImage: localStorage.getItem('myDiaryBg_v2') || null,
             isDirty: false
@@ -451,15 +462,19 @@
             renderCalendar();
             renderTodoList();
             
-            // 定时保存
             setInterval(autoSave, 60000);
             
-            // 启动定时检查提醒任务
+            // 启动定时检查
             startNotificationCheck();
+            // 每次页面重新可见时（比如手机解锁），立即检查是否有错过的通知
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    checkNotifications(true); // true = 补发模式
+                }
+            });
 
             document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
 
-            // 弹窗手势关闭
             const toast = document.getElementById('save-toast');
             let startY = 0;
             toast.addEventListener('touchstart', e => startY = e.touches[0].clientY);
@@ -471,13 +486,12 @@
             initDraggable(document.getElementById('fmt-toggle'), 'any');
             document.getElementById('export-date-picker').valueAsDate = new Date();
 
-            // 检查权限显示按钮
             if (Notification.permission !== "granted" && Notification.permission !== "denied") {
                 document.getElementById('perm-btn').style.display = 'block';
             }
         }
 
-        // === 待办清单 & 通知逻辑 (新增) ===
+        // === 待办清单 & 通知逻辑 (更新版) ===
         function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); }
         function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); }
 
@@ -486,9 +500,20 @@
                 if (permission === "granted") {
                     document.getElementById('perm-btn').style.display = 'none';
                     showToast("通知已开启 ✅");
-                    new Notification("我的日记本", { body: "测试通知：如果看到这个，说明提醒功能正常！" });
+                    new Notification("我的日记本", { body: "权限已获取，请勿完全关闭浏览器，否则无法收到提醒。" });
+                } else {
+                    alert("您拒绝了通知权限，或系统已屏蔽。请在系统设置中允许浏览器发送通知。");
                 }
             });
+        }
+
+        function testNotification() {
+            if (Notification.permission === "granted") {
+                new Notification("测试通知", { body: "如果您看到这条消息，说明通知功能正常！📱", icon: 'https://via.placeholder.com/128' });
+                showToast("已发送，请看顶部横幅 👆");
+            } else {
+                alert("没有通知权限！请先点击上方的开启按钮，或检查手机设置。");
+            }
         }
 
         function addTodo() {
@@ -496,11 +521,16 @@
             const text = input.value.trim();
             if(!text) return;
             
+            // 默认选中今天
+            const todayStr = formatDateKey(new Date());
+            
             state.todoData.unshift({
                 id: Date.now(),
                 text: text,
                 done: false,
-                time: '' // 格式 'HH:MM'
+                date: todayStr, // YYYY-MM-DD
+                time: '',       // HH:MM
+                notified: false
             });
             input.value = '';
             saveTodo();
@@ -511,20 +541,22 @@
             const item = state.todoData.find(t => t.id === id);
             if(item) { item.done = !item.done; saveTodo(); renderTodoList(); }
         }
-
         function deleteTodo(id) {
             state.todoData = state.todoData.filter(t => t.id !== id);
             saveTodo();
             renderTodoList();
         }
-
-        function updateTodoTime(id, val) {
+        function updateTodoData(id, field, val) {
             const item = state.todoData.find(t => t.id === id);
-            if(item) { item.time = val; saveTodo(); }
+            if(item) { 
+                item[field] = val; 
+                if(field === 'time' || field === 'date') item.notified = false; // 修改时间后重置通知状态
+                saveTodo(); 
+            }
         }
 
         function saveTodo() {
-            localStorage.setItem('myDiaryTodo_v1', JSON.stringify(state.todoData));
+            localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData));
         }
 
         function renderTodoList() {
@@ -538,10 +570,12 @@
                     <div class="todo-checkbox ${item.done ? 'checked' : ''}" onclick="toggleTodo(${item.id})"></div>
                     <div class="todo-content-wrapper">
                         <div class="todo-text">${item.text}</div>
-                        <input type="time" class="todo-time-picker" value="${item.time || ''}" onchange="updateTodoTime(${item.id}, this.value)">
+                        <div class="todo-datetime">
+                            <input type="date" class="todo-picker" value="${item.date || ''}" onchange="updateTodoData(${item.id}, 'date', this.value)">
+                            <input type="time" class="todo-picker" value="${item.time || ''}" onchange="updateTodoData(${item.id}, 'time', this.value)">
+                        </div>
                     </div>
                     <div class="todo-actions">
-                        ${item.time ? `<button class="todo-action-btn" title="添加到系统日历" onclick="addToSystemCalendar('${item.text}', '${item.time}')"><span class="material-icons-round">event_available</span></button>` : ''}
                         <button class="todo-action-btn" onclick="deleteTodo(${item.id})"><span class="material-icons-round">delete</span></button>
                     </div>
                 `;
@@ -549,84 +583,60 @@
             });
         }
 
-        // 添加到系统日历 (生成 .ics 文件)
-        function addToSystemCalendar(text, time) {
-            if(!time) return;
-            // 构造今天的日期 + 时间
-            const now = new Date();
-            const [hours, mins] = time.split(':');
-            const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, mins);
-            
-            // 如果时间已经过了，假设是明天的这个时间
-            if (targetDate < new Date()) { targetDate.setDate(targetDate.getDate() + 1); }
-
-            // 格式化为 ICS 需要的格式 YYYYMMDDTHHmmSS
-            const formatDate = (date) => date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-            const start = formatDate(targetDate);
-            const end = formatDate(new Date(targetDate.getTime() + 15 * 60000)); // 15分钟后结束
-
-            const icsContent = 
-`BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//MyDiary//Todo//CN
-BEGIN:VEVENT
-UID:${Date.now()}@mydiary
-DTSTAMP:${formatDate(new Date())}
-DTSTART:${start}
-DTEND:${end}
-SUMMARY:${text}
-DESCRIPTION:来自“我的日记本”的提醒
-BEGIN:VALARM
-TRIGGER:-PT0M
-ACTION:DISPLAY
-DESCRIPTION:Reminder
-END:VALARM
-END:VEVENT
-END:VCALENDAR`;
-
-            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'reminder.ics';
-            link.click();
-            showToast("已下载日历文件，请打开导入📅");
-        }
-
-        // 后台检查通知逻辑
+        // --- 通知核心逻辑 ---
         function startNotificationCheck() {
             if(notifyInterval) clearInterval(notifyInterval);
-            notifyInterval = setInterval(() => {
-                const now = new Date();
-                const currentStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-                
-                state.todoData.forEach(item => {
-                    if(!item.done && item.time === currentStr) {
-                        // 防止一分钟内重复提醒，标记一个临时 flag (这里简单处理，实际可加 lastNotified 字段)
-                        if (!item.lastNotified || (Date.now() - item.lastNotified > 60000)) {
-                            sendNotification(item.text);
-                            item.lastNotified = Date.now();
+            // 每 5 秒检查一次
+            notifyInterval = setInterval(() => checkNotifications(false), 5000);
+        }
+
+        function checkNotifications(isCatchUp) {
+            if (Notification.permission !== "granted") return;
+
+            const now = new Date();
+            const currentStrDate = formatDateKey(now); // YYYY-MM-DD
+            const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+
+            state.todoData.forEach(item => {
+                if(!item.done && item.date && item.time && !item.notified) {
+                    
+                    if (item.date === currentStrDate) {
+                        const [h, m] = item.time.split(':').map(Number);
+                        const targetTotalMinutes = h * 60 + m;
+
+                        // 触发条件：
+                        // 1. 时间正好到了 (误差在2分钟内)
+                        // 2. 或者 isCatchUp=true (刚解锁手机)，且时间已经过去了，但还没通知过
+                        
+                        const isTime = Math.abs(currentTotalMinutes - targetTotalMinutes) <= 1;
+                        const isMissed = isCatchUp && (currentTotalMinutes > targetTotalMinutes);
+
+                        if (isTime || isMissed) {
+                            let bodyText = item.text;
+                            if (isMissed) bodyText = "[错过提醒] " + bodyText;
+                            
+                            sendNotification(bodyText);
+                            item.notified = true; // 标记为已通知
+                            saveTodo();
                         }
                     }
-                });
-            }, 5000); // 每5秒检查一次
+                }
+            });
         }
 
         function sendNotification(text) {
-            if (Notification.permission === "granted") {
-                try {
-                    // 尝试发送 Web Notification
-                    // 在移动端，如果 PWA 已安装或浏览器支持，这会在锁屏显示
-                    navigator.serviceWorker.getRegistration().then(reg => {
-                         if(reg) reg.showNotification("日记本提醒", { body: text, icon: 'https://via.placeholder.com/128' });
-                         else new Notification("日记本提醒", { body: text });
-                    }).catch(() => new Notification("日记本提醒", { body: text }));
-                } catch(e) {
-                    console.log("Notification error", e);
-                }
+            try {
+                // 尝试 Service Worker (Android PWA 支持更好)
+                navigator.serviceWorker.getRegistration().then(reg => {
+                     if(reg) reg.showNotification("日记本提醒", { body: text, icon: 'https://via.placeholder.com/128', requireInteraction: true });
+                     else new Notification("日记本提醒", { body: text, requireInteraction: true });
+                }).catch(() => new Notification("日记本提醒", { body: text, requireInteraction: true }));
+            } catch(e) {
+                console.log("Notification error", e);
             }
         }
 
-        // === 拖拽逻辑 (保持不变) ===
+        // === 以下逻辑保持不变 ===
         function initDraggable(el, type) {
             let isDragging = false;
             let startX, startY, initialLeft, initialTop;
@@ -876,7 +886,7 @@ END:VCALENDAR`;
             const header = document.createElement('div');
             header.className = 'paper-header';
             header.innerHTML = `<span class="date-display">${targetDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'})}</span>`;
-            header.style.background = 'none'; // Fix shadow
+            header.style.background = 'none'; 
             paper.appendChild(header);
             
             const body = document.createElement('div');
