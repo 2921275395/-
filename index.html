@@ -17,47 +17,72 @@
             --text-color: #555d66;    /* 深灰文字（不刺眼） */
             --tab-color: #aed9e0;     /* 浅蓝色索引贴 */
             --icon-color: #8faec9;
+            --border-color: transparent; /* 默认无边框 */
             
             --shadow: 0 8px 20px rgba(143, 174, 201, 0.15);
             --font-main: "Nunito", "Quicksand", -apple-system, sans-serif;
-            --radius: 24px; /* 大圆角 */
+            --radius: 24px;
 
-            /* 纸张纹理 */
-            --paper-pattern: linear-gradient(transparent 95%, var(--line-color) 96%);
+            /* 默认纸张纹理变量 */
+            --paper-pattern: none;
             --paper-size: 100% 32px;
         }
 
-        /* 真正的夜间模式 */
+        /* === 极致夜间模式 === */
         body.dark-mode {
-            --primary-color: #64b5f6;
-            --bg-color: #000000;
-            --paper-color: #121212;
-            --line-color: #333;
-            --text-color: #ffffff;
-            --highlight: #ff80ab;
-            --tab-color: #37474f;
-            --icon-color: #fff;
+            --primary-color: #ffffff; /* 选中色变白 */
+            --bg-color: #000000;      /* 全局纯黑 */
+            --paper-color: #000000;   /* 纸张纯黑 */
+            --line-color: #333333;    /* 纸张线条深灰 */
+            --text-color: #ffffff;    /* 文字纯白 */
+            --highlight: #ffffff;     /* 高亮纯白 */
+            --tab-color: #333333;     /* 标签深灰 */
+            --icon-color: #ffffff;    /* 图标纯白 */
+            --border-color: #333;     /* 加上微弱边框区分层级 */
             --shadow: none;
         }
 
-        /* 主题色系调整 (低饱和度) */
-        body.theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; }
-        body.theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; }
-        body.theme-beige { --paper-color: #fffbf0; --bg-color: #fafafa; }
+        /* 覆盖夜间模式下的日历选中状态 */
+        body.dark-mode .day.selected {
+            background-color: #333;
+            border: 1px solid #fff;
+        }
+        body.dark-mode .day.today {
+            color: #fff;
+            border-color: #fff;
+        }
+
+        /* 主题色系调整 (只在非夜间模式生效) */
+        body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; }
+        body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; }
+        body:not(.dark-mode).theme-beige { --paper-color: #fffbf0; --bg-color: #fafafa; }
+
+        /* 纸张纹理定义 */
+        body.paper-lines {
+            --paper-pattern: linear-gradient(transparent 95%, var(--line-color) 96%);
+            --paper-size: 100% 32px;
+        }
+        body.paper-grid {
+            --paper-pattern: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px);
+            --paper-size: 20px 20px;
+        }
+        body.paper-blank {
+            --paper-pattern: none;
+            --paper-size: auto;
+        }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); overflow: hidden; transition: background 0.4s ease; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); overflow: hidden; transition: background 0.4s ease, color 0.4s ease; }
 
         /* 通用按钮 */
         .icon-btn { 
-            border: none; background: white; 
+            border: 1px solid var(--border-color); background: var(--paper-color); 
             width: 40px; height: 40px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow);
             cursor: pointer; color: var(--icon-color); 
             transition: transform 0.2s;
         }
-        .dark-mode .icon-btn { background: #222; }
         .icon-btn:active { transform: scale(0.9); }
         .icon-btn svg { width: 22px; height: 22px; fill: currentColor; }
 
@@ -65,7 +90,7 @@
         .view {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column;
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* 弹性动画 */
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             background-color: var(--bg-color);
         }
         .hidden-right { transform: translateX(100%); pointer-events: none; }
@@ -76,7 +101,6 @@
             padding: 20px 25px;
         }
         
-        /* 日期选择器容器 */
         .date-picker-wrapper {
             position: relative;
             font-size: 1.4rem; font-weight: 800; color: var(--text-color);
@@ -85,7 +109,6 @@
         .date-picker-wrapper::after {
             content: '▼'; font-size: 0.8rem; opacity: 0.5; margin-left: 5px;
         }
-        /* 隐藏的原生日期输入框 */
         #month-picker {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             opacity: 0; cursor: pointer; z-index: 10;
@@ -99,30 +122,37 @@
             aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
             border-radius: 50%; cursor: pointer; position: relative; font-size: 1rem;
             transition: all 0.2s; color: var(--text-color);
+            border: 1px solid transparent; /* 预留边框位置避免跳动 */
         }
         .day.today { color: var(--highlight); font-weight: 900; border: 2px solid var(--highlight); }
         .day.selected { background-color: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(143, 174, 201, 0.4); transform: scale(1.1); }
+        /* 夜间模式下去掉阴影 */
+        body.dark-mode .day.selected { box-shadow: none; }
+
         .day.has-entry::after {
             content: ''; position: absolute; bottom: 5px; width: 5px; height: 5px;
             background-color: var(--highlight); border-radius: 50%;
         }
 
-        /* 侧边索引贴 (浅蓝色) */
+        /* 侧边索引贴 */
         #index-tab {
-            position: absolute; left: 0; top: 50%; transform: translate(-100%, -50%); /* 默认完全隐藏 */
+            position: absolute; left: 0; top: 50%; transform: translate(-100%, -50%);
             width: 70px; height: 50px;
             background-color: var(--tab-color);
-            color: white;
+            color: #fff;
             border-radius: 0 16px 16px 0;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 2px 2px 15px rgba(0,0,0,0.1);
             transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
             cursor: pointer; z-index: 100; font-weight: bold; font-size: 0.9rem;
+            border: 1px solid var(--border-color); border-left: none;
         }
+        body.dark-mode #index-tab { color: var(--text-color); box-shadow: none; }
         #index-tab.visible { transform: translate(0, -50%); }
 
-        /* ================= 日记界面 (仿真纸张) ================= */
-        #diary-view { background-color: #2c2c2c; } /* 衬底 */
+        /* ================= 日记界面 ================= */
+        /* 背景色也设为变量，确保翻页时露出的底色正确 */
+        #diary-view { background-color: var(--bg-color); } 
         
         .paper-container {
             width: 100%; height: 100%;
@@ -130,13 +160,13 @@
             background-image: var(--paper-pattern);
             background-size: var(--paper-size);
             background-attachment: local;
-            background-repeat: repeat; /* 默认纹理重复 */
+            background-repeat: repeat;
             display: flex; flex-direction: column;
             position: relative;
             transition: transform 0.3s;
+            border: 1px solid var(--border-color); /* 夜间模式边框 */
         }
         
-        /* 当有自定义背景图时 */
         .paper-container.has-custom-bg {
             background-repeat: no-repeat;
             background-position: center;
@@ -146,7 +176,9 @@
         .paper-header {
             padding: 25px 20px; 
             display: flex; justify-content: space-between; align-items: center;
-            background: rgba(255,255,255,0.3); backdrop-filter: blur(5px);
+            /* 顶部半透明遮罩 */
+            background: linear-gradient(to bottom, var(--paper-color) 80%, transparent);
+            z-index: 5;
         }
         .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
         
@@ -159,16 +191,16 @@
         }
         .page-nav {
             display: flex; justify-content: space-between; padding: 15px 25px;
-            background: rgba(255,255,255,0.5); backdrop-filter: blur(10px);
+            background: var(--paper-color); /* 底部不透明 */
+            border-top: 1px solid var(--border-color);
         }
 
         /* ================= 设置界面 ================= */
         #settings-view { background-color: var(--bg-color); z-index: 200; padding: 20px; overflow-y: auto; }
-        .setting-group { background: rgba(255,255,255,0.5); padding: 20px; border-radius: var(--radius); margin-bottom: 20px; }
-        .dark-mode .setting-group { background: rgba(255,255,255,0.05); }
+        .setting-group { background: var(--paper-color); padding: 20px; border-radius: var(--radius); margin-bottom: 20px; border: 1px solid var(--border-color); }
         
-        .setting-title { font-size: 0.85rem; color: #999; margin-bottom: 15px; font-weight: bold; }
-        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed rgba(0,0,0,0.1); }
+        .setting-title { font-size: 0.85rem; color: var(--text-color); opacity: 0.5; margin-bottom: 15px; font-weight: bold; }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed var(--line-color); }
         .setting-row:last-child { border-bottom: none; }
         
         button.btn {
@@ -176,16 +208,14 @@
             background: transparent; color: var(--text-color); font-size: 0.85rem; cursor: pointer;
         }
         .color-dots { display: flex; gap: 12px; }
-        .dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .dot.active { border-color: var(--text-color); transform: scale(1.1); }
+        .dot { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ccc; cursor: pointer; }
 
         /* ================= 弹窗与裁剪 ================= */
-        /* 顶部自动保存弹窗 */
         #save-toast {
             position: fixed; top: 0; left: 0; right: 0; height: 80px;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            color: #555;
+            color: #333;
             display: flex; align-items: flex-end; justify-content: center;
             padding-bottom: 20px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.05);
@@ -193,10 +223,9 @@
             transform: translateY(-100%); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 500; font-weight: bold; font-size: 0.9rem;
         }
-        .dark-mode #save-toast { background: rgba(30, 30, 30, 0.95); color: #fff; }
+        body.dark-mode #save-toast { background: #1a1a1a; color: #fff; border-bottom: 1px solid #333; }
         #save-toast.show { transform: translateY(0); }
 
-        /* 图片裁剪 Modal */
         #cropper-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 600; display: none;
@@ -204,13 +233,12 @@
         }
         .crop-container { flex: 1; overflow: hidden; position: relative; }
         .crop-actions {
-            height: 80px; background: #222; display: flex; 
-            justify-content: space-around; align-items: center; padding: 0 20px;
+            height: 80px; background: #000; display: flex; 
+            justify-content: space-around; align-items: center; padding: 0 20px; border-top: 1px solid #333;
         }
         .crop-btn { color: white; background: none; border: none; font-size: 1rem; padding: 10px 20px; }
-        .crop-btn.confirm { color: #64b5f6; font-weight: bold; }
+        .crop-btn.confirm { color: var(--primary-color); font-weight: bold; }
         
-        /* 隐藏的文件输入 */
         input[type="file"] { display: none; }
 
         /* 翻页动画 */
@@ -257,7 +285,7 @@
         </div>
 
         <!-- 左侧索引贴 -->
-        <div id="index-tab" class="index-tab" onclick="openDiary(event)">
+        <div id="index-tab" onclick="openDiary(event)">
             <span id="tab-date">10/24</span>
         </div>
     </div>
@@ -302,10 +330,12 @@
                 </div>
             </div>
             <div class="setting-row">
-                <span>纸张线条</span>
+                <span>纸张样式</span>
                 <div>
                     <button class="btn" onclick="setPaper('paper-lines')">横线</button>
                     <button class="btn" onclick="setPaper('paper-grid')">方格</button>
+                    <!-- 新增空白纸张选项 -->
+                    <button class="btn" onclick="setPaper('paper-blank')">空白</button>
                 </div>
             </div>
             <div class="setting-row">
@@ -375,7 +405,6 @@
         // === 全局点击管理 (自动隐藏侧边栏) ===
         function handleGlobalClick(e) {
             const tab = document.getElementById('index-tab');
-            // 如果点击的不是 tab 且 tab 是显示的
             if (tab.classList.contains('visible') && !e.target.closest('#index-tab') && !e.target.closest('.day')) {
                 tab.classList.remove('visible');
             }
@@ -386,7 +415,6 @@
             const year = state.currentDate.getFullYear();
             const month = state.currentDate.getMonth();
             
-            // 更新标题显示 (同时更新隐藏的input值)
             document.getElementById('current-month-label').textContent = `${year}年 ${String(month + 1).padStart(2, '0')}月`;
             document.getElementById('month-picker').value = `${year}-${String(month + 1).padStart(2, '0')}`;
             
@@ -395,12 +423,10 @@
             const daysContainer = document.getElementById('calendar-days');
             daysContainer.innerHTML = '';
 
-            // 空白占位
             for (let i = 0; i < firstDay.getDay(); i++) {
                 daysContainer.appendChild(document.createElement('div'));
             }
 
-            // 生成日期
             const today = new Date();
             for (let i = 1; i <= lastDay.getDate(); i++) {
                 const dayEl = document.createElement('div');
@@ -410,14 +436,12 @@
                 const thisDate = new Date(year, month, i);
                 const dateKey = formatDateKey(thisDate);
                 
-                // 样式标记
                 if (isSameDay(thisDate, today)) dayEl.classList.add('today');
                 if (isSameDay(thisDate, state.selectedDate)) dayEl.classList.add('selected');
                 if (state.diaryData[dateKey]) dayEl.classList.add('has-entry');
 
-                // 点击事件
                 dayEl.onclick = (e) => {
-                    e.stopPropagation(); // 防止触发全局隐藏
+                    e.stopPropagation(); 
                     selectDate(thisDate);
                 };
                 daysContainer.appendChild(dayEl);
@@ -435,7 +459,6 @@
             state.selectedDate = date;
             renderCalendar();
             
-            // 显示索引贴
             const tab = document.getElementById('index-tab');
             document.getElementById('tab-date').textContent = `${date.getMonth() + 1}/${date.getDate()}`;
             tab.classList.add('visible');
@@ -446,11 +469,8 @@
             if(e) e.stopPropagation();
             const dateKey = formatDateKey(state.selectedDate);
             
-            // 日期显示
             const opts = { month: 'long', day: 'numeric', weekday: 'long' };
             document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', opts);
-            
-            // 内容填充
             document.getElementById('diary-input').value = state.diaryData[dateKey] || '';
             
             document.getElementById('diary-view').classList.remove('hidden-right');
@@ -458,7 +478,7 @@
         }
 
         function closeDiary() {
-            saveDiaryManual(false); // 关闭时不强制弹窗
+            saveDiaryManual(false); 
             document.getElementById('diary-view').classList.add('hidden-right');
             renderCalendar();
         }
@@ -469,7 +489,6 @@
             newDate.setDate(newDate.getDate() + offset);
             state.selectedDate = newDate;
             
-            // 翻页动画
             const paper = document.getElementById('paper-layer');
             const anim = offset > 0 ? 'anim-slide-left' : 'anim-slide-right';
             paper.classList.add(anim);
@@ -477,7 +496,6 @@
             setTimeout(() => {
                 openDiary(); 
                 paper.classList.remove(anim);
-                // 瞬间复位
                 paper.style.opacity = '0';
                 requestAnimationFrame(() => paper.style.opacity = '1');
             }, 350);
@@ -526,14 +544,14 @@
                 
                 if (cropperInstance) cropperInstance.destroy();
                 cropperInstance = new Cropper(image, {
-                    viewMode: 2, // 限制在容器内
+                    viewMode: 2, 
                     dragMode: 'move',
-                    aspectRatio: NaN, // 自由比例
+                    aspectRatio: NaN,
                     autoCropArea: 1,
                 });
             };
             reader.readAsDataURL(file);
-            input.value = ''; // 重置以便再次选择
+            input.value = '';
         }
 
         function cancelCrop() {
@@ -544,7 +562,7 @@
         function finishCrop() {
             if (!cropperInstance) return;
             const canvas = cropperInstance.getCroppedCanvas({
-                maxWidth: 1024, maxHeight: 1024 // 限制尺寸防止卡顿
+                maxWidth: 1024, maxHeight: 1024 
             });
             
             const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
