@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- PWA 配置 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -11,11 +10,8 @@
     <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIuaIkeeahOaXpeiuwppIiwKICAic2hvcnRfbmFtZSI6ICLml6XorsLmnKwiLAogICJzdGFydF91cmwiOiAiLi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmN2Y5ZmMiLAogICJ0aGVtZV9jb2xvciI6ICIjZjdmOWZjIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaHR0cHM6Ly92aWEucGxhY2Vob2xkZXIuY29tLzE5MiIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfQogIF0KfQ==">
     <title>我的日记本</title>
     
-    <!-- 样式库 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    
-    <!-- JS 库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
@@ -178,7 +174,7 @@
         #ios-install-guide ol { padding-left: 20px; margin: 0; line-height: 1.6; }
         #android-sw-missing { display: none; background: #fff3e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #ffb74d; font-size: 0.85rem; color: #e65100; }
 
-        /* ================= 设置界面 ================= */
+        /* ================= 设置界面 & 搜索 ================= */
         #settings-view { background-color: var(--bg-color); z-index: 200; padding: 20px; overflow-y: auto; }
         .setting-group { background: var(--paper-color); padding: 20px; border-radius: var(--radius); margin-bottom: 20px; border: 1px solid var(--border-color); }
         .setting-title { font-size: 0.85rem; color: var(--text-color); opacity: 0.5; margin-bottom: 15px; font-weight: bold; }
@@ -189,7 +185,17 @@
         .color-dots { display: flex; gap: 12px; }
         .dot { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ccc; cursor: pointer; }
         .input-row { width: 100%; display: flex; gap: 10px; margin-top: 10px; }
-        .input-text { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--line-color); background: transparent; color: var(--text-color); }
+        .input-text { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--line-color); background: transparent; color: var(--text-color); width: 100%; }
+        
+        /* 搜索功能样式 */
+        .search-results { margin-top: 15px; max-height: 250px; overflow-y: auto; }
+        .search-item { padding: 10px; border-bottom: 1px solid var(--line-color); cursor: pointer; }
+        .search-item:last-child { border-bottom: none; }
+        .search-item:active { background: rgba(0,0,0,0.05); }
+        .search-date { font-weight: bold; font-size: 0.9rem; color: var(--primary-color); margin-bottom: 4px; }
+        .search-snippet { font-size: 0.85rem; color: var(--text-color); opacity: 0.8; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .highlight-text { background-color: var(--highlight); color: #fff; padding: 0 2px; border-radius: 2px; }
+        .no-results { padding: 15px; text-align: center; opacity: 0.5; font-size: 0.9rem; }
 
         #save-toast { position: fixed; top: 0; left: 0; right: 0; height: 80px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); color: #333; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); border-radius: 0 0 30px 30px; transform: translateY(-100%); transition: transform 0.4s; z-index: 500; font-weight: bold; font-size: 0.9rem; }
         body.dark-mode #save-toast { background: #1a1a1a; color: #fff; border-bottom: 1px solid #333; }
@@ -387,7 +393,16 @@
     <div id="settings-view" class="view hidden-right">
         <header><span style="font-weight:bold; font-size:1.2rem">设置</span><button class="icon-btn" onclick="closeSettings()">✕</button></header>
         
-        <!-- 新增：安全与隐私 -->
+        <!-- 新增：全文搜索 -->
+        <div class="setting-group">
+            <div class="setting-title">全文搜索</div>
+            <div class="input-row">
+                <input type="text" id="search-input" class="input-text" placeholder="输入关键词查找日记..." oninput="performSearch(this.value)">
+            </div>
+            <div id="search-results" class="search-results"></div>
+        </div>
+
+        <!-- 安全与隐私 -->
         <div class="setting-group">
             <div class="setting-title">安全与隐私</div>
             <div class="setting-row">
@@ -457,380 +472,338 @@
     <div id="screenshot-container" style="position:fixed; top:0; left:-9999px; width:450px; z-index:-1; pointer-events:none;"></div>
 
     <script>
-    const state = {
-        currentDate: new Date(),
-        selectedDate: new Date(),
-        diaryData: JSON.parse(localStorage.getItem('myDiaryData_v2') || '{}'),
-        todoData: JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]'),
-        settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":"","showTodo":true}'),
-        // 新增 credentialId 用于存储指纹 ID
-        security: JSON.parse(localStorage.getItem('myDiarySecurity_v2') || '{"enabled":false, "pin":"", "biometrics":false, "credentialId": null}'),
-        bgImage: localStorage.getItem('myDiaryBg_v2') || null,
-        isDirty: false
-    };
-
-    let cropperInstance = null;
-    let notifyInterval = null;
-    let currentPinInput = ""; 
-
-    function init() {
-        checkLockStatus();
-        applySettings();
-        if(state.settings.customFont) loadCustomFont(state.settings.customFont);
-        renderCalendar();
-        renderTodoList();
-        setInterval(autoSave, 60000);
-        registerRealSW();
-        startNotificationCheck();
-        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNotifications(true); });
-        document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
-        const toast = document.getElementById('save-toast');
-        let startY = 0;
-        toast.addEventListener('touchstart', e => startY = e.touches[0].clientY);
-        toast.addEventListener('touchmove', e => { if (startY - e.touches[0].clientY > 10) hideToast(); });
-        
-        initDraggable(document.getElementById('index-tab'), 'left');
-        initDraggable(document.getElementById('todo-tab'), 'left');
-        initDraggable(document.getElementById('fmt-toggle'), 'any');
-        
-        document.getElementById('export-date-picker').valueAsDate = new Date();
-        checkNotifyState();
-        
-        document.body.addEventListener('click', (e) => {
-            if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
-        });
-    }
-
-    /* ============ 🔒 修复后的生物识别逻辑 ============ */
-
-    // 辅助函数：ArrayBuffer 转 Base64 字符串
-    function bufferToBase64(buffer) {
-        return btoa(String.fromCharCode(...new Uint8Array(buffer)));
-    }
-    // 辅助函数：Base64 字符串 转 ArrayBuffer
-    function base64ToBuffer(base64) {
-        return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-    }
-
-    function checkLockStatus() {
-        if (state.security.enabled) {
-            document.getElementById('lock-screen').classList.add('active');
-            updatePinDots();
-            // 自动唤起指纹
-            if (state.security.biometrics && state.security.credentialId) {
-                setTimeout(tryBiometric, 500);
-            }
-        } else {
-            document.getElementById('lock-screen').classList.remove('active');
-        }
-    }
-
-    function enterPin(num) {
-        if (currentPinInput.length < 4) {
-            currentPinInput += num;
-            updatePinDots();
-            if (currentPinInput.length === 4) {
-                setTimeout(verifyPin, 100);
-            }
-        }
-    }
-
-    function deletePin() {
-        currentPinInput = currentPinInput.slice(0, -1);
-        updatePinDots();
-    }
-
-    function updatePinDots() {
-        const dots = document.querySelectorAll('.pin-dot');
-        dots.forEach((dot, index) => {
-            if (index < currentPinInput.length) dot.classList.add('filled');
-            else dot.classList.remove('filled');
-        });
-    }
-
-    function verifyPin() {
-        if (currentPinInput === state.security.pin) {
-            unlockSuccess();
-        } else {
-            navigator.vibrate?.([100, 50, 100]);
-            showToast("密码错误");
-            currentPinInput = "";
-            updatePinDots();
-        }
-    }
-
-    function unlockSuccess() {
-        document.getElementById('lock-screen').classList.remove('active');
-        currentPinInput = "";
-        updatePinDots();
-        showToast("解锁成功");
-    }
-
-    // 🟢 核心修复：注册指纹 (开启开关时调用)
-    async function registerBiometric() {
-        if (!window.PublicKeyCredential) {
-            alert("你的浏览器不支持生物识别，或未在 HTTPS/Localhost 环境下运行。");
-            return false;
-        }
-
-        // 创建注册选项
-        const publicKey = {
-            challenge: new Uint8Array(32), // 随机挑战
-            rp: { name: "我的日记本", id: window.location.hostname }, // 依赖方信息
-            user: {
-                id: Uint8Array.from("USER_ID", c => c.charCodeAt(0)),
-                name: "user@diary.local",
-                displayName: "日记本主人"
-            },
-            pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
-            authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
-            timeout: 60000
+        const state = {
+            currentDate: new Date(),
+            selectedDate: new Date(),
+            diaryData: JSON.parse(localStorage.getItem('myDiaryData_v2') || '{}'),
+            todoData: JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]'),
+            settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":"","showTodo":true}'),
+            security: JSON.parse(localStorage.getItem('myDiarySecurity_v2') || '{"enabled":false, "pin":"", "biometrics":false, "credentialId": null}'),
+            bgImage: localStorage.getItem('myDiaryBg_v2') || null,
+            isDirty: false
         };
 
-        try {
-            showToast("请验证指纹/面容以进行注册...");
-            const credential = await navigator.credentials.create({ publicKey });
-            // 保存凭证 ID (rawId)
-            const newCredentialId = bufferToBase64(credential.rawId);
-            state.security.credentialId = newCredentialId;
-            return true;
-        } catch (e) {
-            console.error(e);
-            if (e.name === 'NotAllowedError') {
-                alert("注册取消或超时。");
-            } else {
-                alert("注册失败：" + e.message + "\n请确保使用 HTTPS 或 Localhost 访问。");
-            }
-            return false;
-        }
-    }
+        let cropperInstance = null;
+        let notifyInterval = null;
+        let currentPinInput = ""; 
 
-    // 🟢 核心修复：验证指纹 (解锁时调用)
-    async function tryBiometric() {
-        // 如果没有注册过 ID，直接无法验证
-        if (!state.security.credentialId) {
-            if(state.security.enabled) showToast("未检测到已注册的指纹");
-            return;
-        }
-
-        try {
-            const publicKey = {
-                challenge: new Uint8Array(32),
-                allowCredentials: [{
-                    id: base64ToBuffer(state.security.credentialId),
-                    type: 'public-key',
-                    transports: ['internal']
-                }],
-                userVerification: "required",
-                timeout: 60000
-            };
-
-            const assertion = await navigator.credentials.get({ publicKey });
-            // 如果成功拿到 assertion，说明验证通过
-            unlockSuccess();
-        } catch (e) {
-            console.log("Biometric verify failed", e);
-            // 验证失败不弹窗干扰，用户可以继续用 PIN
-        }
-    }
-
-    /* ============ 设置逻辑 ============ */
-    function togglePinLock() {
-        if (state.security.enabled) {
-            // 关闭
-            const pin = prompt("请输入当前 4 位 PIN 码以关闭：");
-            if (pin === state.security.pin) {
-                state.security.enabled = false;
-                state.security.biometrics = false;
-                state.security.credentialId = null; // 清除指纹绑定
-                saveSecurity();
-                applySettings();
-                showToast("已关闭密码保护");
-            } else if (pin !== null) alert("密码错误");
-        } else {
-            // 开启
-            const newPin = prompt("请设置 4 位数字 PIN 码：");
-            if (newPin && newPin.length === 4 && !isNaN(newPin)) {
-                state.security.enabled = true;
-                state.security.pin = newPin;
-                saveSecurity();
-                applySettings();
-                showToast("密码保护已开启");
-            } else if (newPin !== null) alert("请输入 4 位纯数字");
-        }
-    }
-
-    async function toggleBiometrics() {
-        if (!state.security.enabled) { alert("请先开启 PIN 码保护"); return; }
-        
-        // 如果是要开启
-        if (!state.security.biometrics) {
-            // 先尝试注册
-            const success = await registerBiometric();
-            if (success) {
-                state.security.biometrics = true;
-                saveSecurity();
-                applySettings();
-                showToast("已开启生物识别辅助 ✅");
-            } else {
-                // 注册失败，开关保持关闭
-                state.security.biometrics = false;
-                applySettings();
-            }
-        } else {
-            // 关闭
-            state.security.biometrics = false;
-            state.security.credentialId = null;
-            saveSecurity();
+        function init() {
+            checkLockStatus();
             applySettings();
-            showToast("生物识别已关闭");
+            if(state.settings.customFont) loadCustomFont(state.settings.customFont);
+            renderCalendar();
+            renderTodoList();
+            setInterval(autoSave, 60000);
+            registerRealSW();
+            startNotificationCheck();
+            document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNotifications(true); });
+            document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
+            const toast = document.getElementById('save-toast');
+            let startY = 0;
+            toast.addEventListener('touchstart', e => startY = e.touches[0].clientY);
+            toast.addEventListener('touchmove', e => { if (startY - e.touches[0].clientY > 10) hideToast(); });
+            
+            initDraggable(document.getElementById('index-tab'), 'left');
+            initDraggable(document.getElementById('todo-tab'), 'left');
+            initDraggable(document.getElementById('fmt-toggle'), 'any');
+            
+            document.getElementById('export-date-picker').valueAsDate = new Date();
+            checkNotifyState();
+            
+            document.body.addEventListener('click', (e) => {
+                if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
+            });
         }
-    }
 
-    function saveSecurity() {
-        localStorage.setItem('myDiarySecurity_v2', JSON.stringify(state.security));
-    }
+        /* ============ 搜索功能逻辑 ============ */
+        function performSearch(query) {
+            const container = document.getElementById('search-results');
+            container.innerHTML = '';
+            if(!query.trim()) return;
+            
+            const results = [];
+            const tempDiv = document.createElement('div'); // 用于剥离HTML标签
+            
+            // 倒序遍历（最新的在前）
+            Object.keys(state.diaryData).sort().reverse().forEach(dateKey => {
+                const htmlContent = state.diaryData[dateKey];
+                tempDiv.innerHTML = htmlContent;
+                const textContent = tempDiv.innerText; // 获取纯文本
+                
+                if(textContent.toLowerCase().includes(query.toLowerCase())) {
+                    results.push({ date: dateKey, text: textContent });
+                }
+            });
 
-    /* ============ 现有逻辑 ============ */
-    function toggleUI(show) {
-        const tabs = document.querySelectorAll('.side-tab');
-        tabs.forEach(tab => {
-            if(show) {
-                if(tab.id === 'todo-tab') {
-                    if(state.settings.showTodo) tab.classList.remove('hidden-ui');
-                } else {
-                    tab.classList.remove('hidden-ui');
+            if(results.length === 0) {
+                container.innerHTML = '<div class="no-results">没有找到相关日记</div>';
+                return;
+            }
+
+            results.forEach(item => {
+                const dateObj = new Date(item.date);
+                const dateStr = dateObj.toLocaleDateString('zh-CN', {year:'numeric', month:'long', day:'numeric', weekday:'short'});
+                
+                // 截取摘要
+                const index = item.text.toLowerCase().indexOf(query.toLowerCase());
+                let start = Math.max(0, index - 10);
+                let end = Math.min(item.text.length, index + query.length + 20);
+                let snippet = item.text.substring(start, end);
+                if(start > 0) snippet = '...' + snippet;
+                if(end < item.text.length) snippet = snippet + '...';
+                
+                // 高亮关键词
+                const regex = new RegExp(`(${query})`, 'gi');
+                const highlightSnippet = snippet.replace(regex, '<span class="highlight-text">$1</span>');
+
+                const el = document.createElement('div');
+                el.className = 'search-item';
+                el.innerHTML = `
+                    <div class="search-date">${dateStr}</div>
+                    <div class="search-snippet">${highlightSnippet}</div>
+                `;
+                el.onclick = () => {
+                    closeSettings();
+                    selectDate(dateObj);
+                    setTimeout(openDiary, 300); // 稍微延迟等待转场
+                };
+                container.appendChild(el);
+            });
+        }
+
+        /* ============ 🔒 生物识别逻辑 ============ */
+        function bufferToBase64(buffer) { return btoa(String.fromCharCode(...new Uint8Array(buffer))); }
+        function base64ToBuffer(base64) { return Uint8Array.from(atob(base64), c => c.charCodeAt(0)); }
+
+        function checkLockStatus() {
+            if (state.security.enabled) {
+                document.getElementById('lock-screen').classList.add('active');
+                updatePinDots();
+                if (state.security.biometrics && state.security.credentialId) {
+                    setTimeout(tryBiometric, 500);
                 }
             } else {
-                tab.classList.add('hidden-ui');
+                document.getElementById('lock-screen').classList.remove('active');
             }
-        });
-    }
-    
-    function updateTodoTabVisibility() {
-        const tab = document.getElementById('todo-tab');
-        if(state.settings.showTodo) {
-            tab.style.display = 'flex';
-            const isViewOpen = !document.getElementById('settings-view').classList.contains('hidden-right') || !document.getElementById('diary-view').classList.contains('hidden-right');
-            if(!isViewOpen) tab.classList.remove('hidden-ui');
-        } else {
-            tab.style.display = 'none';
         }
-    }
 
-    function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); toggleUI(false); }
-    function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); toggleUI(true); }
-    function toggleTodoSetting() { state.settings.showTodo = !state.settings.showTodo; saveSettings(); applySettings(); }
-
-    function registerRealSW() {
-        if (!('serviceWorker' in navigator)) { updateSWStatus("浏览器不支持后台"); return; }
-        navigator.serviceWorker.register('sw.js').then(reg => {
-            updateSWStatus("后台服务运行中 ✅", "green");
-            document.getElementById('android-sw-missing').style.display = 'none';
-            document.getElementById('android-sw-code-block').style.display = 'none';
-        }).catch(err => {
-            updateSWStatus("后台服务未连接");
-            if (/Android/i.test(navigator.userAgent)) {
-                document.getElementById('android-sw-missing').style.display = 'block';
-                document.getElementById('android-sw-code-block').style.display = 'block';
+        function enterPin(num) {
+            if (currentPinInput.length < 4) {
+                currentPinInput += num;
+                updatePinDots();
+                if (currentPinInput.length === 4) setTimeout(verifyPin, 100);
             }
-        });
-        navigator.serviceWorker.ready.then(() => updateSWStatus("后台服务运行中 ✅", "green"));
-    }
-    function updateSWStatus(msg, color) { const el = document.getElementById('sw-status'); el.textContent = msg; if (color) el.style.color = color; }
+        }
+        function deletePin() { currentPinInput = currentPinInput.slice(0, -1); updatePinDots(); }
+        function updatePinDots() {
+            const dots = document.querySelectorAll('.pin-dot');
+            dots.forEach((dot, index) => {
+                if (index < currentPinInput.length) dot.classList.add('filled');
+                else dot.classList.remove('filled');
+            });
+        }
+        function verifyPin() {
+            if (currentPinInput === state.security.pin) unlockSuccess();
+            else { navigator.vibrate?.([100, 50, 100]); showToast("密码错误"); currentPinInput = ""; updatePinDots(); }
+        }
+        function unlockSuccess() {
+            document.getElementById('lock-screen').classList.remove('active');
+            currentPinInput = ""; updatePinDots(); showToast("解锁成功");
+        }
 
-    function checkNotifyState() {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        const isStandalone = window.navigator.standalone || (window.matchMedia('(display-mode: standalone)').matches);
-        if (isIOS && !isStandalone) { document.getElementById('ios-install-guide').style.display = 'block'; document.getElementById('perm-btn').style.display = 'none'; } 
-        else { document.getElementById('ios-install-guide').style.display = 'none'; }
-        if (!("Notification" in window)) { document.getElementById('perm-btn').innerText = "❌ 此浏览器不支持通知"; document.getElementById('perm-btn').style.display = 'block'; } 
-        else if (Notification.permission !== "granted") { document.getElementById('perm-btn').style.display = 'block'; } 
-        else { document.getElementById('perm-btn').style.display = 'none'; }
-    }
-
-    async function sendSafeNotification(title, body) {
-        if ('serviceWorker' in navigator) {
+        async function registerBiometric() {
+            if (!window.PublicKeyCredential) { alert("环境不支持生物识别"); return false; }
+            const publicKey = {
+                challenge: new Uint8Array(32),
+                rp: { name: "我的日记本", id: window.location.hostname },
+                user: { id: Uint8Array.from("USER_ID", c => c.charCodeAt(0)), name: "user@diary.local", displayName: "日记本主人" },
+                pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+                authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+                timeout: 60000
+            };
             try {
-                const reg = await navigator.serviceWorker.getRegistration();
-                if (reg) { reg.showNotification(title, { body: body, icon: 'https://via.placeholder.com/128', vibrate: [200, 100, 200], requireInteraction: true }); return; }
-            } catch (e) { console.error(e); }
+                showToast("请验证以注册...");
+                const credential = await navigator.credentials.create({ publicKey });
+                state.security.credentialId = bufferToBase64(credential.rawId);
+                return true;
+            } catch (e) { console.error(e); alert("注册失败: " + e.message); return false; }
         }
-        if (/Android/i.test(navigator.userAgent)) { showToast("⚠️ 安卓未连接 sw.js"); return; }
-        try { new Notification(title, { body: body }); } catch (e) {}
-    }
 
-    function requestNotifyPermission() {
-        Notification.requestPermission().then(permission => {
-            if (permission === "granted") { document.getElementById('perm-btn').style.display = 'none'; showToast("通知已开启 ✅"); sendSafeNotification("日记本提醒", "权限获取成功！"); } 
-            else { alert("权限被拒绝。"); }
-        });
-    }
-    function testNotification() {
-        if (Notification.permission === "granted") { showToast("已请求发送..."); sendSafeNotification("测试通知", "如果您看到这条消息，说明功能正常！📱"); } 
-        else { alert("请先点击开启通知权限"); }
-    }
+        async function tryBiometric() {
+            if (!state.security.credentialId) { if(state.security.enabled) showToast("未注册指纹"); return; }
+            try {
+                const publicKey = {
+                    challenge: new Uint8Array(32),
+                    allowCredentials: [{ id: base64ToBuffer(state.security.credentialId), type: 'public-key', transports: ['internal'] }],
+                    userVerification: "required", timeout: 60000
+                };
+                await navigator.credentials.get({ publicKey });
+                unlockSuccess();
+            } catch (e) { console.log("Biometric failed", e); }
+        }
 
-    function addTodo() {
-        const input = document.getElementById('new-todo-input'); const text = input.value.trim(); if(!text) return;
-        state.todoData.unshift({ id: Date.now(), text: text, done: false, date: '', time: '', notified: false }); 
-        input.value = ''; saveTodo(); renderTodoList();
-    }
+        function togglePinLock() {
+            if (state.security.enabled) {
+                const pin = prompt("输入当前PIN码关闭：");
+                if (pin === state.security.pin) { state.security.enabled = false; state.security.biometrics = false; state.security.credentialId = null; saveSecurity(); applySettings(); showToast("已关闭"); }
+                else if (pin !== null) alert("密码错误");
+            } else {
+                const newPin = prompt("设置4位PIN码：");
+                if (newPin && newPin.length === 4 && !isNaN(newPin)) { state.security.enabled = true; state.security.pin = newPin; saveSecurity(); applySettings(); showToast("已开启"); }
+                else if (newPin !== null) alert("请输入4位数字");
+            }
+        }
 
-    function toggleTodo(id) { 
-        const item = state.todoData.find(t => t.id === id); 
-        if(item) { item.done = !item.done; saveTodo(); renderTodoList(); } 
-    }
-    function deleteTodo(id) { state.todoData = state.todoData.filter(t => t.id !== id); saveTodo(); renderTodoList(); }
-    function updateTodoData(id, field, val) { const item = state.todoData.find(t => t.id === id); if(item) { item[field] = val; if(field === 'time' || field === 'date') item.notified = false; saveTodo(); renderTodoList(); } } 
-    function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
+        async function toggleBiometrics() {
+            if (!state.security.enabled) { alert("请先开启PIN码"); return; }
+            if (!state.security.biometrics) {
+                if (await registerBiometric()) { state.security.biometrics = true; saveSecurity(); applySettings(); showToast("生物识别已开启"); }
+            } else {
+                state.security.biometrics = false; state.security.credentialId = null; saveSecurity(); applySettings(); showToast("生物识别已关闭");
+            }
+        }
+        function saveSecurity() { localStorage.setItem('myDiarySecurity_v2', JSON.stringify(state.security)); }
 
-    function renderTodoList() {
-        const list = document.getElementById('todo-list'); list.innerHTML = '';
-        const sortedData = [...state.todoData].sort((a, b) => {
-            if (a.done !== b.done) return a.done ? 1 : -1;
-            const aHasTime = a.date && a.time; const bHasTime = b.date && b.time;
-            if (!aHasTime && bHasTime) return -1; if (aHasTime && !bHasTime) return 1; if (!aHasTime && !bHasTime) return b.id - a.id; 
-            return new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`);
-        });
-        sortedData.forEach(item => {
-            const wrapper = document.createElement('div'); wrapper.className = 'todo-item-wrapper';
-            wrapper.innerHTML = `
-                <div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div>
-                <div class="todo-item-content ${item.done ? 'done' : ''}" id="todo-content-${item.id}">
-                    <div class="todo-checkbox ${item.done ? 'checked' : ''}" onclick="toggleTodo(${item.id}); event.stopPropagation();"></div>
-                    <div class="todo-content-wrapper">
-                        <div class="todo-text">${item.text}</div>
-                        <div class="todo-datetime">
-                            <input type="date" class="todo-picker" value="${item.date || ''}" onchange="updateTodoData(${item.id}, 'date', this.value)">
-                            <input type="time" class="todo-picker" value="${item.time || ''}" onchange="updateTodoData(${item.id}, 'time', this.value)">
+        /* ============ 现有逻辑 ============ */
+        function toggleUI(show) {
+            const tabs = document.querySelectorAll('.side-tab');
+            tabs.forEach(tab => {
+                if(show) {
+                    if(tab.id === 'todo-tab') {
+                        if(state.settings.showTodo) tab.classList.remove('hidden-ui');
+                    } else {
+                        tab.classList.remove('hidden-ui');
+                    }
+                } else {
+                    tab.classList.add('hidden-ui');
+                }
+            });
+        }
+        
+        function updateTodoTabVisibility() {
+            const tab = document.getElementById('todo-tab');
+            if(state.settings.showTodo) {
+                tab.style.display = 'flex';
+                const isViewOpen = !document.getElementById('settings-view').classList.contains('hidden-right') || !document.getElementById('diary-view').classList.contains('hidden-right');
+                if(!isViewOpen) tab.classList.remove('hidden-ui');
+            } else {
+                tab.style.display = 'none';
+            }
+        }
+
+        function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); toggleUI(false); }
+        function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); toggleUI(true); }
+        function toggleTodoSetting() { state.settings.showTodo = !state.settings.showTodo; saveSettings(); applySettings(); }
+
+        function registerRealSW() {
+            if (!('serviceWorker' in navigator)) { updateSWStatus("浏览器不支持后台"); return; }
+            navigator.serviceWorker.register('sw.js').then(reg => {
+                updateSWStatus("后台服务运行中 ✅", "green");
+                document.getElementById('android-sw-missing').style.display = 'none';
+                document.getElementById('android-sw-code-block').style.display = 'none';
+            }).catch(err => {
+                updateSWStatus("后台服务未连接");
+                if (/Android/i.test(navigator.userAgent)) {
+                    document.getElementById('android-sw-missing').style.display = 'block';
+                    document.getElementById('android-sw-code-block').style.display = 'block';
+                }
+            });
+            navigator.serviceWorker.ready.then(() => updateSWStatus("后台服务运行中 ✅", "green"));
+        }
+        function updateSWStatus(msg, color) { const el = document.getElementById('sw-status'); el.textContent = msg; if (color) el.style.color = color; }
+
+        function checkNotifyState() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const isStandalone = window.navigator.standalone || (window.matchMedia('(display-mode: standalone)').matches);
+            if (isIOS && !isStandalone) { document.getElementById('ios-install-guide').style.display = 'block'; document.getElementById('perm-btn').style.display = 'none'; } 
+            else { document.getElementById('ios-install-guide').style.display = 'none'; }
+            if (!("Notification" in window)) { document.getElementById('perm-btn').innerText = "❌ 此浏览器不支持通知"; document.getElementById('perm-btn').style.display = 'block'; } 
+            else if (Notification.permission !== "granted") { document.getElementById('perm-btn').style.display = 'block'; } 
+            else { document.getElementById('perm-btn').style.display = 'none'; }
+        }
+
+        async function sendSafeNotification(title, body) {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const reg = await navigator.serviceWorker.getRegistration();
+                    if (reg) { reg.showNotification(title, { body: body, icon: 'https://via.placeholder.com/128', vibrate: [200, 100, 200], requireInteraction: true }); return; }
+                } catch (e) { console.error(e); }
+            }
+            if (/Android/i.test(navigator.userAgent)) { showToast("⚠️ 安卓未连接 sw.js"); return; }
+            try { new Notification(title, { body: body }); } catch (e) {}
+        }
+
+        function requestNotifyPermission() {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") { document.getElementById('perm-btn').style.display = 'none'; showToast("通知已开启 ✅"); sendSafeNotification("日记本提醒", "权限获取成功！"); } 
+                else { alert("权限被拒绝。"); }
+            });
+        }
+        function testNotification() {
+            if (Notification.permission === "granted") { showToast("已请求发送..."); sendSafeNotification("测试通知", "如果您看到这条消息，说明功能正常！📱"); } 
+            else { alert("请先点击开启通知权限"); }
+        }
+
+        function addTodo() {
+            const input = document.getElementById('new-todo-input'); const text = input.value.trim(); if(!text) return;
+            state.todoData.unshift({ id: Date.now(), text: text, done: false, date: '', time: '', notified: false }); 
+            input.value = ''; saveTodo(); renderTodoList();
+        }
+
+        function toggleTodo(id) { 
+            const item = state.todoData.find(t => t.id === id); 
+            if(item) { item.done = !item.done; saveTodo(); renderTodoList(); } 
+        }
+        function deleteTodo(id) { state.todoData = state.todoData.filter(t => t.id !== id); saveTodo(); renderTodoList(); }
+        function updateTodoData(id, field, val) { const item = state.todoData.find(t => t.id === id); if(item) { item[field] = val; if(field === 'time' || field === 'date') item.notified = false; saveTodo(); renderTodoList(); } } 
+        function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
+
+        function renderTodoList() {
+            const list = document.getElementById('todo-list'); list.innerHTML = '';
+            const sortedData = [...state.todoData].sort((a, b) => {
+                if (a.done !== b.done) return a.done ? 1 : -1;
+                const aHasTime = a.date && a.time; const bHasTime = b.date && b.time;
+                if (!aHasTime && bHasTime) return -1; if (aHasTime && !bHasTime) return 1; if (!aHasTime && !bHasTime) return b.id - a.id; 
+                return new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`);
+            });
+            sortedData.forEach(item => {
+                const wrapper = document.createElement('div'); wrapper.className = 'todo-item-wrapper';
+                wrapper.innerHTML = `
+                    <div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div>
+                    <div class="todo-item-content ${item.done ? 'done' : ''}" id="todo-content-${item.id}">
+                        <div class="todo-checkbox ${item.done ? 'checked' : ''}" onclick="toggleTodo(${item.id}); event.stopPropagation();"></div>
+                        <div class="todo-content-wrapper">
+                            <div class="todo-text">${item.text}</div>
+                            <div class="todo-datetime">
+                                <input type="date" class="todo-picker" value="${item.date || ''}" onchange="updateTodoData(${item.id}, 'date', this.value)">
+                                <input type="time" class="todo-picker" value="${item.time || ''}" onchange="updateTodoData(${item.id}, 'time', this.value)">
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            const contentEl = wrapper.querySelector('.todo-item-content'); attachSwipeEvents(contentEl); list.appendChild(wrapper);
-        });
-    }
+                `;
+                const contentEl = wrapper.querySelector('.todo-item-content'); attachSwipeEvents(contentEl); list.appendChild(wrapper);
+            });
+        }
 
-    let currentOpenSwipe = null;
-    function attachSwipeEvents(el) {
-        let startX, currentX; let isDragging = false;
-        el.addEventListener('touchstart', (e) => {
-            if(currentOpenSwipe && currentOpenSwipe !== el) { currentOpenSwipe.style.transform = 'translateX(0)'; currentOpenSwipe = null; }
-            startX = e.touches[0].clientX; el.style.transition = 'none';
-        }, {passive: true});
-        el.addEventListener('touchmove', (e) => {
-            currentX = e.touches[0].clientX; let deltaX = currentX - startX;
-            if (deltaX > 0) deltaX = 0; if (deltaX < -80) deltaX = -80;
-            if (deltaX < -10) isDragging = true; el.style.transform = `translateX(${deltaX}px)`;
-        }, {passive: true});
-        el.addEventListener('touchend', (e) => {
-            el.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
-            const deltaX = currentX - startX;
-            if (deltaX < -40) { el.style.transform = 'translateX(-80px)'; currentOpenSwipe = el; } 
-            else { el.style.transform = 'translateX(0)'; if(currentOpenSwipe === el) currentOpenSwipe = null; }
-            isDragging = false;
-        });
+        let currentOpenSwipe = null;
+        function attachSwipeEvents(el) {
+            let startX, currentX; let isDragging = false;
+            el.addEventListener('touchstart', (e) => {
+                if(currentOpenSwipe && currentOpenSwipe !== el) { currentOpenSwipe.style.transform = 'translateX(0)'; currentOpenSwipe = null; }
+                startX = e.touches[0].clientX; el.style.transition = 'none';
+            }, {passive: true});
+            el.addEventListener('touchmove', (e) => {
+                currentX = e.touches[0].clientX; let deltaX = currentX - startX;
+                if (deltaX > 0) deltaX = 0; if (deltaX < -80) deltaX = -80;
+                if (deltaX < -10) isDragging = true; el.style.transform = `translateX(${deltaX}px)`;
+            }, {passive: true});
+            el.addEventListener('touchend', (e) => {
+                el.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                const deltaX = currentX - startX;
+                if (deltaX < -40) { el.style.transform = 'translateX(-80px)'; currentOpenSwipe = el; } 
+                else { el.style.transform = 'translateX(0)'; if(currentOpenSwipe === el) currentOpenSwipe = null; }
+                isDragging = false;
+            });
     }
     function resetAllSwipes() { const openItems = document.querySelectorAll('.todo-item-content[style*="translateX(-80px)"]'); openItems.forEach(el => el.style.transform = 'translateX(0)'); currentOpenSwipe = null; }
 
@@ -896,11 +869,9 @@
         if (state.settings.darkMode) document.body.classList.add('dark-mode'); else document.body.classList.remove('dark-mode'); 
         document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF";
         document.getElementById('btn-todo-toggle').textContent = state.settings.showTodo ? "ON" : "OFF";
-        
         document.getElementById('btn-pin-toggle').textContent = state.security.enabled ? "ON" : "OFF";
         document.getElementById('btn-bio-toggle').textContent = state.security.biometrics ? "ON" : "OFF";
         document.getElementById('row-bio').style.display = state.security.enabled ? 'flex' : 'none';
-
         applyBgImage(); 
         updateTodoTabVisibility();
     }
@@ -909,7 +880,7 @@
     function exportData() { const blob = new Blob([JSON.stringify(state.diaryData)], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `diary_backup_${formatDateKey(new Date())}.json`; a.click(); }
     function importData(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { state.diaryData = JSON.parse(e.target.result); localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); renderCalendar(); alert("导入成功"); } catch(err) { alert("文件格式错误"); } }; reader.readAsText(file); }
 
-    init();       
+    init();
     </script>
 </body>
 </html>
