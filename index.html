@@ -3,101 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- PWA 配置 -->
+    <!-- PWA 核心配置 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#f7f9fc">
     <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIuaIkeeahOaXpeiuwppIiwKICAic2hvcnRfbmFtZSI6ICLml6XorsLmnKwiLAogICJzdGFydF91cmwiOiAiLi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmN2Y5ZmMiLAogICJ0aGVtZV9jb2xvciI6ICIjZjdmOWZjIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaHR0cHM6Ly92aWEucGxhY2Vob2xkZXIuY29tLzE5MiIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfQogIF0KfQ==">
     <title>我的日记本</title>
     
+    <!-- 样式库 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <!-- JS 库 (修复：补全 Cropper.js) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
     <style>
+        /* ============ 基础样式 (保持不变) ============ */
         :root {
-            /* 莫兰迪色系 */
-            --primary-color: #8faec9;
-            --bg-color: #f7f9fc;
-            --paper-color: #fffbf0;
-            --line-color: #e6e6e6;
-            --highlight: #eeb8c3;
-            --text-color: #555d66;
-            --tab-color: #aed9e0;
-            --icon-color: #8faec9;
-            --border-color: transparent;
-            
+            --primary-color: #8faec9; --bg-color: #f7f9fc; --paper-color: #fffbf0;
+            --line-color: #e6e6e6; --highlight: #eeb8c3; --text-color: #555d66;
+            --tab-color: #aed9e0; --icon-color: #8faec9; --border-color: transparent;
             --shadow: 0 8px 20px rgba(143, 174, 201, 0.15);
-            --font-main: "Nunito", "Quicksand", -apple-system, sans-serif;
-            --radius: 24px;
-
-            --paper-pattern: none;
-            --paper-size: 100% 32px;
+            --font-main: "Nunito", "Quicksand", -apple-system, sans-serif; --radius: 24px;
+            --paper-pattern: none; --paper-size: 100% 32px;
         }
-
         body.dark-mode {
-            --primary-color: #ffffff;
-            --bg-color: #000000;
-            --paper-color: #000000;
-            --line-color: #333333;
-            --text-color: #ffffff;
-            --highlight: #ffffff;
-            --tab-color: #333333;
-            --icon-color: #ffffff;
-            --border-color: #333;
-            --shadow: none;
+            --primary-color: #ffffff; --bg-color: #000000; --paper-color: #000000;
+            --line-color: #333333; --text-color: #ffffff; --highlight: #ffffff;
+            --tab-color: #333333; --icon-color: #ffffff; --border-color: #333; --shadow: none;
         }
-
         body.dark-mode .day.selected { background-color: #333; border: 1px solid #fff; }
         body.dark-mode .day.today { color: #fff; border-color: #fff; }
-
         body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; }
         body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; }
         body:not(.dark-mode).theme-beige { --paper-color: #fffbf0; --bg-color: #fdf6e3; } 
         body:not(.dark-mode).theme-white { --paper-color: #ffffff; --bg-color: #f0f0f0; }
-
         body.paper-lines { --paper-pattern: linear-gradient(transparent 95%, var(--line-color) 96%); --paper-size: 100% 32px; }
         body.paper-grid { --paper-pattern: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px); --paper-size: 20px 20px; }
         body.paper-blank { --paper-pattern: none; --paper-size: auto; }
-
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); overflow: hidden; transition: background 0.4s ease, color 0.4s ease; }
-
         .icon-btn { 
             border: 1px solid var(--border-color); background: var(--paper-color); 
-            width: 40px; height: 40px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: var(--shadow);
-            cursor: pointer; color: var(--icon-color); 
-            transition: transform 0.2s, box-shadow 0.2s;
+            width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            box-shadow: var(--shadow); cursor: pointer; color: var(--icon-color); transition: transform 0.2s, box-shadow 0.2s;
         }
         .icon-btn:active { transform: scale(0.9); }
         .icon-btn svg, .icon-btn .material-icons-round { width: 22px; height: 22px; fill: currentColor; font-size: 22px; }
-        
-        .save-btn {
-            background-color: var(--highlight) !important;
-            color: #fff !important; border: none !important;
-            box-shadow: 0 4px 15px rgba(238, 184, 195, 0.4);
-        }
+        .save-btn { background-color: var(--highlight) !important; color: #fff !important; border: none !important; box-shadow: 0 4px 15px rgba(238, 184, 195, 0.4); }
         .save-btn svg { fill: #fff; }
         body.dark-mode .save-btn { background-color: #333 !important; color: #fff !important; box-shadow: none; border: 1px solid #555 !important; }
-
         .view {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column;
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             background-color: var(--bg-color);
         }
         .hidden-right { transform: translateX(100%); pointer-events: none; }
-        
         #home-view header { padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; }
         .date-picker-wrapper { position: relative; font-size: 1.4rem; font-weight: 800; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; }
-        .date-picker-wrapper::after { content: '▼'; font-size: 0.8rem; opacity: 0.5; margin-left: 5px; }
         #month-picker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
-
         .calendar-container { padding: 10px 20px; flex: 1; overflow-y: auto; }
         .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.9rem; margin-bottom: 15px; opacity: 0.5; font-weight: bold; }
         .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
-        
         .day {
             aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
             border-radius: 50%; cursor: pointer; position: relative; font-size: 1rem;
@@ -107,17 +76,14 @@
         .day.selected { background-color: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(143, 174, 201, 0.4); transform: scale(1.1); }
         body.dark-mode .day.selected { box-shadow: none; }
         .day.has-entry::after { content: ''; position: absolute; bottom: 5px; width: 5px; height: 5px; background-color: var(--highlight); border-radius: 50%; }
-
         #index-tab {
             position: fixed; left: 0; top: 50%; width: 70px; height: 50px; background-color: var(--tab-color); color: #fff;
             border-radius: 0 16px 16px 0; display: flex; align-items: center; justify-content: center;
             box-shadow: 2px 2px 15px rgba(0,0,0,0.1); cursor: grab; z-index: 100; font-weight: bold; font-size: 0.9rem; 
             border: 1px solid var(--border-color); border-left: none; touch-action: none; transform: translateX(-100%); 
         }
-        body.dark-mode #index-tab { color: var(--text-color); box-shadow: none; }
         #index-tab.visible { transform: translateX(0); }
         .snap-transition { transition: top 0.3s cubic-bezier(0.25, 1, 0.5, 1), left 0.3s cubic-bezier(0.25, 1, 0.5, 1), right 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.3s !important; }
-
         #diary-view { background-color: var(--bg-color); }
         .paper-container {
             width: 100%; height: 100%; background-color: var(--paper-color);
@@ -127,129 +93,94 @@
             transition: transform 0.3s; border: 1px solid var(--border-color);
         }
         .paper-container.has-custom-bg { background-repeat: no-repeat; background-position: center; background-size: cover; }
-        
         .paper-header {
             padding: 25px 20px; display: flex; justify-content: space-between; align-items: center;
             background: linear-gradient(to bottom, var(--paper-color) 80%, transparent); z-index: 5;
         }
         .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
-
         .paper-content {
             flex: 1; padding: 10px 25px; overflow-y: auto; 
-            font-size: 1.15rem; line-height: 32px; 
-            border: none; background: transparent; color: var(--text-color); font-family: inherit;
-            white-space: pre-wrap; word-break: break-word;
+            font-size: 1.15rem; line-height: 32px; border: none; background: transparent; color: var(--text-color); font-family: inherit; white-space: pre-wrap; word-break: break-word;
         }
         .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.5; }
-        
-        .page-nav {
-            display: flex; justify-content: space-between; padding: 15px 25px;
-            background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 10;
-        }
-
+        .page-nav { display: flex; justify-content: space-between; padding: 15px 25px; background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 10; }
         .format-toolbar-toggle {
             position: fixed; right: 0; top: 150px; width: 40px; height: 40px;
-            background: rgba(255,255,255,0.9); border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            cursor: grab; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            z-index: 150; color: var(--text-color); border: 1px solid var(--line-color); touch-action: none;
+            background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: grab; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 150; color: var(--text-color); border: 1px solid var(--line-color); touch-action: none;
         }
         .format-toolbar {
             position: absolute; top: 100px; right: 50px; 
             background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
             border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.15);
             display: flex; flex-direction: column; gap: 5px; padding: 8px;
-            transform: scale(0); transform-origin: top right;
-            transition: transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            transform: scale(0); transform-origin: top right; transition: transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
             z-index: 151; border: 1px solid var(--line-color);
         }
         body.dark-mode .format-toolbar, body.dark-mode .format-toolbar-toggle { background: #333; border-color: #555; }
         .format-toolbar.active { transform: scale(1); }
-        
-        .fmt-btn {
-            width: 36px; height: 36px; border: none; background: transparent;
-            color: var(--text-color); border-radius: 8px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
-        }
-        .fmt-btn:active { background: rgba(0,0,0,0.05); }
+        .fmt-btn { width: 36px; height: 36px; border: none; background: transparent; color: var(--text-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
         .color-dot-btn { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
-
-        /* ================= 待办事项界面 (Todo) ================= */
+        
+        /* ================= 待办 & 左滑删除 (升级版) ================= */
         #todo-view { background-color: var(--bg-color); z-index: 300; padding: 20px; overflow-y: auto; }
         .todo-header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        
-        .todo-input-container {
-            display: flex; gap: 10px; margin-bottom: 20px; background: var(--paper-color);
-            padding: 10px; border-radius: 16px; border: 1px solid var(--border-color);
-        }
-        .todo-text-input {
-            flex: 1; border: none; background: transparent; color: var(--text-color); font-size: 1rem;
-        }
-        .todo-add-btn {
-            width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color);
-            color: #fff; border: none; display: flex; align-items: center; justify-content: center;
-        }
-
+        .todo-input-container { display: flex; gap: 10px; margin-bottom: 20px; background: var(--paper-color); padding: 10px; border-radius: 16px; border: 1px solid var(--border-color); }
+        .todo-text-input { flex: 1; border: none; background: transparent; color: var(--text-color); font-size: 1rem; }
+        .todo-add-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: #fff; border: none; display: flex; align-items: center; justify-content: center; }
         .todo-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 50px;}
-        .todo-item {
-            display: flex; align-items: flex-start; gap: 10px;
-            background: var(--paper-color); padding: 12px 15px; border-radius: 16px;
-            border: 1px solid var(--line-color); transition: opacity 0.3s;
-        }
-        .todo-item.done { opacity: 0.5; }
-        .todo-item.done .todo-text { text-decoration: line-through; }
         
-        .todo-checkbox {
-            width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary-color);
-            display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer;
-            margin-top: 3px;
+        /* 待办项容器：包含背景（删除按钮）和前景（内容） */
+        .todo-item-wrapper {
+            position: relative; height: auto; border-radius: 16px; overflow: hidden;
+            background-color: #ff6b6b; /* 红色背景 */
         }
+        /* 背景层的删除操作 */
+        .todo-delete-bg {
+            position: absolute; top: 0; bottom: 0; right: 0; width: 80px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 0.9rem; z-index: 1;
+        }
+        /* 前景层：实际内容 */
+        .todo-item-content {
+            position: relative; z-index: 2; background: var(--paper-color);
+            padding: 12px 15px; border-radius: 16px; border: 1px solid var(--line-color);
+            display: flex; align-items: flex-start; gap: 10px;
+            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transform: translateX(0);
+        }
+        .todo-item-content.done { opacity: 0.5; }
+        .todo-item-content.done .todo-text { text-decoration: line-through; }
+
+        .todo-checkbox { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; margin-top: 3px; }
         .todo-checkbox.checked { background: var(--primary-color); }
         .todo-checkbox.checked::after { content: '✓'; color: #fff; font-size: 14px; font-weight: bold; }
+        .todo-content-wrapper { flex: 1; display: flex; flex-direction: column; gap: 4px; pointer-events: none; /* 防止文字影响滑动 */ }
+        .todo-text { font-size: 1rem; font-weight: bold; line-height: 1.4; pointer-events: auto; }
+        .todo-datetime { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; pointer-events: auto; }
+        .todo-picker { border: none; background: rgba(0,0,0,0.05); border-radius: 6px; color: var(--text-color); font-size: 0.8rem; padding: 4px 6px; width: fit-content; font-family: inherit; }
         
-        .todo-content-wrapper { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-        .todo-text { font-size: 1rem; font-weight: bold; line-height: 1.4; }
+        .permission-btn { width: 100%; padding: 12px; background: var(--highlight); color: #fff; border: none; border-radius: 12px; margin-bottom: 10px; font-weight: bold; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         
-        .todo-datetime {
-            display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
-        }
-        
-        .todo-picker {
-            border: none; background: rgba(0,0,0,0.05); border-radius: 6px; color: var(--text-color);
-            font-size: 0.8rem; padding: 4px 6px; width: fit-content; font-family: inherit;
-        }
-        
-        .todo-actions { display: flex; gap: 5px; flex-shrink: 0; }
-        .todo-action-btn { 
-            padding: 5px; background: transparent; border: none; color: #999; cursor: pointer; 
-        }
-        .todo-action-btn:active { color: var(--highlight); }
-
-        .permission-btn {
-            width: 100%; padding: 12px; background: var(--highlight); color: #fff; border: none;
-            border-radius: 12px; margin-bottom: 10px; font-weight: bold; display: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
+        /* 可爱风测试按钮 */
         .test-notify-btn {
-             width: 100%; padding: 12px; background: transparent; color: var(--text-color); border: 2px dashed var(--line-color);
-            border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; font-weight: bold;
+            width: 100%; padding: 12px; margin-bottom: 20px; font-size: 0.95rem; font-weight: bold;
+            border: none; border-radius: 25px; cursor: pointer;
+            background: linear-gradient(135deg, #aed9e0 0%, #8faec9 100%);
+            color: #fff; box-shadow: 0 4px 12px rgba(143, 174, 201, 0.4);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: transform 0.1s, box-shadow 0.1s;
         }
-        .test-notify-btn:active { background: rgba(0,0,0,0.05); }
-        .status-text { font-size: 0.8rem; opacity: 0.7; margin-bottom: 10px; text-align: center; color: var(--text-color);}
+        .test-notify-btn:active { transform: scale(0.98); box-shadow: 0 2px 6px rgba(143, 174, 201, 0.3); }
+        body.theme-pink .test-notify-btn { background: linear-gradient(135deg, #ffc3d0 0%, #eeb8c3 100%); box-shadow: 0 4px 12px rgba(238, 184, 195, 0.4); }
+        body.theme-green .test-notify-btn { background: linear-gradient(135deg, #a8e6cf 0%, #56ab2f 100%); box-shadow: 0 4px 12px rgba(86, 171, 47, 0.3); }
 
-        /* iOS 安装指引提示框 */
-        #ios-install-guide {
-            display: none; background: var(--paper-color); padding: 15px; border-radius: 12px;
-            margin-bottom: 20px; border: 1px solid var(--highlight); font-size: 0.9rem;
-        }
+        .status-text { font-size: 0.8rem; opacity: 0.7; margin-bottom: 10px; text-align: center; color: var(--text-color); }
+        
+        #ios-install-guide { display: none; background: var(--paper-color); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--highlight); font-size: 0.9rem; }
         #ios-install-guide h3 { margin: 0 0 10px 0; color: var(--highlight); }
         #ios-install-guide ol { padding-left: 20px; margin: 0; line-height: 1.6; }
-        
-        /* 安卓 SW 缺失提示 */
-        #android-sw-missing {
-            display: none; background: #fff3e0; padding: 15px; border-radius: 12px;
-            margin-bottom: 20px; border: 1px solid #ffb74d; font-size: 0.85rem; color: #e65100;
-        }
+        #android-sw-missing { display: none; background: #fff3e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #ffb74d; font-size: 0.85rem; color: #e65100; }
 
         /* ================= 设置界面 ================= */
         #settings-view { background-color: var(--bg-color); z-index: 200; padding: 20px; overflow-y: auto; }
@@ -257,51 +188,26 @@
         .setting-title { font-size: 0.85rem; color: var(--text-color); opacity: 0.5; margin-bottom: 15px; font-weight: bold; }
         .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed var(--line-color); flex-wrap: wrap; }
         .setting-row:last-child { border-bottom: none; }
-        
-        button.btn {
-            padding: 8px 18px; border-radius: 20px; border: 1px solid var(--text-color);
-            background: transparent; color: var(--text-color); font-size: 0.85rem; cursor: pointer;
-        }
-        button.btn-text {
-            border: none; background: transparent; color: var(--text-color); 
-            font-size: 1.2rem; cursor: pointer; padding: 0 10px; opacity: 0.6;
-        }
+        button.btn { padding: 8px 18px; border-radius: 20px; border: 1px solid var(--text-color); background: transparent; color: var(--text-color); font-size: 0.85rem; cursor: pointer; }
+        button.btn-text { border: none; background: transparent; color: var(--text-color); font-size: 1.2rem; cursor: pointer; padding: 0 10px; opacity: 0.6; }
         .color-dots { display: flex; gap: 12px; }
         .dot { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ccc; cursor: pointer; }
         .input-row { width: 100%; display: flex; gap: 10px; margin-top: 10px; }
         .input-text { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--line-color); background: transparent; color: var(--text-color); }
 
-        /* ================= 弹窗与裁剪 ================= */
-        #save-toast {
-            position: fixed; top: 0; left: 0; right: 0; height: 80px;
-            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
-            color: #333; display: flex; align-items: flex-end; justify-content: center;
-            padding-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-            border-radius: 0 0 30px 30px; transform: translateY(-100%); transition: transform 0.4s;
-            z-index: 500; font-weight: bold; font-size: 0.9rem;
-        }
+        #save-toast { position: fixed; top: 0; left: 0; right: 0; height: 80px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); color: #333; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); border-radius: 0 0 30px 30px; transform: translateY(-100%); transition: transform 0.4s; z-index: 500; font-weight: bold; font-size: 0.9rem; }
         body.dark-mode #save-toast { background: #1a1a1a; color: #fff; border-bottom: 1px solid #333; }
         #save-toast.show { transform: translateY(0); }
-
-        #cropper-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 600; display: none; flex-direction: column;
-        }
+        #cropper-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 600; display: none; flex-direction: column; }
         .crop-container { flex: 1; overflow: hidden; position: relative; }
-        .crop-actions {
-            height: 80px; background: #000; display: flex; 
-            justify-content: space-around; align-items: center; padding: 0 20px; border-top: 1px solid #333;
-        }
+        .crop-actions { height: 80px; background: #000; display: flex; justify-content: space-around; align-items: center; padding: 0 20px; border-top: 1px solid #333; }
         .crop-btn { color: white; background: none; border: none; font-size: 1rem; padding: 10px 20px; }
         .crop-btn.confirm { color: var(--primary-color); font-weight: bold; }
-        
         input[type="file"] { display: none; }
-
         .anim-slide-left { animation: slideLeft 0.4s forwards; }
         .anim-slide-right { animation: slideRight 0.4s forwards; }
         @keyframes slideLeft { to { transform: translateX(-100%) rotateY(-10deg); opacity: 0; } }
         @keyframes slideRight { to { transform: translateX(100%) rotateY(10deg); opacity: 0; } }
-
     </style>
 </head>
 <body class="theme-beige paper-lines" onclick="handleGlobalClick(event)">
@@ -320,21 +226,17 @@
     <!-- 主界面：日历 -->
     <div id="home-view" class="view">
         <header>
-            <!-- 左侧新增 待办列表 按钮 -->
             <button class="icon-btn" onclick="openTodo()" style="margin-right:10px">
                 <span class="material-icons-round">checklist</span>
             </button>
-
             <label class="date-picker-wrapper" style="flex:1; justify-content:center;">
                 <span id="current-month-label">2026年 01月</span>
                 <input type="month" id="month-picker" onchange="changeMonth(this.value)">
             </label>
-            
             <button class="icon-btn" onclick="openSettings()">
                 <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
             </button>
         </header>
-        
         <div class="calendar-container">
             <div class="weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
             <div id="calendar-days" class="days"></div>
@@ -342,7 +244,7 @@
         <div id="index-tab" onclick="openDiary(event)"><span id="tab-date">10/24</span></div>
     </div>
 
-    <!-- 待办清单界面 (新) -->
+    <!-- 待办清单界面 (升级版) -->
     <div id="todo-view" class="view hidden-right">
         <div class="todo-header">
             <span style="font-weight:bold; font-size:1.2rem">待办 & 提醒</span>
@@ -352,14 +254,9 @@
         <div class="status-text" id="sw-status">系统状态检测中...</div>
         <button id="perm-btn" class="permission-btn" onclick="requestNotifyPermission()">🔔 点击开启通知权限</button>
         
-        <!-- 安卓提示: 缺少 SW 文件 -->
         <div id="android-sw-missing">
-            <strong>⚠️ 安卓系统特别提示：</strong><br>
-            您是安卓手机，浏览器由于安全限制，<strong>必须</strong>在 Github 上 <code>index.html</code> 的旁边新建一个名为 <code>sw.js</code> 的文件，否则无法收到通知。<br>
-            <br>
-            <strong>sw.js 的内容请看下方代码块，复制进去即可。</strong>
+            <strong>⚠️ 安卓提示：</strong><br>需在 Github 上新建 <code>sw.js</code> 文件，否则无法推送。
         </div>
-
         <div id="android-sw-code-block" style="display:none; margin-bottom:20px; background:#333; color:#fff; padding:10px; border-radius:8px; font-family:monospace; font-size:0.7rem; overflow-x:auto;">
             self.addEventListener('install', e => self.skipWaiting());
             self.addEventListener('activate', e => self.clients.claim());
@@ -371,18 +268,20 @@
             });
         </div>
 
-        <!-- iOS 安装指引 -->
         <div id="ios-install-guide">
             <h3>⚠️ 苹果手机必须添加到主屏幕才能收到通知</h3>
             <ol>
-                <li>点击浏览器底部的 <strong>分享图标</strong> (Share)</li>
-                <li>向下划找到 <strong>添加到主屏幕</strong></li>
-                <li>回到桌面，打开刚刚添加的“我的日记本”图标</li>
-                <li>再点击上方的“开启通知权限”</li>
+                <li>点击底部的 <strong>分享图标</strong></li>
+                <li>选择 <strong>添加到主屏幕</strong></li>
+                <li>从桌面打开图标</li>
             </ol>
         </div>
 
-        <button class="test-notify-btn" onclick="testNotification()">📩 立即发送一条测试通知</button>
+        <!-- 变可爱的按钮 -->
+        <button class="test-notify-btn" onclick="testNotification()">
+            <span class="material-icons-round" style="font-size:1.2rem">notifications_active</span>
+            <span>立即发送测试通知 (点我试试)</span>
+        </button>
 
         <div class="todo-input-container">
             <input type="text" id="new-todo-input" class="todo-text-input" placeholder="添加新任务...">
@@ -390,7 +289,7 @@
         </div>
 
         <div class="todo-list" id="todo-list">
-            <!-- JS 生成内容 -->
+            <!-- JS 生成左滑列表 -->
         </div>
     </div>
 
@@ -401,10 +300,7 @@
                 <span class="date-display" id="diary-date-display">10月24日</span>
                 <button class="icon-btn" onclick="closeDiary()">✕</button>
             </div>
-            
-            <div class="format-toolbar-toggle" id="fmt-toggle" onclick="toggleFormatToolbar(event)">
-                <span class="material-icons-round">text_format</span>
-            </div>
+            <div class="format-toolbar-toggle" id="fmt-toggle" onclick="toggleFormatToolbar(event)"><span class="material-icons-round">text_format</span></div>
             <div class="format-toolbar" id="fmt-bar">
                 <button class="fmt-btn" onclick="execCmd('bold')"><span class="material-icons-round">format_bold</span></button>
                 <button class="fmt-btn" onclick="execCmd('italic')"><span class="material-icons-round">format_italic</span></button>
@@ -418,14 +314,10 @@
                 <button class="fmt-btn" onclick="execCmd('fontSize', 3)"><span class="material-icons-round" style="font-size:1rem">text_decrease</span></button>
                 <button class="fmt-btn" onclick="execCmd('fontSize', 5)"><span class="material-icons-round" style="font-size:1.4rem">text_increase</span></button>
             </div>
-
             <div id="diary-input" class="paper-content" contenteditable="true" placeholder="记录此刻的心情... (选中文本可调整格式)"></div>
-            
             <div class="page-nav">
                 <button class="icon-btn" onclick="changeDay(-1)">←</button>
-                <button class="icon-btn save-btn" onclick="saveDiaryManual()">
-                    <svg viewBox="0 0 24 24"><path d="M17,3H5C3.89,3,3,3.9,3,5v14c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V7L17,3z M12,19c-1.66,0-3-1.34-3-3s1.34-3,3-3 s3,1.34,3,3S13.66,19,12,19z M15,9H5V5h10V9z"/></svg>
-                </button>
+                <button class="icon-btn save-btn" onclick="saveDiaryManual()"><svg viewBox="0 0 24 24"><path d="M17,3H5C3.89,3,3,3.9,3,5v14c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V7L17,3z M12,19c-1.66,0-3-1.34-3-3s1.34-3,3-3 s3,1.34,3,3S13.66,19,12,19z M15,9H5V5h10V9z"/></svg></button>
                 <button class="icon-btn" onclick="changeDay(1)">→</button>
             </div>
         </div>
@@ -434,7 +326,6 @@
     <!-- 设置界面 -->
     <div id="settings-view" class="view hidden-right">
         <header><span style="font-weight:bold; font-size:1.2rem">设置</span><button class="icon-btn" onclick="closeSettings()">✕</button></header>
-        
         <div class="setting-group">
             <div class="setting-title">个性化</div>
             <div class="setting-row"><span>夜间模式</span><button class="btn" onclick="toggleDarkMode()" id="btn-dark">OFF</button></div>
@@ -458,16 +349,10 @@
             <div class="setting-row" style="display:block">
                 <div style="display:flex; justify-content:space-between; align-items:center">
                     <span>自定义字体 URL</span>
-                    <div>
-                        <button class="btn-text" onclick="resetFont()">✕</button>
-                        <button class="btn" onclick="applyFont()">应用</button>
-                    </div>
+                    <div><button class="btn-text" onclick="resetFont()">✕</button><button class="btn" onclick="applyFont()">应用</button></div>
                 </div>
-                <div class="input-row">
-                    <input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接...">
-                </div>
+                <div class="input-row"><input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接..."></div>
             </div>
-
             <div class="setting-row">
                 <span>自定义背景图</span>
                 <input type="file" id="bg-upload" accept="image/*" onchange="startCrop(this)">
@@ -475,7 +360,6 @@
             </div>
             <div class="setting-row"><span>还原默认背景</span><button class="btn" onclick="clearBgImage()">还原</button></div>
         </div>
-
         <div class="setting-group">
             <div class="setting-title">数据</div>
             <div class="setting-row" style="display:block">
@@ -494,7 +378,6 @@
         </div>
     </div>
 
-    <!-- 隐藏的容器用于渲染截图 -->
     <div id="screenshot-container" style="position:fixed; top:0; left:-9999px; width:450px; z-index:-1; pointer-events:none;"></div>
 
     <script>
@@ -510,242 +393,192 @@
 
         let cropperInstance = null;
         let notifyInterval = null;
-        // SW 注册状态
-        let hasActiveSW = false;
 
         function init() {
             applySettings();
             if(state.settings.customFont) loadCustomFont(state.settings.customFont);
             renderCalendar();
             renderTodoList();
-            
             setInterval(autoSave, 60000);
-            
-            // 尝试注册真实的 SW 文件 (Github托管必备)
             registerRealSW();
-
             startNotificationCheck();
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible') {
-                    checkNotifications(true); 
-                }
-            });
-
+            document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNotifications(true); });
             document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
-
             const toast = document.getElementById('save-toast');
             let startY = 0;
             toast.addEventListener('touchstart', e => startY = e.touches[0].clientY);
-            toast.addEventListener('touchmove', e => {
-                if (startY - e.touches[0].clientY > 10) hideToast();
-            });
-
+            toast.addEventListener('touchmove', e => { if (startY - e.touches[0].clientY > 10) hideToast(); });
             initDraggable(document.getElementById('index-tab'), 'left');
             initDraggable(document.getElementById('fmt-toggle'), 'any');
             document.getElementById('export-date-picker').valueAsDate = new Date();
-
             checkNotifyState();
-        }
-
-        // === 关键修复：尝试注册 sw.js ===
-        function registerRealSW() {
-            if (!('serviceWorker' in navigator)) {
-                updateSWStatus("浏览器不支持后台");
-                return;
-            }
-
-            // 尝试注册同目录下的 sw.js
-            navigator.serviceWorker.register('sw.js')
-                .then(reg => {
-                    console.log('SW Registered', reg);
-                    hasActiveSW = true;
-                    updateSWStatus("后台服务运行中 ✅", "green");
-                    // 隐藏安卓提示
-                    document.getElementById('android-sw-missing').style.display = 'none';
-                    document.getElementById('android-sw-code-block').style.display = 'none';
-                })
-                .catch(err => {
-                    console.warn('SW Register Failed', err);
-                    updateSWStatus("后台服务未连接 (请看下方提示)");
-                    // 如果是安卓且注册失败，显示提示
-                    if (/Android/i.test(navigator.userAgent)) {
-                        document.getElementById('android-sw-missing').style.display = 'block';
-                        document.getElementById('android-sw-code-block').style.display = 'block';
-                    }
-                });
             
-            // 监听 ready 状态以防万一
-            navigator.serviceWorker.ready.then(() => {
-                hasActiveSW = true;
-                updateSWStatus("后台服务运行中 ✅", "green");
+            // 点击外部关闭打开的侧滑
+            document.body.addEventListener('click', (e) => {
+                if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
             });
         }
 
-        function updateSWStatus(msg, color) {
-            const el = document.getElementById('sw-status');
-            el.textContent = msg;
-            if (color) el.style.color = color;
+        function registerRealSW() {
+            if (!('serviceWorker' in navigator)) { updateSWStatus("浏览器不支持后台"); return; }
+            navigator.serviceWorker.register('sw.js').then(reg => {
+                updateSWStatus("后台服务运行中 ✅", "green");
+                document.getElementById('android-sw-missing').style.display = 'none';
+                document.getElementById('android-sw-code-block').style.display = 'none';
+            }).catch(err => {
+                updateSWStatus("后台服务未连接");
+                if (/Android/i.test(navigator.userAgent)) {
+                    document.getElementById('android-sw-missing').style.display = 'block';
+                    document.getElementById('android-sw-code-block').style.display = 'block';
+                }
+            });
+            navigator.serviceWorker.ready.then(() => updateSWStatus("后台服务运行中 ✅", "green"));
         }
+        function updateSWStatus(msg, color) { const el = document.getElementById('sw-status'); el.textContent = msg; if (color) el.style.color = color; }
 
         function checkNotifyState() {
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             const isStandalone = window.navigator.standalone || (window.matchMedia('(display-mode: standalone)').matches);
-            
-            if (isIOS && !isStandalone) {
-                document.getElementById('ios-install-guide').style.display = 'block';
-                document.getElementById('perm-btn').style.display = 'none'; 
-            } else {
-                document.getElementById('ios-install-guide').style.display = 'none';
-            }
-
-            if (!("Notification" in window)) {
-                document.getElementById('perm-btn').innerText = "❌ 此浏览器不支持通知";
-                document.getElementById('perm-btn').style.display = 'block';
-            } else if (Notification.permission !== "granted") {
-                document.getElementById('perm-btn').style.display = 'block';
-            } else {
-                document.getElementById('perm-btn').style.display = 'none';
-            }
+            if (isIOS && !isStandalone) { document.getElementById('ios-install-guide').style.display = 'block'; document.getElementById('perm-btn').style.display = 'none'; } 
+            else { document.getElementById('ios-install-guide').style.display = 'none'; }
+            if (!("Notification" in window)) { document.getElementById('perm-btn').innerText = "❌ 此浏览器不支持通知"; document.getElementById('perm-btn').style.display = 'block'; } 
+            else if (Notification.permission !== "granted") { document.getElementById('perm-btn').style.display = 'block'; } 
+            else { document.getElementById('perm-btn').style.display = 'none'; }
         }
 
-        function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); }
-        function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); }
-
-        function requestNotifyPermission() {
-            if (!("Notification" in window)) {
-                alert("浏览器不支持通知"); return;
-            }
-            Notification.requestPermission().then(permission => {
-                if (permission === "granted") {
-                    document.getElementById('perm-btn').style.display = 'none';
-                    showToast("通知已开启 ✅");
-                    sendSafeNotification("日记本提醒", "权限获取成功！");
-                } else {
-                    alert("权限被拒绝。请在系统设置中允许通知。");
-                }
-            });
-        }
-
-        function testNotification() {
-            if (Notification.permission === "granted") {
-                sendSafeNotification("测试通知", "如果您看到这条消息，说明功能正常！📱");
-                showToast("已请求发送...");
-            } else {
-                alert("请先点击开启通知权限");
-            }
-        }
-
-        // === 彻底修复的发送函数：拒绝报错 ===
         async function sendSafeNotification(title, body) {
-            // 1. 尝试使用 Service Worker (安卓必备)
             if ('serviceWorker' in navigator) {
                 try {
-                    // 等待 active 的注册
                     const reg = await navigator.serviceWorker.getRegistration();
-                    if (reg) {
-                        reg.showNotification(title, {
-                            body: body,
-                            icon: 'https://via.placeholder.com/128', // 可换成你的图标URL
-                            vibrate: [200, 100, 200],
-                            requireInteraction: true
-                        });
-                        return; // 发送成功，直接退出，不执行下面的旧代码
-                    }
-                } catch (e) {
-                    console.error("SW notification failed", e);
-                }
+                    if (reg) { reg.showNotification(title, { body: body, icon: 'https://via.placeholder.com/128', vibrate: [200, 100, 200], requireInteraction: true }); return; }
+                } catch (e) { console.error(e); }
             }
+            if (/Android/i.test(navigator.userAgent)) { showToast("⚠️ 安卓未连接 sw.js"); return; }
+            try { new Notification(title, { body: body }); } catch (e) {}
+        }
 
-            // 2. 关键判断：如果是安卓，且上面失败了，千万别调用 new Notification
-            // 否则会无限报错 Illegal constructor
-            const isAndroid = /Android/i.test(navigator.userAgent);
-            
-            if (isAndroid) {
-                // 安卓没有 SW，只能弹窗提示，不能报错崩溃
-                showToast("⚠️ 错误：安卓未连接到 sw.js，无法发通知");
-                return;
-            }
-
-            // 3. 只有电脑或 iOS 才能用这个旧方法
-            try {
-                new Notification(title, { body: body, icon: 'https://via.placeholder.com/128' });
-            } catch (e) {
-                console.error("Standard notification failed", e);
-            }
+        function requestNotifyPermission() {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") { document.getElementById('perm-btn').style.display = 'none'; showToast("通知已开启 ✅"); sendSafeNotification("日记本提醒", "权限获取成功！"); } 
+                else { alert("权限被拒绝。"); }
+            });
+        }
+        function testNotification() {
+            if (Notification.permission === "granted") { showToast("已请求发送..."); sendSafeNotification("测试通知", "如果您看到这条消息，说明功能正常！📱"); } 
+            else { alert("请先点击开启通知权限"); }
         }
 
         function addTodo() {
-            const input = document.getElementById('new-todo-input');
-            const text = input.value.trim();
-            if(!text) return;
-            const todayStr = formatDateKey(new Date());
-            state.todoData.unshift({
-                id: Date.now(),
-                text: text,
-                done: false,
-                date: todayStr, 
-                time: '',
-                notified: false
-            });
-            input.value = '';
-            saveTodo();
-            renderTodoList();
+            const input = document.getElementById('new-todo-input'); const text = input.value.trim(); if(!text) return;
+            state.todoData.unshift({ id: Date.now(), text: text, done: false, date: '', time: '', notified: false }); // 默认无日期，自动置顶
+            input.value = ''; saveTodo(); renderTodoList();
         }
 
-        function toggleTodo(id) {
-            const item = state.todoData.find(t => t.id === id);
-            if(item) { item.done = !item.done; saveTodo(); renderTodoList(); }
-        }
-        function deleteTodo(id) {
-            state.todoData = state.todoData.filter(t => t.id !== id);
-            saveTodo();
-            renderTodoList();
-        }
-        function updateTodoData(id, field, val) {
-            const item = state.todoData.find(t => t.id === id);
-            if(item) { 
-                item[field] = val; 
-                if(field === 'time' || field === 'date') item.notified = false;
-                saveTodo(); 
-            }
-        }
-
+        function toggleTodo(id) { const item = state.todoData.find(t => t.id === id); if(item) { item.done = !item.done; saveTodo(); renderTodoList(); } }
+        function deleteTodo(id) { state.todoData = state.todoData.filter(t => t.id !== id); saveTodo(); renderTodoList(); }
+        function updateTodoData(id, field, val) { const item = state.todoData.find(t => t.id === id); if(item) { item[field] = val; if(field === 'time' || field === 'date') item.notified = false; saveTodo(); renderTodoList(); } } // 更新日期后重新排序
         function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
 
+        // === 排序与渲染 (新逻辑) ===
         function renderTodoList() {
-            const list = document.getElementById('todo-list');
-            list.innerHTML = '';
-            state.todoData.forEach(item => {
-                const div = document.createElement('div');
-                div.className = `todo-item ${item.done ? 'done' : ''}`;
-                div.innerHTML = `
-                    <div class="todo-checkbox ${item.done ? 'checked' : ''}" onclick="toggleTodo(${item.id})"></div>
-                    <div class="todo-content-wrapper">
-                        <div class="todo-text">${item.text}</div>
-                        <div class="todo-datetime">
-                            <input type="date" class="todo-picker" value="${item.date || ''}" onchange="updateTodoData(${item.id}, 'date', this.value)">
-                            <input type="time" class="todo-picker" value="${item.time || ''}" onchange="updateTodoData(${item.id}, 'time', this.value)">
+            const list = document.getElementById('todo-list'); list.innerHTML = '';
+            
+            // 排序逻辑：
+            // 1. 没有具体时间 (date 或 time 为空) 的排在最前面
+            // 2. 有具体时间的，按时间先后顺序排列
+            const sortedData = [...state.todoData].sort((a, b) => {
+                const aHasTime = a.date && a.time;
+                const bHasTime = b.date && b.time;
+                if (!aHasTime && bHasTime) return -1; // A 无时间，A 排前
+                if (aHasTime && !bHasTime) return 1;  // B 无时间，B 排前
+                if (!aHasTime && !bHasTime) return b.id - a.id; // 都无时间，按创建倒序
+                // 都有时间，按时间正序 (早的在前)
+                return new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`);
+            });
+
+            sortedData.forEach(item => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'todo-item-wrapper';
+                
+                // 内部结构：背景层(删除) + 前景层(内容)
+                wrapper.innerHTML = `
+                    <div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div>
+                    <div class="todo-item-content ${item.done ? 'done' : ''}" id="todo-content-${item.id}">
+                        <div class="todo-checkbox ${item.done ? 'checked' : ''}" onclick="toggleTodo(${item.id}); event.stopPropagation();"></div>
+                        <div class="todo-content-wrapper">
+                            <div class="todo-text">${item.text}</div>
+                            <div class="todo-datetime">
+                                <input type="date" class="todo-picker" value="${item.date || ''}" onchange="updateTodoData(${item.id}, 'date', this.value)">
+                                <input type="time" class="todo-picker" value="${item.time || ''}" onchange="updateTodoData(${item.id}, 'time', this.value)">
+                            </div>
                         </div>
                     </div>
-                    <div class="todo-actions">
-                        <button class="todo-action-btn" onclick="deleteTodo(${item.id})"><span class="material-icons-round">delete</span></button>
-                    </div>
                 `;
-                list.appendChild(div);
+                
+                // 绑定左滑事件
+                const contentEl = wrapper.querySelector('.todo-item-content');
+                attachSwipeEvents(contentEl);
+                list.appendChild(wrapper);
             });
+        }
+
+        // === 左滑删除逻辑 ===
+        let currentOpenSwipe = null;
+
+        function attachSwipeEvents(el) {
+            let startX, currentX;
+            let isDragging = false;
+            
+            el.addEventListener('touchstart', (e) => {
+                // 如果有其他打开的，先关闭
+                if(currentOpenSwipe && currentOpenSwipe !== el) {
+                    currentOpenSwipe.style.transform = 'translateX(0)';
+                    currentOpenSwipe = null;
+                }
+                startX = e.touches[0].clientX;
+                el.style.transition = 'none'; // 拖动时移除过渡，跟手
+            }, {passive: true});
+
+            el.addEventListener('touchmove', (e) => {
+                currentX = e.touches[0].clientX;
+                let deltaX = currentX - startX;
+                // 只能向左滑，最大滑到 -80px
+                if (deltaX > 0) deltaX = 0;
+                if (deltaX < -80) deltaX = -80;
+                
+                if (deltaX < -10) isDragging = true; // 防误触
+                el.style.transform = `translateX(${deltaX}px)`;
+            }, {passive: true});
+
+            el.addEventListener('touchend', (e) => {
+                el.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                const deltaX = currentX - startX;
+                if (deltaX < -40) { // 滑动超过一半，展开
+                    el.style.transform = 'translateX(-80px)';
+                    currentOpenSwipe = el;
+                } else {
+                    el.style.transform = 'translateX(0)';
+                    if(currentOpenSwipe === el) currentOpenSwipe = null;
+                }
+                isDragging = false;
+            });
+        }
+        
+        function resetAllSwipes() {
+            const openItems = document.querySelectorAll('.todo-item-content[style*="translateX(-80px)"]');
+            openItems.forEach(el => el.style.transform = 'translateX(0)');
+            currentOpenSwipe = null;
         }
 
         function startNotificationCheck() {
             if(notifyInterval) clearInterval(notifyInterval);
             notifyInterval = setInterval(() => checkNotifications(false), 5000);
         }
-
         function checkNotifications(isCatchUp) {
             if (!("Notification" in window) || Notification.permission !== "granted") return;
             const now = new Date();
             const currentStrDate = formatDateKey(now); 
             const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
-
             state.todoData.forEach(item => {
                 if(!item.done && item.date && item.time && !item.notified) {
                     if (item.date === currentStrDate) {
@@ -757,157 +590,40 @@
                             let bodyText = item.text;
                             if (isMissed) bodyText = "[错过提醒] " + bodyText;
                             sendSafeNotification("日记本提醒", bodyText);
-                            item.notified = true; 
-                            saveTodo();
+                            item.notified = true; saveTodo();
                         }
                     }
                 }
             });
         }
 
-        // === 以下逻辑保持不变 ===
+        // === 基础功能 (保持不变) ===
         function initDraggable(el, type) {
-            let isDragging = false;
-            let startX, startY, initialLeft, initialTop;
-            const screenW = window.innerWidth;
-            const screenH = window.innerHeight;
-            el.addEventListener('touchstart', (e) => {
-                isDragging = false; el.classList.remove('snap-transition');
-                const touch = e.touches[0]; startX = touch.clientX; startY = touch.clientY;
-                const rect = el.getBoundingClientRect(); initialLeft = rect.left; initialTop = rect.top;
-            }, {passive: false});
-            el.addEventListener('touchmove', (e) => {
-                const touch = e.touches[0]; const deltaX = touch.clientX - startX; const deltaY = touch.clientY - startY;
-                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) isDragging = true;
-                if (isDragging) {
-                    e.preventDefault(); 
-                    let newTop = initialTop + deltaY; let newLeft = initialLeft + deltaX;
-                    if (newTop < 0) newTop = 0; if (newTop > screenH - el.offsetHeight) newTop = screenH - el.offsetHeight;
-                    if (type === 'left') { el.style.top = newTop + 'px'; } else {
-                        if (newLeft < 0) newLeft = 0; if (newLeft > screenW - el.offsetWidth) newLeft = screenW - el.offsetWidth;
-                        el.style.left = newLeft + 'px'; el.style.top = newTop + 'px';
-                        document.getElementById('fmt-bar').classList.remove('active');
-                    }
-                }
-            }, {passive: false});
-            el.addEventListener('touchend', (e) => {
-                if (!isDragging) return; el.classList.add('snap-transition');
-                if (type === 'any') {
-                    const rect = el.getBoundingClientRect(); const centerX = rect.left + rect.width / 2;
-                    if (centerX < screenW / 2) { el.style.left = '10px'; updateFormatBarPos('right'); } else { el.style.left = (screenW - el.offsetWidth - 10) + 'px'; updateFormatBarPos('left'); }
-                }
-            });
+            let isDragging = false; let startX, startY, initialLeft, initialTop; const screenW = window.innerWidth; const screenH = window.innerHeight;
+            el.addEventListener('touchstart', (e) => { isDragging = false; el.classList.remove('snap-transition'); const touch = e.touches[0]; startX = touch.clientX; startY = touch.clientY; const rect = el.getBoundingClientRect(); initialLeft = rect.left; initialTop = rect.top; }, {passive: false});
+            el.addEventListener('touchmove', (e) => { const touch = e.touches[0]; const deltaX = touch.clientX - startX; const deltaY = touch.clientY - startY; if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) isDragging = true; if (isDragging) { e.preventDefault(); let newTop = initialTop + deltaY; let newLeft = initialLeft + deltaX; if (newTop < 0) newTop = 0; if (newTop > screenH - el.offsetHeight) newTop = screenH - el.offsetHeight; if (type === 'left') { el.style.top = newTop + 'px'; } else { if (newLeft < 0) newLeft = 0; if (newLeft > screenW - el.offsetWidth) newLeft = screenW - el.offsetWidth; el.style.left = newLeft + 'px'; el.style.top = newTop + 'px'; document.getElementById('fmt-bar').classList.remove('active'); } } }, {passive: false});
+            el.addEventListener('touchend', (e) => { if (!isDragging) return; el.classList.add('snap-transition'); if (type === 'any') { const rect = el.getBoundingClientRect(); const centerX = rect.left + rect.width / 2; if (centerX < screenW / 2) { el.style.left = '10px'; updateFormatBarPos('right'); } else { el.style.left = (screenW - el.offsetWidth - 10) + 'px'; updateFormatBarPos('left'); } } });
         }
-
-        function updateFormatBarPos(direction) {
-            const bar = document.getElementById('fmt-bar'); const toggle = document.getElementById('fmt-toggle');
-            if (direction === 'right') { bar.style.left = '60px'; bar.style.right = 'auto'; bar.style.transformOrigin = 'top left'; } else { bar.style.right = '60px'; bar.style.left = 'auto'; bar.style.transformOrigin = 'top right'; }
-            bar.style.top = toggle.style.top;
-        }
-
-        function handleGlobalClick(e) {
-            const tab = document.getElementById('index-tab');
-            if (tab.classList.contains('visible') && !e.target.closest('#index-tab') && !e.target.closest('.day')) { tab.classList.remove('visible'); tab.style.transform = ''; }
-            const fmtBar = document.getElementById('fmt-bar');
-            if(fmtBar.classList.contains('active') && !e.target.closest('.format-toolbar') && !e.target.closest('.format-toolbar-toggle')) { fmtBar.classList.remove('active'); }
-        }
-
-        function renderCalendar() {
-            const year = state.currentDate.getFullYear(); const month = state.currentDate.getMonth();
-            document.getElementById('current-month-label').textContent = `${year}年 ${String(month + 1).padStart(2, '0')}月`;
-            document.getElementById('month-picker').value = `${year}-${String(month + 1).padStart(2, '0')}`;
-            const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0);
-            const daysContainer = document.getElementById('calendar-days'); daysContainer.innerHTML = '';
-            for (let i = 0; i < firstDay.getDay(); i++) daysContainer.appendChild(document.createElement('div'));
-            const today = new Date();
-            for (let i = 1; i <= lastDay.getDate(); i++) {
-                const dayEl = document.createElement('div'); dayEl.className = 'day'; dayEl.textContent = i;
-                const thisDate = new Date(year, month, i); const dateKey = formatDateKey(thisDate);
-                if (isSameDay(thisDate, today)) dayEl.classList.add('today');
-                if (isSameDay(thisDate, state.selectedDate)) dayEl.classList.add('selected');
-                if (state.diaryData[dateKey]) dayEl.classList.add('has-entry');
-                dayEl.onclick = (e) => { e.stopPropagation(); selectDate(thisDate); };
-                daysContainer.appendChild(dayEl);
-            }
-        }
-        function changeMonth(val) {
-            if(!val) return; const [y, m] = val.split('-');
-            state.currentDate = new Date(parseInt(y), parseInt(m) - 1, 1); renderCalendar();
-        }
-        function selectDate(date) {
-            state.selectedDate = date; renderCalendar();
-            document.getElementById('tab-date').textContent = `${date.getMonth() + 1}/${date.getDate()}`;
-            document.getElementById('index-tab').classList.add('visible');
-        }
-        function openDiary(e) {
-            if(e) e.stopPropagation(); const dateKey = formatDateKey(state.selectedDate);
-            document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'});
-            const content = state.diaryData[dateKey] || '';
-            const inputDiv = document.getElementById('diary-input');
-            if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) inputDiv.innerText = content; else inputDiv.innerHTML = content;
-            document.getElementById('diary-view').classList.remove('hidden-right'); state.isDirty = false;
-        }
-        function closeDiary() {
-            saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right');
-            document.getElementById('fmt-bar').classList.remove('active'); renderCalendar();
-        }
-        function changeDay(offset) {
-            saveDiaryManual(false); const newDate = new Date(state.selectedDate); newDate.setDate(newDate.getDate() + offset);
-            state.selectedDate = newDate; const paper = document.getElementById('paper-layer');
-            const anim = offset > 0 ? 'anim-slide-left' : 'anim-slide-right'; paper.classList.add(anim);
-            setTimeout(() => { openDiary(); paper.classList.remove(anim); paper.style.opacity = '0'; requestAnimationFrame(() => paper.style.opacity = '1'); }, 350);
-        }
-        function toggleFormatToolbar(e) {
-            e.stopPropagation(); const toggle = document.getElementById('fmt-toggle'); const rect = toggle.getBoundingClientRect();
-            if (rect.left < window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left');
-            document.getElementById('fmt-bar').classList.toggle('active');
-        }
+        function updateFormatBarPos(direction) { const bar = document.getElementById('fmt-bar'); const toggle = document.getElementById('fmt-toggle'); if (direction === 'right') { bar.style.left = '60px'; bar.style.right = 'auto'; bar.style.transformOrigin = 'top left'; } else { bar.style.right = '60px'; bar.style.left = 'auto'; bar.style.transformOrigin = 'top right'; } bar.style.top = toggle.style.top; }
+        function handleGlobalClick(e) { const tab = document.getElementById('index-tab'); if (tab.classList.contains('visible') && !e.target.closest('#index-tab') && !e.target.closest('.day')) { tab.classList.remove('visible'); tab.style.transform = ''; } const fmtBar = document.getElementById('fmt-bar'); if(fmtBar.classList.contains('active') && !e.target.closest('.format-toolbar') && !e.target.closest('.format-toolbar-toggle')) { fmtBar.classList.remove('active'); } }
+        function renderCalendar() { const year = state.currentDate.getFullYear(); const month = state.currentDate.getMonth(); document.getElementById('current-month-label').textContent = `${year}年 ${String(month + 1).padStart(2, '0')}月`; document.getElementById('month-picker').value = `${year}-${String(month + 1).padStart(2, '0')}`; const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0); const daysContainer = document.getElementById('calendar-days'); daysContainer.innerHTML = ''; for (let i = 0; i < firstDay.getDay(); i++) daysContainer.appendChild(document.createElement('div')); const today = new Date(); for (let i = 1; i <= lastDay.getDate(); i++) { const dayEl = document.createElement('div'); dayEl.className = 'day'; dayEl.textContent = i; const thisDate = new Date(year, month, i); const dateKey = formatDateKey(thisDate); if (isSameDay(thisDate, today)) dayEl.classList.add('today'); if (isSameDay(thisDate, state.selectedDate)) dayEl.classList.add('selected'); if (state.diaryData[dateKey]) dayEl.classList.add('has-entry'); dayEl.onclick = (e) => { e.stopPropagation(); selectDate(thisDate); }; daysContainer.appendChild(dayEl); } }
+        function changeMonth(val) { if(!val) return; const [y, m] = val.split('-'); state.currentDate = new Date(parseInt(y), parseInt(m) - 1, 1); renderCalendar(); }
+        function selectDate(date) { state.selectedDate = date; renderCalendar(); document.getElementById('tab-date').textContent = `${date.getMonth() + 1}/${date.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
+        function openDiary(e) { if(e) e.stopPropagation(); const dateKey = formatDateKey(state.selectedDate); document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'}); const content = state.diaryData[dateKey] || ''; const inputDiv = document.getElementById('diary-input'); if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) inputDiv.innerText = content; else inputDiv.innerHTML = content; document.getElementById('diary-view').classList.remove('hidden-right'); state.isDirty = false; }
+        function closeDiary() { saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right'); document.getElementById('fmt-bar').classList.remove('active'); renderCalendar(); }
+        function changeDay(offset) { saveDiaryManual(false); const newDate = new Date(state.selectedDate); newDate.setDate(newDate.getDate() + offset); state.selectedDate = newDate; const paper = document.getElementById('paper-layer'); const anim = offset > 0 ? 'anim-slide-left' : 'anim-slide-right'; paper.classList.add(anim); setTimeout(() => { openDiary(); paper.classList.remove(anim); paper.style.opacity = '0'; requestAnimationFrame(() => paper.style.opacity = '1'); }, 350); }
+        function toggleFormatToolbar(e) { e.stopPropagation(); const toggle = document.getElementById('fmt-toggle'); const rect = toggle.getBoundingClientRect(); if (rect.left < window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left'); document.getElementById('fmt-bar').classList.toggle('active'); }
         function execCmd(command, value = null) { document.execCommand(command, false, value); document.getElementById('diary-input').focus(); }
-        function saveDiaryManual(showToastFlag = true) {
-            const inputDiv = document.getElementById('diary-input'); if (!state.isDirty && inputDiv.innerText.trim() === "") return;
-            const dateKey = formatDateKey(state.selectedDate); const content = inputDiv.innerHTML;
-            if (inputDiv.innerText.trim() === "" && !content.includes('<img')) delete state.diaryData[dateKey]; else state.diaryData[dateKey] = content;
-            localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); state.isDirty = false;
-            if (showToastFlag) showToast();
-        }
+        function saveDiaryManual(showToastFlag = true) { const inputDiv = document.getElementById('diary-input'); if (!state.isDirty && inputDiv.innerText.trim() === "") return; const dateKey = formatDateKey(state.selectedDate); const content = inputDiv.innerHTML; if (inputDiv.innerText.trim() === "" && !content.includes('<img')) delete state.diaryData[dateKey]; else state.diaryData[dateKey] = content; localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); state.isDirty = false; if (showToastFlag) showToast(); }
         function autoSave() { if (state.isDirty) saveDiaryManual(true); }
-        function showToast(msg) { 
-            const t=document.getElementById('save-toast'); t.innerText = msg || "☁️ 已自动保存";
-            t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); 
-        }
+        function showToast(msg) { const t=document.getElementById('save-toast'); t.innerText = msg || "☁️ 已自动保存"; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
         function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
-        function applyFont() {
-            const url = document.getElementById('font-url-input').value.trim(); if(!url) return;
-            state.settings.customFont = url; loadCustomFont(url); saveSettings(); alert("正在加载...");
-        }
-        function resetFont() {
-            state.settings.customFont = ""; document.getElementById('font-url-input').value = "";
-            document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原默认字体");
-        }
-        function loadCustomFont(url) {
-            if(url.includes('fonts.googleapis.com')) { const link = document.createElement('link'); link.href = url; link.rel = 'stylesheet'; document.head.appendChild(link); return; }
-            const fontName = 'MyCustomFont'; const fontFace = new FontFace(fontName, `url(${url})`);
-            fontFace.load().then(loadedFace => { document.fonts.add(loadedFace); document.documentElement.style.setProperty('--font-main', `"${fontName}", "Nunito", sans-serif`); }).catch(e => { console.error(e); });
-        }
-        function exportDiaryImage() {
-            const picker = document.getElementById('export-date-picker'); if(!picker.value) { alert("请选择日期"); return; }
-            const dateStr = picker.value; const parts = dateStr.split('-'); const targetDate = new Date(parts[0], parts[1]-1, parts[2]);
-            const dateKey = formatDateKey(targetDate); const content = state.diaryData[dateKey];
-            if(!content) { alert("这一天没有日记哦"); return; } showToast("正在生成图片...");
-            const container = document.getElementById('screenshot-container'); container.innerHTML = '';
-            const paper = document.createElement('div'); paper.className = `paper-container ${state.settings.paper}`;
-            if(state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); }
-            paper.style.height = 'auto'; paper.style.minHeight = '800px'; paper.style.position = 'relative'; paper.style.overflow = 'visible'; paper.style.borderRadius = '0';
-            const header = document.createElement('div'); header.className = 'paper-header';
-            header.innerHTML = `<span class="date-display">${targetDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'})}</span>`;
-            header.style.background = 'none'; paper.appendChild(header);
-            const body = document.createElement('div'); body.className = 'paper-content'; body.style.overflow = 'visible'; body.innerHTML = content;
-            paper.appendChild(body); container.appendChild(paper);
-            html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: state.settings.theme === 'theme-beige' ? '#fffbf0' : null }).then(canvas => {
-                const link = document.createElement('a'); link.download = `diary_${dateKey}.png`; link.href = canvas.toDataURL(); link.click();
-                container.innerHTML = ''; showToast("图片已保存！");
-            }).catch(err => { console.error(err); alert("生成失败，请重试"); container.innerHTML = ''; });
-        }
+        function applyFont() { const url = document.getElementById('font-url-input').value.trim(); if(!url) return; state.settings.customFont = url; loadCustomFont(url); saveSettings(); alert("正在加载..."); }
+        function resetFont() { state.settings.customFont = ""; document.getElementById('font-url-input').value = ""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原默认字体"); }
+        function loadCustomFont(url) { if(url.includes('fonts.googleapis.com')) { const link = document.createElement('link'); link.href = url; link.rel = 'stylesheet'; document.head.appendChild(link); return; } const fontName = 'MyCustomFont'; const fontFace = new FontFace(fontName, `url(${url})`); fontFace.load().then(loadedFace => { document.fonts.add(loadedFace); document.documentElement.style.setProperty('--font-main', `"${fontName}", "Nunito", sans-serif`); }).catch(e => { console.error(e); }); }
+        function exportDiaryImage() { const picker = document.getElementById('export-date-picker'); if(!picker.value) { alert("请选择日期"); return; } const dateStr = picker.value; const parts = dateStr.split('-'); const targetDate = new Date(parts[0], parts[1]-1, parts[2]); const dateKey = formatDateKey(targetDate); const content = state.diaryData[dateKey]; if(!content) { alert("这一天没有日记哦"); return; } showToast("正在生成图片..."); const container = document.getElementById('screenshot-container'); container.innerHTML = ''; const paper = document.createElement('div'); paper.className = `paper-container ${state.settings.paper}`; if(state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } paper.style.height = 'auto'; paper.style.minHeight = '800px'; paper.style.position = 'relative'; paper.style.overflow = 'visible'; paper.style.borderRadius = '0'; const header = document.createElement('div'); header.className = 'paper-header'; header.innerHTML = `<span class="date-display">${targetDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'})}</span>`; header.style.background = 'none'; paper.appendChild(header); const body = document.createElement('div'); body.className = 'paper-content'; body.style.overflow = 'visible'; body.innerHTML = content; paper.appendChild(body); container.appendChild(paper); html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: state.settings.theme === 'theme-beige' ? '#fffbf0' : null }).then(canvas => { const link = document.createElement('a'); link.download = `diary_${dateKey}.png`; link.href = canvas.toDataURL(); link.click(); container.innerHTML = ''; showToast("图片已保存！"); }).catch(err => { console.error(err); alert("生成失败，请重试"); container.innerHTML = ''; }); }
+        
+        // 修复：添加了 cropper.js 脚本，现在可以正常工作了
         function startCrop(input) {
             const file = input.files[0]; if (!file) return; const reader = new FileReader();
             reader.onload = (e) => {
@@ -916,16 +632,8 @@
             }; reader.readAsDataURL(file); input.value = '';
         }
         function cancelCrop() { document.getElementById('cropper-modal').style.display = 'none'; if(cropperInstance) cropperInstance.destroy(); }
-        function finishCrop() {
-            if (!cropperInstance) return; const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 });
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.8); state.bgImage = dataUrl;
-            try { localStorage.setItem('myDiaryBg_v2', dataUrl); applyBgImage(); cancelCrop(); showToast("背景设置成功"); } catch (e) { alert("图片太大了"); }
-        }
-        function applyBgImage() {
-            const paper = document.getElementById('paper-layer');
-            if (state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } 
-            else { paper.style.backgroundImage = ''; paper.classList.remove('has-custom-bg'); }
-        }
+        function finishCrop() { if (!cropperInstance) return; const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 }); const dataUrl = canvas.toDataURL('image/jpeg', 0.8); state.bgImage = dataUrl; try { localStorage.setItem('myDiaryBg_v2', dataUrl); applyBgImage(); cancelCrop(); showToast("背景设置成功"); } catch (e) { alert("图片太大了"); } }
+        function applyBgImage() { const paper = document.getElementById('paper-layer'); if (state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } else { paper.style.backgroundImage = ''; paper.classList.remove('has-custom-bg'); } }
         function clearBgImage() { state.bgImage = null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("背景已还原"); }
         function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); document.getElementById('font-url-input').value = state.settings.customFont || ''; }
         function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); saveSettings(); }
@@ -933,23 +641,11 @@
         function toggleDarkMode() { state.settings.darkMode = !state.settings.darkMode; applySettings(); }
         function setTheme(theme) { state.settings.theme = theme; applySettings(); }
         function setPaper(paper) { state.settings.paper = paper; applySettings(); }
-        function applySettings() {
-            document.body.className = `${state.settings.theme} ${state.settings.paper}`;
-            if (state.settings.darkMode) document.body.classList.add('dark-mode'); else document.body.classList.remove('dark-mode');
-            document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF"; applyBgImage();
-        }
+        function applySettings() { document.body.className = `${state.settings.theme} ${state.settings.paper}`; if (state.settings.darkMode) document.body.classList.add('dark-mode'); else document.body.classList.remove('dark-mode'); document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF"; applyBgImage(); }
         function formatDateKey(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
         function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
-        function exportData() {
-            const blob = new Blob([JSON.stringify(state.diaryData)], {type: "application/json"});
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `diary_backup_${formatDateKey(new Date())}.json`; a.click();
-        }
-        function importData(input) {
-            const file = input.files[0]; if (!file) return; const reader = new FileReader();
-            reader.onload = (e) => {
-                try { state.diaryData = JSON.parse(e.target.result); localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); renderCalendar(); alert("导入成功"); } catch(err) { alert("文件格式错误"); }
-            }; reader.readAsText(file);
-        }
+        function exportData() { const blob = new Blob([JSON.stringify(state.diaryData)], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `diary_backup_${formatDateKey(new Date())}.json`; a.click(); }
+        function importData(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { state.diaryData = JSON.parse(e.target.result); localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); renderCalendar(); alert("导入成功"); } catch(err) { alert("文件格式错误"); } }; reader.readAsText(file); }
 
         init();
     </script>
