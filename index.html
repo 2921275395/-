@@ -30,48 +30,41 @@
 
         /* === 极致夜间模式 === */
         body.dark-mode {
-            --primary-color: #ffffff; /* 选中色变白 */
-            --bg-color: #000000;      /* 全局纯黑 */
-            --paper-color: #000000;   /* 纸张纯黑 */
-            --line-color: #333333;    /* 纸张线条深灰 */
-            --text-color: #ffffff;    /* 文字纯白 */
-            --highlight: #ffffff;     /* 高亮纯白 */
-            --tab-color: #333333;     /* 标签深灰 */
-            --icon-color: #ffffff;    /* 图标纯白 */
-            --border-color: #333;     /* 加上微弱边框区分层级 */
+            --primary-color: #ffffff; 
+            --bg-color: #000000;      
+            --paper-color: #000000;   
+            --line-color: #333333;    
+            --text-color: #ffffff;    
+            --highlight: #ffffff;     
+            --tab-color: #333333;     
+            --icon-color: #ffffff;    
+            --border-color: #333;     
             --shadow: none;
         }
 
-        /* 覆盖夜间模式下的日历选中状态 */
-        body.dark-mode .day.selected {
-            background-color: #333;
-            border: 1px solid #fff;
-        }
-        body.dark-mode .day.today {
-            color: #fff;
-            border-color: #fff;
-        }
+        body.dark-mode .day.selected { background-color: #333; border: 1px solid #fff; box-shadow: none; }
+        body.dark-mode .day.today { color: #fff; border-color: #fff; }
 
-        /* 主题色系调整 (只在非夜间模式生效) */
-        body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; }
-        body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; }
-        body:not(.dark-mode).theme-beige { --paper-color: #fffbf0; --bg-color: #fafafa; }
-        /* 新增：纯白主题 */
-        body:not(.dark-mode).theme-white { --paper-color: #ffffff; --bg-color: #f0f0f0; }
+        /* === 主题色系调整 === */
+        /* 绿色主题 */
+        body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; --primary-color: #81c784; }
+        /* 粉色主题 */
+        body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; --primary-color: #f48fb1; }
+        /* 纯白主题 */
+        body:not(.dark-mode).theme-white { --paper-color: #ffffff; --bg-color: #e0e0e0; --primary-color: #9e9e9e; }
+        
+        /* 修复：米色(黄色)主题 - 增加对比度 */
+        body:not(.dark-mode).theme-beige { 
+            --paper-color: #fffbf0;   /* 奶油色纸张 */
+            --bg-color: #f0eadd;      /* 拿铁色背景，比纸张深，形成对比 */
+            --primary-color: #d4b595; /* 咖色 */
+            --highlight: #e6a57e;
+        }
 
         /* 纸张纹理定义 */
-        body.paper-lines {
-            --paper-pattern: linear-gradient(transparent 95%, var(--line-color) 96%);
-            --paper-size: 100% 32px;
-        }
-        body.paper-grid {
-            --paper-pattern: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px);
-            --paper-size: 20px 20px;
-        }
-        body.paper-blank {
-            --paper-pattern: none;
-            --paper-size: auto;
-        }
+        body.paper-lines { --paper-pattern: linear-gradient(transparent 95%, var(--line-color) 96%); --paper-size: 100% 32px; }
+        body.paper-grid { --paper-pattern: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px); --paper-size: 20px 20px; }
+        body.paper-blank { --paper-pattern: none; --paper-size: auto; }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); overflow: hidden; transition: background 0.4s ease, color 0.4s ease; }
@@ -98,23 +91,10 @@
         .hidden-right { transform: translateX(100%); pointer-events: none; }
         
         /* ================= 主界面 (日历) ================= */
-        #home-view header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 20px 25px;
-        }
-        
-        .date-picker-wrapper {
-            position: relative;
-            font-size: 1.4rem; font-weight: 800; color: var(--text-color);
-            display: flex; align-items: center; gap: 5px; cursor: pointer;
-        }
-        .date-picker-wrapper::after {
-            content: '▼'; font-size: 0.8rem; opacity: 0.5; margin-left: 5px;
-        }
-        #month-picker {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            opacity: 0; cursor: pointer; z-index: 10;
-        }
+        #home-view header { display: flex; justify-content: space-between; align-items: center; padding: 20px 25px; }
+        .date-picker-wrapper { position: relative; font-size: 1.4rem; font-weight: 800; color: var(--text-color); display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .date-picker-wrapper::after { content: '▼'; font-size: 0.8rem; opacity: 0.5; margin-left: 5px; }
+        #month-picker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
 
         .calendar-container { padding: 10px 20px; flex: 1; overflow-y: auto; }
         .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 0.9rem; margin-bottom: 15px; opacity: 0.5; font-weight: bold; }
@@ -123,37 +103,23 @@
         .day {
             aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
             border-radius: 50%; cursor: pointer; position: relative; font-size: 1rem;
-            transition: all 0.2s; color: var(--text-color);
-            border: 1px solid transparent; /* 预留边框位置避免跳动 */
+            transition: all 0.2s; color: var(--text-color); border: 1px solid transparent;
         }
         .day.today { color: var(--highlight); font-weight: 900; border: 2px solid var(--highlight); }
-        .day.selected { background-color: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(143, 174, 201, 0.4); transform: scale(1.1); }
-        /* 夜间模式下去掉阴影 */
-        body.dark-mode .day.selected { box-shadow: none; }
+        .day.selected { background-color: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: scale(1.1); }
+        .day.has-entry::after { content: ''; position: absolute; bottom: 5px; width: 5px; height: 5px; background-color: var(--highlight); border-radius: 50%; }
 
-        .day.has-entry::after {
-            content: ''; position: absolute; bottom: 5px; width: 5px; height: 5px;
-            background-color: var(--highlight); border-radius: 50%;
-        }
-
-        /* 侧边索引贴 */
         #index-tab {
             position: absolute; left: 0; top: 50%; transform: translate(-100%, -50%);
-            width: 70px; height: 50px;
-            background-color: var(--tab-color);
-            color: #fff;
-            border-radius: 0 16px 16px 0;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 2px 2px 15px rgba(0,0,0,0.1);
-            transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-            cursor: pointer; z-index: 100; font-weight: bold; font-size: 0.9rem;
-            border: 1px solid var(--border-color); border-left: none;
+            width: 70px; height: 50px; background-color: var(--tab-color); color: #fff;
+            border-radius: 0 16px 16px 0; display: flex; align-items: center; justify-content: center;
+            box-shadow: 2px 2px 15px rgba(0,0,0,0.1); transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            cursor: pointer; z-index: 100; font-weight: bold; font-size: 0.9rem; border: 1px solid var(--border-color); border-left: none;
         }
         body.dark-mode #index-tab { color: var(--text-color); box-shadow: none; }
         #index-tab.visible { transform: translate(0, -50%); }
 
         /* ================= 日记界面 ================= */
-        /* 背景色也设为变量，确保翻页时露出的底色正确 */
         #diary-view { background-color: var(--bg-color); } 
         
         .paper-container {
@@ -166,48 +132,92 @@
             display: flex; flex-direction: column;
             position: relative;
             transition: transform 0.3s;
-            border: 1px solid var(--border-color); /* 夜间模式边框 */
+            border: 1px solid var(--border-color);
         }
-        
-        .paper-container.has-custom-bg {
-            background-repeat: no-repeat;
-            background-position: center;
-            background-size: cover;
-        }
+        .paper-container.has-custom-bg { background-repeat: no-repeat; background-position: center; background-size: cover; }
 
         .paper-header {
-            padding: 25px 20px; 
-            display: flex; justify-content: space-between; align-items: center;
-            /* 顶部半透明遮罩 */
-            background: linear-gradient(to bottom, var(--paper-color) 80%, transparent);
-            z-index: 5;
+            padding: 25px 20px; display: flex; justify-content: space-between; align-items: center;
+            background: linear-gradient(to bottom, var(--paper-color) 80%, transparent); z-index: 5;
         }
         .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
         
+        /* 富文本编辑器 (div) */
         .paper-content {
             flex: 1; padding: 10px 25px; 
             overflow-y: auto; 
             font-size: 1.15rem; line-height: 32px; 
-            border: none; resize: none; background: transparent; 
+            border: none; background: transparent; 
             color: var(--text-color); font-family: inherit;
+            white-space: pre-wrap; word-break: break-word;
         }
+        .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.6; }
+
+        /* 底部导航 */
         .page-nav {
-            display: flex; justify-content: space-between; padding: 15px 25px;
-            background: var(--paper-color); /* 底部不透明 */
-            border-top: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center; padding: 15px 25px;
+            background: var(--paper-color); border-top: 1px solid var(--border-color);
+            position: relative; z-index: 10;
         }
+        
+        /* 美化后的保存按钮 */
+        .save-btn-pill {
+            height: 44px; padding: 0 30px;
+            border-radius: 22px; border: none;
+            background-color: var(--primary-color);
+            color: #fff; font-weight: bold; font-size: 1rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            cursor: pointer; transition: all 0.2s;
+        }
+        body.dark-mode .save-btn-pill { color: #000; }
+        .save-btn-pill:active { transform: scale(0.95); opacity: 0.9; }
+
+        /* ================= 格式侧边栏 ================= */
+        .format-toggle {
+            position: fixed; right: 0; top: 120px;
+            width: 40px; height: 40px;
+            background: var(--paper-color);
+            border: 1px solid var(--line-color); border-right: none;
+            border-radius: 20px 0 0 20px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: -2px 2px 10px rgba(0,0,0,0.05);
+            z-index: 50; cursor: pointer; color: var(--text-color); font-weight: bold; font-family: serif;
+        }
+        
+        .format-sidebar {
+            position: fixed; right: 0; top: 120px;
+            background: var(--paper-color);
+            border: 1px solid var(--line-color); border-right: none;
+            border-radius: 12px 0 0 12px;
+            display: flex; flex-direction: column; gap: 8px; padding: 10px 5px;
+            box-shadow: -5px 5px 20px rgba(0,0,0,0.1);
+            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            z-index: 49;
+        }
+        .format-sidebar.open { transform: translateX(0); }
+        
+        .format-btn {
+            width: 36px; height: 36px; border-radius: 8px; border: none; background: transparent;
+            color: var(--text-color); cursor: pointer; font-size: 1rem;
+        }
+        .format-btn:active { background: rgba(0,0,0,0.05); }
+        .format-btn.active { background: var(--primary-color); color: white; }
 
         /* ================= 设置界面 ================= */
         #settings-view { background-color: var(--bg-color); z-index: 200; padding: 20px; overflow-y: auto; }
         .setting-group { background: var(--paper-color); padding: 20px; border-radius: var(--radius); margin-bottom: 20px; border: 1px solid var(--border-color); }
-        
         .setting-title { font-size: 0.85rem; color: var(--text-color); opacity: 0.5; margin-bottom: 15px; font-weight: bold; }
-        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed var(--line-color); }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed var(--line-color); flex-wrap: wrap; gap: 10px; }
         .setting-row:last-child { border-bottom: none; }
         
         button.btn {
             padding: 8px 18px; border-radius: 20px; border: 1px solid var(--text-color);
             background: transparent; color: var(--text-color); font-size: 0.85rem; cursor: pointer;
+        }
+        input.text-input {
+            flex: 1; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line-color);
+            background: rgba(255,255,255,0.5); color: var(--text-color); font-family: inherit;
         }
         .color-dots { display: flex; gap: 12px; }
         .dot { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ccc; cursor: pointer; }
@@ -216,13 +226,11 @@
         #save-toast {
             position: fixed; top: 0; left: 0; right: 0; height: 80px;
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            color: #333;
+            backdrop-filter: blur(10px); color: #333;
             display: flex; align-items: flex-end; justify-content: center;
-            padding-bottom: 20px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+            padding-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05);
             border-radius: 0 0 30px 30px;
-            transform: translateY(-100%); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateY(-100%); transition: transform 0.4s;
             z-index: 500; font-weight: bold; font-size: 0.9rem;
         }
         body.dark-mode #save-toast { background: #1a1a1a; color: #fff; border-bottom: 1px solid #333; }
@@ -230,8 +238,7 @@
 
         #cropper-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 600; display: none;
-            flex-direction: column;
+            background: #000; z-index: 600; display: none; flex-direction: column;
         }
         .crop-container { flex: 1; overflow: hidden; position: relative; }
         .crop-actions {
@@ -240,10 +247,9 @@
         }
         .crop-btn { color: white; background: none; border: none; font-size: 1rem; padding: 10px 20px; }
         .crop-btn.confirm { color: var(--primary-color); font-weight: bold; }
-        
         input[type="file"] { display: none; }
 
-        /* 翻页动画 */
+        /* 动画 */
         .anim-slide-left { animation: slideLeft 0.4s forwards; }
         .anim-slide-right { animation: slideRight 0.4s forwards; }
         @keyframes slideLeft { to { transform: translateX(-100%) rotateY(-10deg); opacity: 0; } }
@@ -257,9 +263,7 @@
 
     <!-- 裁剪器界面 -->
     <div id="cropper-modal">
-        <div class="crop-container">
-            <img id="cropper-img" style="max-width:100%;">
-        </div>
+        <div class="crop-container"><img id="cropper-img" style="max-width:100%;"></div>
         <div class="crop-actions">
             <button class="crop-btn" onclick="cancelCrop()">取消</button>
             <button class="crop-btn confirm" onclick="finishCrop()">应用背景</button>
@@ -274,19 +278,15 @@
                 <input type="month" id="month-picker" onchange="changeMonth(this.value)">
             </label>
             <button class="icon-btn" onclick="openSettings()">
-                <!-- 可爱的齿轮SVG -->
                 <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
             </button>
         </header>
         
         <div class="calendar-container">
-            <div class="weekdays">
-                <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
-            </div>
+            <div class="weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
             <div id="calendar-days" class="days"></div>
         </div>
 
-        <!-- 左侧索引贴 -->
         <div id="index-tab" onclick="openDiary(event)">
             <span id="tab-date">10/24</span>
         </div>
@@ -294,17 +294,34 @@
 
     <!-- 日记界面 -->
     <div id="diary-view" class="view hidden-right">
+        <!-- 格式侧边栏开关 -->
+        <div class="format-toggle" onclick="toggleFormatSidebar(event)">Aa</div>
+        <!-- 格式工具栏 -->
+        <div class="format-sidebar" id="format-bar">
+            <button class="format-btn" style="font-weight:bold" onclick="execCmd('bold')">B</button>
+            <button class="format-btn" style="font-style:italic" onclick="execCmd('italic')">I</button>
+            <button class="format-btn" style="text-decoration:underline" onclick="execCmd('underline')">U</button>
+            <button class="format-btn" style="text-decoration:line-through" onclick="execCmd('strikeThrough')">S</button>
+            <div style="width:100%; height:1px; background:var(--line-color); margin:2px 0;"></div>
+            <button class="format-btn" onclick="execCmd('fontSize', '5')">A+</button>
+            <button class="format-btn" onclick="execCmd('fontSize', '3')">A-</button>
+        </div>
+
         <div class="paper-container" id="paper-layer">
             <div class="paper-header">
                 <span class="date-display" id="diary-date-display">10月24日</span>
                 <button class="icon-btn" onclick="closeDiary()">✕</button>
             </div>
-            <!-- 输入区域 -->
-            <textarea id="diary-input" class="paper-content" placeholder="记录此刻的心情..." spellcheck="false"></textarea>
+            
+            <!-- 富文本输入区域 -->
+            <div id="diary-input" class="paper-content" contenteditable="true" placeholder="记录此刻的心情..." spellcheck="false"></div>
             
             <div class="page-nav">
                 <button class="icon-btn" onclick="changeDay(-1)">←</button>
-                <button class="icon-btn" onclick="saveDiaryManual()">💾</button>
+                <!-- 美化的保存按钮 -->
+                <button class="save-btn-pill" onclick="saveDiaryManual()">
+                    <span>保存日记</span>
+                </button>
                 <button class="icon-btn" onclick="changeDay(1)">→</button>
             </div>
         </div>
@@ -337,10 +354,18 @@
                 <div>
                     <button class="btn" onclick="setPaper('paper-lines')">横线</button>
                     <button class="btn" onclick="setPaper('paper-grid')">方格</button>
-                    <!-- 新增空白纸张选项 -->
                     <button class="btn" onclick="setPaper('paper-blank')">空白</button>
                 </div>
             </div>
+            <!-- 字体设置 -->
+            <div class="setting-row" style="flex-direction:column; align-items:flex-start;">
+                <span style="margin-bottom:8px">全局字体 URL (.woff2/ttf)</span>
+                <div style="display:flex; width:100%; gap:8px;">
+                    <input type="text" id="font-url-input" class="text-input" placeholder="例如: https://...font.woff2">
+                    <button class="btn" onclick="applyCustomFont()">应用</button>
+                </div>
+            </div>
+
             <div class="setting-row">
                 <span>自定义背景图</span>
                 <input type="file" id="bg-upload" accept="image/*" onchange="startCrop(this)">
@@ -366,7 +391,6 @@
         </div>
     </div>
 
-    <!-- 引入 Cropper.js 脚本 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script>
         // === 核心状态 ===
@@ -374,7 +398,7 @@
             currentDate: new Date(),
             selectedDate: new Date(),
             diaryData: JSON.parse(localStorage.getItem('myDiaryData_v2') || '{}'),
-            settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false}'),
+            settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"fontUrl":""}'),
             bgImage: localStorage.getItem('myDiaryBg_v2') || null,
             isDirty: false
         };
@@ -385,12 +409,11 @@
         // === 初始化 ===
         function init() {
             applySettings();
+            applyCustomFont(true); // 加载保存的字体
             renderCalendar();
-            
-            // 自动保存 (60秒)
             setInterval(autoSave, 60000);
             
-            // 输入监听
+            // 监听输入
             document.getElementById('diary-input').addEventListener('input', () => {
                 state.isDirty = true;
             });
@@ -400,16 +423,62 @@
             let startY = 0;
             toast.addEventListener('touchstart', e => startY = e.touches[0].clientY);
             toast.addEventListener('touchmove', e => {
-                let moveY = e.touches[0].clientY;
-                if (startY - moveY > 10) hideToast(); // 上滑关闭
+                if (startY - e.touches[0].clientY > 10) hideToast();
             });
         }
 
-        // === 全局点击管理 (自动隐藏侧边栏) ===
         function handleGlobalClick(e) {
+            // 隐藏侧边索引
             const tab = document.getElementById('index-tab');
             if (tab.classList.contains('visible') && !e.target.closest('#index-tab') && !e.target.closest('.day')) {
                 tab.classList.remove('visible');
+            }
+            // 隐藏格式栏 (点击外部时)
+            const formatBar = document.getElementById('format-bar');
+            const formatToggle = document.querySelector('.format-toggle');
+            if (formatBar.classList.contains('open') && !e.target.closest('#format-bar') && !e.target.closest('.format-toggle')) {
+                formatBar.classList.remove('open');
+            }
+        }
+
+        // === 富文本逻辑 ===
+        function toggleFormatSidebar(e) {
+            e.stopPropagation();
+            document.getElementById('format-bar').classList.toggle('open');
+        }
+
+        function execCmd(command, value = null) {
+            document.execCommand(command, false, value);
+            document.getElementById('diary-input').focus();
+        }
+
+        // === 字体逻辑 ===
+        function applyCustomFont(initLoad = false) {
+            const input = document.getElementById('font-url-input');
+            const url = initLoad ? state.settings.fontUrl : input.value.trim();
+            
+            if (!url) return;
+            
+            // 动态注入 CSS
+            const styleId = 'custom-font-style';
+            let styleTag = document.getElementById(styleId);
+            if (!styleTag) {
+                styleTag = document.createElement('style');
+                styleTag.id = styleId;
+                document.head.appendChild(styleTag);
+            }
+            
+            styleTag.textContent = `
+                @font-face { font-family: 'MyCustomFont'; src: url('${url}'); }
+                :root { --font-main: 'MyCustomFont', "Nunito", sans-serif; }
+            `;
+            
+            if (!initLoad) {
+                state.settings.fontUrl = url;
+                localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings));
+                alert('字体已应用');
+            } else {
+                input.value = url;
             }
         }
 
@@ -417,7 +486,6 @@
         function renderCalendar() {
             const year = state.currentDate.getFullYear();
             const month = state.currentDate.getMonth();
-            
             document.getElementById('current-month-label').textContent = `${year}年 ${String(month + 1).padStart(2, '0')}月`;
             document.getElementById('month-picker').value = `${year}-${String(month + 1).padStart(2, '0')}`;
             
@@ -435,7 +503,6 @@
                 const dayEl = document.createElement('div');
                 dayEl.className = 'day';
                 dayEl.textContent = i;
-                
                 const thisDate = new Date(year, month, i);
                 const dateKey = formatDateKey(thisDate);
                 
@@ -443,10 +510,7 @@
                 if (isSameDay(thisDate, state.selectedDate)) dayEl.classList.add('selected');
                 if (state.diaryData[dateKey]) dayEl.classList.add('has-entry');
 
-                dayEl.onclick = (e) => {
-                    e.stopPropagation(); 
-                    selectDate(thisDate);
-                };
+                dayEl.onclick = (e) => { e.stopPropagation(); selectDate(thisDate); };
                 daysContainer.appendChild(dayEl);
             }
         }
@@ -461,7 +525,6 @@
         function selectDate(date) {
             state.selectedDate = date;
             renderCalendar();
-            
             const tab = document.getElementById('index-tab');
             document.getElementById('tab-date').textContent = `${date.getMonth() + 1}/${date.getDate()}`;
             tab.classList.add('visible');
@@ -471,10 +534,11 @@
         function openDiary(e) {
             if(e) e.stopPropagation();
             const dateKey = formatDateKey(state.selectedDate);
-            
             const opts = { month: 'long', day: 'numeric', weekday: 'long' };
             document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', opts);
-            document.getElementById('diary-input').value = state.diaryData[dateKey] || '';
+            
+            // 使用 innerHTML 加载富文本
+            document.getElementById('diary-input').innerHTML = state.diaryData[dateKey] || '';
             
             document.getElementById('diary-view').classList.remove('hidden-right');
             state.isDirty = false;
@@ -483,6 +547,8 @@
         function closeDiary() {
             saveDiaryManual(false); 
             document.getElementById('diary-view').classList.add('hidden-right');
+            // 关闭格式栏
+            document.getElementById('format-bar').classList.remove('open');
             renderCalendar();
         }
 
@@ -504,15 +570,20 @@
             }, 350);
         }
 
-        // === 保存逻辑 ===
+        // === 保存逻辑 (修改为 innerHTML) ===
         function saveDiaryManual(showToastFlag = true) {
-            if (!state.isDirty && !document.getElementById('diary-input').value) return;
+            const inputDiv = document.getElementById('diary-input');
+            if (!state.isDirty && inputDiv.innerText.trim() === "") return;
             
             const dateKey = formatDateKey(state.selectedDate);
-            const content = document.getElementById('diary-input').value;
+            // 保存 HTML 结构
+            const content = inputDiv.innerHTML;
             
-            if (content.trim() === "") delete state.diaryData[dateKey];
-            else state.diaryData[dateKey] = content;
+            if (inputDiv.innerText.trim() === "" && !content.includes('<img')) {
+                 delete state.diaryData[dateKey];
+            } else {
+                state.diaryData[dateKey] = content;
+            }
             
             localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData));
             state.isDirty = false;
@@ -529,141 +600,79 @@
             toast.classList.add('show');
             setTimeout(hideToast, 3000);
         }
+        function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
 
-        function hideToast() {
-            document.getElementById('save-toast').classList.remove('show');
-        }
-
-        // === 图片裁剪逻辑 ===
+        // === 图片裁剪、设置、辅助函数 (保持不变) ===
         function startCrop(input) {
             const file = input.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = (e) => {
                 document.getElementById('cropper-modal').style.display = 'flex';
                 const image = document.getElementById('cropper-img');
                 image.src = e.target.result;
-                
                 if (cropperInstance) cropperInstance.destroy();
-                cropperInstance = new Cropper(image, {
-                    viewMode: 2, 
-                    dragMode: 'move',
-                    aspectRatio: NaN,
-                    autoCropArea: 1,
-                });
+                cropperInstance = new Cropper(image, { viewMode: 2, dragMode: 'move', aspectRatio: NaN, autoCropArea: 1 });
             };
             reader.readAsDataURL(file);
             input.value = '';
         }
-
         function cancelCrop() {
             document.getElementById('cropper-modal').style.display = 'none';
             if (cropperInstance) cropperInstance.destroy();
         }
-
         function finishCrop() {
             if (!cropperInstance) return;
-            const canvas = cropperInstance.getCroppedCanvas({
-                maxWidth: 1024, maxHeight: 1024 
-            });
-            
+            const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 });
             const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
             state.bgImage = dataUrl;
-            
             try {
                 localStorage.setItem('myDiaryBg_v2', dataUrl);
                 applyBgImage();
                 cancelCrop();
                 showToast("背景设置成功");
-            } catch (e) {
-                alert("图片太大了，请裁剪小一点的区域");
-            }
+            } catch (e) { alert("图片太大了"); }
         }
-
         function applyBgImage() {
             const paper = document.getElementById('paper-layer');
-            if (state.bgImage) {
-                paper.style.backgroundImage = `url(${state.bgImage})`;
-                paper.classList.add('has-custom-bg');
-            } else {
-                paper.style.backgroundImage = '';
-                paper.classList.remove('has-custom-bg');
-            }
+            if (state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } 
+            else { paper.style.backgroundImage = ''; paper.classList.remove('has-custom-bg'); }
         }
-
         function clearBgImage() {
-            state.bgImage = null;
-            localStorage.removeItem('myDiaryBg_v2');
-            applyBgImage();
-            showToast("背景已还原");
+            state.bgImage = null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("背景已还原");
         }
-
-        // === 设置逻辑 ===
         function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); }
         function closeSettings() { 
             document.getElementById('settings-view').classList.add('hidden-right'); 
             localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings));
         }
-
         function toggleDarkMode() {
-            state.settings.darkMode = !state.settings.darkMode;
-            applySettings();
-            document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF";
+            state.settings.darkMode = !state.settings.darkMode; applySettings();
         }
-
-        function setTheme(theme) {
-            state.settings.theme = theme;
-            applySettings();
-        }
-        function setPaper(paper) {
-            state.settings.paper = paper;
-            applySettings();
-        }
-
+        function setTheme(theme) { state.settings.theme = theme; applySettings(); }
+        function setPaper(paper) { state.settings.paper = paper; applySettings(); }
         function applySettings() {
             document.body.className = `${state.settings.theme} ${state.settings.paper}`;
             if (state.settings.darkMode) document.body.classList.add('dark-mode');
             else document.body.classList.remove('dark-mode');
-            
             document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF";
             applyBgImage();
         }
-
-        // === 辅助工具 ===
-        function formatDateKey(date) {
-            return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
-        }
-        function isSameDay(d1, d2) {
-            return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
-        }
-
+        function formatDateKey(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
+        function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
         function exportData() {
-            const dataStr = JSON.stringify(state.diaryData);
-            const blob = new Blob([dataStr], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `diary_backup_${formatDateKey(new Date())}.json`;
-            a.click();
+            const blob = new Blob([JSON.stringify(state.diaryData)], {type: "application/json"});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = `diary_backup_${formatDateKey(new Date())}.json`; a.click();
         }
-        
         function importData(input) {
-            const file = input.files[0];
-            if (!file) return;
+            const file = input.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
-                try {
-                    state.diaryData = JSON.parse(e.target.result);
-                    localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData));
-                    renderCalendar();
-                    alert("导入成功");
-                } catch(err) { alert("文件格式错误"); }
-            };
-            reader.readAsText(file);
+                try { state.diaryData = JSON.parse(e.target.result); localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); renderCalendar(); alert("导入成功"); } catch(err) { alert("格式错误"); }
+            }; reader.readAsText(file);
         }
 
-        // 启动
         init();
     </script>
 </body>
