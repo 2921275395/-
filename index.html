@@ -5,18 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>我的日记本</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
-    <!-- 引入一些常用图标库 -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <!-- 引入 html2canvas 用于截图 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
-            /* 莫兰迪色系 / 低饱和度可爱风 */
-            --primary-color: #8faec9; /* 雾霾蓝 */
-            --bg-color: #f7f9fc;      /* 默认背景 */
-            --paper-color: #fffbf0;   /* 米白色纸张 */
+            /* 莫兰迪色系 */
+            --primary-color: #8faec9;
+            --bg-color: #f7f9fc;
+            --paper-color: #fffbf0;
             --line-color: #e6e6e6;
-            --highlight: #eeb8c3;     /* 脏粉色（高亮/今天） */
-            --text-color: #555d66;    /* 深灰文字 */
-            --tab-color: #aed9e0;     /* 浅蓝色索引贴 */
+            --highlight: #eeb8c3;
+            --text-color: #555d66;
+            --tab-color: #aed9e0;
             --icon-color: #8faec9;
             --border-color: transparent;
             
@@ -24,7 +25,6 @@
             --font-main: "Nunito", "Quicksand", -apple-system, sans-serif;
             --radius: 24px;
 
-            /* 纸张纹理 */
             --paper-pattern: none;
             --paper-size: 100% 32px;
         }
@@ -43,14 +43,12 @@
             --shadow: none;
         }
 
-        /* 覆盖夜间模式下的日历选中状态 */
         body.dark-mode .day.selected { background-color: #333; border: 1px solid #fff; }
         body.dark-mode .day.today { color: #fff; border-color: #fff; }
 
         /* === 主题色系 === */
         body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; }
         body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; }
-        /* 黄色主题：背景更暖，像奶油 */
         body:not(.dark-mode).theme-beige { --paper-color: #fffbf0; --bg-color: #fdf6e3; } 
         body:not(.dark-mode).theme-white { --paper-color: #ffffff; --bg-color: #f0f0f0; }
 
@@ -68,7 +66,6 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); overflow: hidden; transition: background 0.4s ease, color 0.4s ease; }
 
-        /* 通用按钮 */
         .icon-btn { 
             border: 1px solid var(--border-color); background: var(--paper-color); 
             width: 40px; height: 40px; border-radius: 50%;
@@ -80,11 +77,9 @@
         .icon-btn:active { transform: scale(0.9); }
         .icon-btn svg { width: 22px; height: 22px; fill: currentColor; }
         
-        /* 美化后的保存按钮 */
         .save-btn {
             background-color: var(--highlight) !important;
-            color: #fff !important;
-            border: none !important;
+            color: #fff !important; border: none !important;
             box-shadow: 0 4px 15px rgba(238, 184, 195, 0.4);
         }
         .save-btn svg { fill: #fff; }
@@ -119,16 +114,24 @@
         body.dark-mode .day.selected { box-shadow: none; }
         .day.has-entry::after { content: ''; position: absolute; bottom: 5px; width: 5px; height: 5px; background-color: var(--highlight); border-radius: 50%; }
 
-        /* 侧边索引贴 */
+        /* 侧边索引贴 (可拖动) */
         #index-tab {
-            position: absolute; left: 0; top: 50%; transform: translate(-100%, -50%);
+            position: fixed; /* 改为 fixed 以便拖拽 */
+            left: 0; top: 50%; 
             width: 70px; height: 50px; background-color: var(--tab-color); color: #fff;
             border-radius: 0 16px 16px 0; display: flex; align-items: center; justify-content: center;
-            box-shadow: 2px 2px 15px rgba(0,0,0,0.1); transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-            cursor: pointer; z-index: 100; font-weight: bold; font-size: 0.9rem; border: 1px solid var(--border-color); border-left: none;
+            box-shadow: 2px 2px 15px rgba(0,0,0,0.1); 
+            /* 移除 transition，由 JS 控制动画 */
+            cursor: grab; z-index: 100; font-weight: bold; font-size: 0.9rem; 
+            border: 1px solid var(--border-color); border-left: none;
+            touch-action: none; /* 禁止默认触摸滚动 */
+            transform: translateX(-100%); /* 默认隐藏 */
         }
         body.dark-mode #index-tab { color: var(--text-color); box-shadow: none; }
-        #index-tab.visible { transform: translate(0, -50%); }
+        /* 使用类名控制显示，拖拽时会覆盖 transform */
+        #index-tab.visible { transform: translateX(0); }
+        /* 拖拽松手后的回弹动画类 */
+        .snap-transition { transition: top 0.3s cubic-bezier(0.25, 1, 0.5, 1), left 0.3s cubic-bezier(0.25, 1, 0.5, 1), right 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.3s !important; }
 
         /* ================= 日记界面 (富文本) ================= */
         #diary-view { background-color: var(--bg-color); }
@@ -147,7 +150,6 @@
         }
         .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
 
-        /* ContentEditable Div */
         .paper-content {
             flex: 1; padding: 10px 25px; overflow-y: auto; 
             font-size: 1.15rem; line-height: 32px; 
@@ -161,31 +163,37 @@
             background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 10;
         }
 
-        /* ================= 格式化工具栏 (侧边) ================= */
+        /* ================= 格式化工具栏 (可拖动悬浮球) ================= */
         .format-toolbar-toggle {
-            position: absolute; right: 0; top: 100px;
-            width: 36px; height: 36px;
-            background: rgba(255,255,255,0.8);
-            border-radius: 10px 0 0 10px;
+            position: fixed; /* Fixed 满屏拖拽 */
+            right: 0; top: 150px; /* 初始位置 */
+            width: 40px; height: 40px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            cursor: pointer; box-shadow: -2px 2px 10px rgba(0,0,0,0.05);
-            z-index: 50; color: var(--text-color);
-            border: 1px solid var(--line-color); border-right: none;
+            cursor: grab; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 150; color: var(--text-color);
+            border: 1px solid var(--line-color);
+            touch-action: none;
         }
+        
         .format-toolbar {
-            position: absolute; right: 0; top: 100px;
+            position: absolute; 
+            /* 相对于 toggle 定位，或者动态计算位置 */
+            top: 100px; right: 50px; /* 默认 */
             background: rgba(255,255,255,0.95);
             backdrop-filter: blur(10px);
-            border-radius: 10px 0 0 10px;
-            box-shadow: -5px 5px 20px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
             display: flex; flex-direction: column;
             gap: 5px; padding: 8px;
-            transform: translateX(120%); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-            z-index: 51;
+            transform: scale(0); transform-origin: top right;
+            transition: transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            z-index: 151;
             border: 1px solid var(--line-color);
         }
-        body.dark-mode .format-toolbar, body.dark-mode .format-toolbar-toggle { background: #222; border-color: #444; }
-        .format-toolbar.active { transform: translateX(0); }
+        body.dark-mode .format-toolbar, body.dark-mode .format-toolbar-toggle { background: #333; border-color: #555; }
+        .format-toolbar.active { transform: scale(1); }
         
         .fmt-btn {
             width: 36px; height: 36px; border: none; background: transparent;
@@ -193,7 +201,7 @@
             display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
         }
         .fmt-btn:active { background: rgba(0,0,0,0.05); }
-        .fmt-btn.active-state { background: var(--primary-color); color: #fff; }
+        .color-dot-btn { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
 
         /* ================= 设置界面 ================= */
         #settings-view { background-color: var(--bg-color); z-index: 200; padding: 20px; overflow-y: auto; }
@@ -206,10 +214,12 @@
             padding: 8px 18px; border-radius: 20px; border: 1px solid var(--text-color);
             background: transparent; color: var(--text-color); font-size: 0.85rem; cursor: pointer;
         }
+        button.btn-text {
+            border: none; background: transparent; color: var(--text-color); 
+            font-size: 1.2rem; cursor: pointer; padding: 0 10px; opacity: 0.6;
+        }
         .color-dots { display: flex; gap: 12px; }
         .dot { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ccc; cursor: pointer; }
-        
-        /* 字体输入框 */
         .input-row { width: 100%; display: flex; gap: 10px; margin-top: 10px; }
         .input-text { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--line-color); background: transparent; color: var(--text-color); }
 
@@ -275,6 +285,7 @@
             <div class="weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
             <div id="calendar-days" class="days"></div>
         </div>
+        <!-- 索引贴：可拖动 -->
         <div id="index-tab" onclick="openDiary(event)"><span id="tab-date">10/24</span></div>
     </div>
 
@@ -286,8 +297,8 @@
                 <button class="icon-btn" onclick="closeDiary()">✕</button>
             </div>
             
-            <!-- 格式化工具栏唤醒按钮 -->
-            <div class="format-toolbar-toggle" onclick="toggleFormatToolbar(event)">
+            <!-- 格式化工具栏唤醒按钮：可拖动悬浮球 -->
+            <div class="format-toolbar-toggle" id="fmt-toggle" onclick="toggleFormatToolbar(event)">
                 <span class="material-icons-round">text_format</span>
             </div>
             <!-- 格式化工具栏 -->
@@ -296,17 +307,21 @@
                 <button class="fmt-btn" onclick="execCmd('italic')"><span class="material-icons-round">format_italic</span></button>
                 <button class="fmt-btn" onclick="execCmd('underline')"><span class="material-icons-round">format_underlined</span></button>
                 <button class="fmt-btn" onclick="execCmd('strikeThrough')"><span class="material-icons-round">strikethrough_s</span></button>
+                <!-- 新增颜色按钮 -->
+                <div style="height:1px; background:var(--line-color); margin:5px 0;"></div>
+                <button class="fmt-btn" onclick="execCmd('foreColor', '#ff6b6b')"><div class="color-dot-btn" style="background:#ff6b6b"></div></button>
+                <button class="fmt-btn" onclick="execCmd('foreColor', '#4dabf7')"><div class="color-dot-btn" style="background:#4dabf7"></div></button>
+                <button class="fmt-btn" onclick="execCmd('removeFormat')"><span class="material-icons-round" style="font-size:1rem; opacity:0.6">format_clear</span></button>
+                
                 <div style="height:1px; background:var(--line-color); margin:5px 0;"></div>
                 <button class="fmt-btn" onclick="execCmd('fontSize', 3)"><span class="material-icons-round" style="font-size:1rem">text_decrease</span></button>
                 <button class="fmt-btn" onclick="execCmd('fontSize', 5)"><span class="material-icons-round" style="font-size:1.4rem">text_increase</span></button>
             </div>
 
-            <!-- 可编辑 Div 代替 Textarea -->
             <div id="diary-input" class="paper-content" contenteditable="true" placeholder="记录此刻的心情... (选中文本可调整格式)"></div>
             
             <div class="page-nav">
                 <button class="icon-btn" onclick="changeDay(-1)">←</button>
-                <!-- 美化后的保存按钮 -->
                 <button class="icon-btn save-btn" onclick="saveDiaryManual()">
                     <svg viewBox="0 0 24 24"><path d="M17,3H5C3.89,3,3,3.9,3,5v14c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V7L17,3z M12,19c-1.66,0-3-1.34-3-3s1.34-3,3-3 s3,1.34,3,3S13.66,19,12,19z M15,9H5V5h10V9z"/></svg>
                 </button>
@@ -341,18 +356,17 @@
             </div>
             <!-- 字体设置 -->
             <div class="setting-row" style="display:block">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center">
                     <span>自定义字体 URL</span>
                     <div>
-                        <!-- 新增的还原按钮 -->
-                        <button class="btn" style="margin-right:5px; border-color:#bbb; color:#999;" onclick="resetFont()">还原</button>
+                        <!-- 透明还原按钮 -->
+                        <button class="btn-text" onclick="resetFont()">✕</button>
                         <button class="btn" onclick="applyFont()">应用</button>
                     </div>
                 </div>
                 <div class="input-row">
                     <input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接...">
                 </div>
-                <div style="font-size:0.75rem; color:#999; margin-top:5px">提示: 输入 Google Fonts CSS 或字体文件链接</div>
             </div>
 
             <div class="setting-row">
@@ -365,7 +379,16 @@
 
         <div class="setting-group">
             <div class="setting-title">数据</div>
-            <div class="setting-row"><span>导出备份</span><button class="btn" onclick="exportData()">导出</button></div>
+            <!-- 生成图片 -->
+            <div class="setting-row" style="display:block">
+                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <span>生成日记长图</span>
+                    <button class="btn" onclick="exportDiaryImage()">导出图片</button>
+                 </div>
+                 <input type="date" id="export-date-picker" class="input-text" style="width:100%">
+            </div>
+            
+            <div class="setting-row"><span>导出备份 (JSON)</span><button class="btn" onclick="exportData()">导出</button></div>
             <div class="setting-row">
                 <span>恢复备份</span>
                 <input type="file" id="import-file" accept=".json" onchange="importData(this)">
@@ -374,8 +397,9 @@
         </div>
     </div>
 
-    <!-- 脚本 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <!-- 隐藏的容器用于渲染截图 -->
+    <div id="screenshot-container" style="position:fixed; top:0; left:-9999px; width:450px; z-index:-1; pointer-events:none;"></div>
+
     <script>
         const state = {
             currentDate: new Date(),
@@ -403,14 +427,117 @@
             toast.addEventListener('touchmove', e => {
                 if (startY - e.touches[0].clientY > 10) hideToast();
             });
+
+            // 初始化拖拽
+            initDraggable(document.getElementById('index-tab'), 'left');
+            initDraggable(document.getElementById('fmt-toggle'), 'any');
+            
+            // 初始化截图日期选择器为今天
+            document.getElementById('export-date-picker').valueAsDate = new Date();
         }
+
+        // === 拖拽逻辑 ===
+        function initDraggable(el, type) {
+            let isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+            const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
+
+            el.addEventListener('touchstart', (e) => {
+                isDragging = false; // 重置
+                el.classList.remove('snap-transition'); // 拖动时移除动画
+                const touch = e.touches[0];
+                startX = touch.clientX;
+                startY = touch.clientY;
+                const rect = el.getBoundingClientRect();
+                initialLeft = rect.left;
+                initialTop = rect.top;
+            }, {passive: false});
+
+            el.addEventListener('touchmove', (e) => {
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - startX;
+                const deltaY = touch.clientY - startY;
+                
+                // 简单的防抖判定
+                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) isDragging = true;
+                
+                if (isDragging) {
+                    e.preventDefault(); // 防止页面滚动
+                    let newTop = initialTop + deltaY;
+                    let newLeft = initialLeft + deltaX;
+
+                    // 边界限制
+                    if (newTop < 0) newTop = 0;
+                    if (newTop > screenH - el.offsetHeight) newTop = screenH - el.offsetHeight;
+                    
+                    if (type === 'left') {
+                         // 索引贴只能上下动，且贴在左边
+                         el.style.top = newTop + 'px';
+                         // X轴不跟随手指，保持在左侧，但为了视觉效果，可以稍微动一点点，但马上弹回
+                    } else {
+                        // 悬浮球自由拖动
+                        if (newLeft < 0) newLeft = 0;
+                        if (newLeft > screenW - el.offsetWidth) newLeft = screenW - el.offsetWidth;
+                        el.style.left = newLeft + 'px';
+                        el.style.top = newTop + 'px';
+                        // 拖拽时隐藏菜单
+                        document.getElementById('fmt-bar').classList.remove('active');
+                    }
+                }
+            }, {passive: false});
+
+            el.addEventListener('touchend', (e) => {
+                if (!isDragging) return; // 如果只是点击，不触发吸附
+                el.classList.add('snap-transition');
+                
+                if (type === 'any') {
+                    // 悬浮球左右吸附
+                    const rect = el.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    if (centerX < screenW / 2) {
+                        el.style.left = '10px';
+                        // 更新菜单位置：在右侧弹出
+                        updateFormatBarPos('right');
+                    } else {
+                        el.style.left = (screenW - el.offsetWidth - 10) + 'px';
+                        // 更新菜单位置：在左侧弹出
+                        updateFormatBarPos('left');
+                    }
+                }
+                // 索引贴不需要X轴吸附，因为它本来就 fixed left
+            });
+        }
+
+        function updateFormatBarPos(direction) {
+            const bar = document.getElementById('fmt-bar');
+            const toggle = document.getElementById('fmt-toggle');
+            // 简单的相对定位
+            if (direction === 'right') {
+                bar.style.left = '60px';
+                bar.style.right = 'auto';
+                bar.style.transformOrigin = 'top left';
+            } else {
+                bar.style.right = '60px';
+                bar.style.left = 'auto';
+                bar.style.transformOrigin = 'top right';
+            }
+            // 垂直位置跟随
+            bar.style.top = toggle.style.top;
+        }
+
 
         function handleGlobalClick(e) {
             const tab = document.getElementById('index-tab');
+            // 注意：因为 tab 改为了 fixed 且有 translate，点击判定要小心。
+            // 只有当 visible 类存在时，才响应“点击外部关闭”
             if (tab.classList.contains('visible') && !e.target.closest('#index-tab') && !e.target.closest('.day')) {
+                // 如果没有在拖拽中
                 tab.classList.remove('visible');
+                // 恢复默认位置（隐藏到左侧）
+                tab.style.transform = ''; 
             }
-            // 隐藏格式栏
+            
             const fmtBar = document.getElementById('fmt-bar');
             if(fmtBar.classList.contains('active') && !e.target.closest('.format-toolbar') && !e.target.closest('.format-toolbar-toggle')) {
                 fmtBar.classList.remove('active');
@@ -457,10 +584,14 @@
             state.selectedDate = date;
             renderCalendar();
             document.getElementById('tab-date').textContent = `${date.getMonth() + 1}/${date.getDate()}`;
-            document.getElementById('index-tab').classList.add('visible');
+            // 显示索引贴
+            const tab = document.getElementById('index-tab');
+            tab.classList.add('visible');
+            // 确保移除手动拖拽导致的 transform 偏移，使用 class 控制的 translate
+            // tab.style.transform = ''; // 这行可能会冲突，保持 fixed 布局简单化
         }
 
-        // === 日记界面 (富文本支持) ===
+        // === 日记界面 ===
         function openDiary(e) {
             if(e) e.stopPropagation();
             const dateKey = formatDateKey(state.selectedDate);
@@ -468,13 +599,8 @@
             
             const content = state.diaryData[dateKey] || '';
             const inputDiv = document.getElementById('diary-input');
-            
-            // 简单的数据迁移：如果是旧的纯文本，转换换行符；如果是HTML，直接渲染
-            if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) {
-                 inputDiv.innerText = content; // 纯文本模式
-            } else {
-                 inputDiv.innerHTML = content; // HTML模式
-            }
+            if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) inputDiv.innerText = content;
+            else inputDiv.innerHTML = content;
             
             document.getElementById('diary-view').classList.remove('hidden-right');
             state.isDirty = false;
@@ -503,9 +629,15 @@
             }, 350);
         }
 
-        // === 富文本编辑逻辑 ===
+        // === 富文本 ===
         function toggleFormatToolbar(e) {
             e.stopPropagation();
+            // 计算位置
+            const toggle = document.getElementById('fmt-toggle');
+            const rect = toggle.getBoundingClientRect();
+            if (rect.left < window.innerWidth/2) updateFormatBarPos('right');
+            else updateFormatBarPos('left');
+            
             document.getElementById('fmt-bar').classList.toggle('active');
         }
         function execCmd(command, value = null) {
@@ -518,7 +650,6 @@
             if (!state.isDirty && inputDiv.innerText.trim() === "") return;
             
             const dateKey = formatDateKey(state.selectedDate);
-            // 保存 innerHTML 以保留格式
             const content = inputDiv.innerHTML;
             
             if (inputDiv.innerText.trim() === "" && !content.includes('<img')) delete state.diaryData[dateKey];
@@ -530,13 +661,7 @@
         }
 
         function autoSave() { if (state.isDirty) saveDiaryManual(true); }
-        function showToast(msg) { 
-            const t=document.getElementById('save-toast'); 
-            if(msg) t.textContent = msg; 
-            else t.textContent = "☁️ 已自动保存";
-            t.classList.add('show'); 
-            setTimeout(()=>t.classList.remove('show'),3000); 
-        }
+        function showToast() { const t=document.getElementById('save-toast'); t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
         function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
 
         // === 字体逻辑 ===
@@ -546,43 +671,97 @@
             state.settings.customFont = url;
             loadCustomFont(url);
             saveSettings();
-            showToast("正在尝试加载字体...");
+            alert("正在加载...");
         }
-
         function resetFont() {
             state.settings.customFont = "";
             document.getElementById('font-url-input').value = "";
-            // 移除自定义属性，恢复CSS中定义的默认字体
             document.documentElement.style.removeProperty('--font-main');
             saveSettings();
-            showToast("已还原默认字体");
+            alert("已还原默认字体");
         }
-
         function loadCustomFont(url) {
-            // 如果是 Google Fonts CSS
             if(url.includes('fonts.googleapis.com')) {
-                const link = document.createElement('link');
-                link.href = url;
-                link.rel = 'stylesheet';
-                document.head.appendChild(link);
+                const link = document.createElement('link'); link.href = url; link.rel = 'stylesheet'; document.head.appendChild(link);
                 return; 
             }
-            // 假设是字体文件 URL
             const fontName = 'MyCustomFont';
             const fontFace = new FontFace(fontName, `url(${url})`);
             fontFace.load().then(loadedFace => {
                 document.fonts.add(loadedFace);
                 document.documentElement.style.setProperty('--font-main', `"${fontName}", "Nunito", sans-serif`);
-            }).catch(e => {
-                console.error("字体加载失败", e);
-                const link = document.createElement('link');
-                link.href = url;
-                link.rel = 'stylesheet';
-                document.head.appendChild(link);
+            }).catch(e => { console.error(e); });
+        }
+
+        // === 截图导出逻辑 ===
+        function exportDiaryImage() {
+            const picker = document.getElementById('export-date-picker');
+            if(!picker.value) { alert("请选择日期"); return; }
+            
+            const dateStr = picker.value; // yyyy-mm-dd
+            const parts = dateStr.split('-');
+            const targetDate = new Date(parts[0], parts[1]-1, parts[2]);
+            const dateKey = formatDateKey(targetDate);
+            const content = state.diaryData[dateKey];
+            
+            if(!content) { alert("这一天没有日记哦"); return; }
+
+            showToast("正在生成图片...");
+            
+            // 创建临时容器
+            const container = document.getElementById('screenshot-container');
+            container.innerHTML = '';
+            
+            // 模拟纸张结构
+            const paper = document.createElement('div');
+            // 复制当前纸张样式
+            paper.className = `paper-container ${state.settings.paper}`;
+            if(state.bgImage) {
+                paper.style.backgroundImage = `url(${state.bgImage})`;
+                paper.classList.add('has-custom-bg');
+            }
+            // 强制样式以便截图
+            paper.style.height = 'auto';
+            paper.style.minHeight = '800px';
+            paper.style.position = 'relative';
+            paper.style.overflow = 'visible';
+            paper.style.borderRadius = '0';
+            
+            // 头部
+            const header = document.createElement('div');
+            header.className = 'paper-header';
+            header.innerHTML = `<span class="date-display">${targetDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'})}</span>`;
+            paper.appendChild(header);
+            
+            // 内容
+            const body = document.createElement('div');
+            body.className = 'paper-content';
+            body.style.overflow = 'visible'; // 展开内容
+            body.innerHTML = content;
+            paper.appendChild(body);
+            
+            container.appendChild(paper);
+            
+            // 截图
+            html2canvas(paper, {
+                scale: 2, // 高清
+                useCORS: true,
+                backgroundColor: state.settings.theme === 'theme-beige' ? '#fffbf0' : null // 兜底背景色
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `diary_${dateKey}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+                container.innerHTML = ''; // 清理
+                showToast("图片已保存！");
+            }).catch(err => {
+                console.error(err);
+                alert("生成失败，请重试");
+                container.innerHTML = '';
             });
         }
 
-        // === 图片裁剪 & 设置 ===
+        // === 其他通用逻辑 ===
         function startCrop(input) {
             const file = input.files[0];
             if (!file) return;
@@ -603,22 +782,12 @@
             const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 });
             const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
             state.bgImage = dataUrl;
-            try {
-                localStorage.setItem('myDiaryBg_v2', dataUrl);
-                applyBgImage();
-                cancelCrop();
-                showToast("背景设置成功");
-            } catch (e) { alert("图片太大了"); }
+            try { localStorage.setItem('myDiaryBg_v2', dataUrl); applyBgImage(); cancelCrop(); showToast("背景设置成功"); } catch (e) { alert("图片太大了"); }
         }
         function applyBgImage() {
             const paper = document.getElementById('paper-layer');
-            if (state.bgImage) {
-                paper.style.backgroundImage = `url(${state.bgImage})`;
-                paper.classList.add('has-custom-bg');
-            } else {
-                paper.style.backgroundImage = '';
-                paper.classList.remove('has-custom-bg');
-            }
+            if (state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } 
+            else { paper.style.backgroundImage = ''; paper.classList.remove('has-custom-bg'); }
         }
         function clearBgImage() { state.bgImage = null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("背景已还原"); }
 
@@ -629,10 +798,7 @@
         function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); saveSettings(); }
         function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
         
-        function toggleDarkMode() {
-            state.settings.darkMode = !state.settings.darkMode;
-            applySettings();
-        }
+        function toggleDarkMode() { state.settings.darkMode = !state.settings.darkMode; applySettings(); }
         function setTheme(theme) { state.settings.theme = theme; applySettings(); }
         function setPaper(paper) { state.settings.paper = paper; applySettings(); }
         
@@ -649,24 +815,14 @@
 
         function exportData() {
             const blob = new Blob([JSON.stringify(state.diaryData)], {type: "application/json"});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `diary_backup_${formatDateKey(new Date())}.json`;
-            a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `diary_backup_${formatDateKey(new Date())}.json`; a.click();
         }
         function importData(input) {
-            const file = input.files[0];
-            if (!file) return;
+            const file = input.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
-                try {
-                    state.diaryData = JSON.parse(e.target.result);
-                    localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData));
-                    renderCalendar();
-                    alert("导入成功");
-                } catch(err) { alert("文件格式错误"); }
-            };
-            reader.readAsText(file);
+                try { state.diaryData = JSON.parse(e.target.result); localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); renderCalendar(); alert("导入成功"); } catch(err) { alert("文件格式错误"); }
+            }; reader.readAsText(file);
         }
 
         init();
