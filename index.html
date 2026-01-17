@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- PWA 配置: 允许全屏运行，看起来像个APP -->
+    <!-- PWA 配置 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#f7f9fc">
     <title>我的日记本</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
@@ -233,6 +234,7 @@
             border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; font-weight: bold;
         }
         .test-notify-btn:active { background: rgba(0,0,0,0.05); }
+        .status-text { font-size: 0.8rem; opacity: 0.7; margin-bottom: 10px; text-align: center;}
 
         /* iOS 安装指引提示框 */
         #ios-install-guide {
@@ -340,6 +342,7 @@
             <button class="icon-btn" onclick="closeTodo()">✕</button>
         </div>
 
+        <div class="status-text" id="sw-status">检查服务状态...</div>
         <button id="perm-btn" class="permission-btn" onclick="requestNotifyPermission()">🔔 点击开启通知权限</button>
         
         <!-- iOS 安装指引 -->
@@ -353,7 +356,7 @@
             </ol>
         </div>
 
-        <button class="test-notify-btn" onclick="testNotification()">📩 立即发送一条测试通知 (排查问题)</button>
+        <button class="test-notify-btn" onclick="testNotification()">📩 立即发送一条测试通知 (修复版)</button>
 
         <div class="todo-input-container">
             <input type="text" id="new-todo-input" class="todo-text-input" placeholder="添加新任务...">
@@ -481,6 +484,7 @@
 
         let cropperInstance = null;
         let notifyInterval = null;
+        let swRegistration = null; // Store SW Registration
 
         function init() {
             applySettings();
@@ -490,8 +494,10 @@
             
             setInterval(autoSave, 60000);
             
+            // 注册 Service Worker (Android Chrome 强制要求)
+            registerServiceWorker();
+
             startNotificationCheck();
-            // 每次页面重新可见时（比如手机解锁），立即检查是否有错过的通知
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {
                     checkNotifications(true); 
@@ -514,22 +520,60 @@
             checkNotifyState();
         }
 
+        // === 核心修复：注册虚拟 Service Worker ===
+        function registerServiceWorker() {
+            const statusEl = document.getElementById('sw-status');
+            if (!('serviceWorker' in navigator)) {
+                statusEl.textContent = "当前环境不支持后台通知";
+                return;
+            }
+
+            // 创建一个虚拟的 SW 文件内容
+            const swCode = `
+                self.addEventListener('install', (e) => self.skipWaiting());
+                self.addEventListener('activate', (e) => self.clients.claim());
+                self.addEventListener('notificationclick', (event) => {
+                    event.notification.close();
+                    event.waitUntil(clients.matchAll({ type: 'window' }).then(clients => {
+                        if (clients.length && clients[0].focus) clients[0].focus();
+                    }));
+                });
+            `;
+            
+            try {
+                // 使用 Blob 创建虚拟文件
+                const blob = new Blob([swCode], {type: 'application/javascript'});
+                const swUrl = URL.createObjectURL(blob);
+                
+                navigator.serviceWorker.register(swUrl)
+                .then(reg => {
+                    console.log('SW Registered', reg);
+                    swRegistration = reg;
+                    statusEl.textContent = "后台服务已就绪 ✅";
+                    statusEl.style.color = "green";
+                })
+                .catch(err => {
+                    console.error('SW Error', err);
+                    statusEl.textContent = "后台服务注册失败 (可能需要 HTTPS)";
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
         function checkNotifyState() {
-            // iOS 引导逻辑
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             const isStandalone = window.navigator.standalone || (window.matchMedia('(display-mode: standalone)').matches);
             
             if (isIOS && !isStandalone) {
                 document.getElementById('ios-install-guide').style.display = 'block';
-                document.getElementById('perm-btn').style.display = 'none'; // 未安装前无法申请权限
+                document.getElementById('perm-btn').style.display = 'none'; 
                 return;
             } else {
                 document.getElementById('ios-install-guide').style.display = 'none';
             }
 
-            // 权限按钮逻辑
             if (!("Notification" in window)) {
-                // 不支持
                 document.getElementById('perm-btn').innerText = "❌ 此浏览器不支持通知";
                 document.getElementById('perm-btn').style.display = 'block';
             } else if (Notification.permission !== "granted") {
@@ -539,46 +583,51 @@
             }
         }
 
-        // === 待办清单 & 通知逻辑 (更新版) ===
         function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); }
         function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); }
 
         function requestNotifyPermission() {
             if (!("Notification" in window)) {
-                alert("抱歉，您的浏览器完全不支持 Web 通知。");
-                return;
+                alert("浏览器不支持通知"); return;
             }
-            
             Notification.requestPermission().then(permission => {
                 if (permission === "granted") {
                     document.getElementById('perm-btn').style.display = 'none';
                     showToast("通知已开启 ✅");
-                    new Notification("我的日记本", { body: "权限已获取，请勿完全关闭后台，否则无法收到提醒。" });
+                    sendSafeNotification("日记本提醒", "权限获取成功！");
                 } else {
-                    alert("权限被拒绝。如果是安卓，请在设置中开启；如果是 iPhone，必须添加到主屏幕才能使用。");
+                    alert("权限被拒绝。请在系统设置中允许通知。");
                 }
             });
         }
 
         function testNotification() {
-            // 1. 检查 API 是否存在
-            if (!("Notification" in window)) {
-                alert("❌ 失败：当前浏览器不支持 Notification API。");
-                return;
-            }
-
-            // 2. 检查权限状态
             if (Notification.permission === "granted") {
-                try {
-                    new Notification("测试通知", { body: "如果您看到这条消息，说明通知功能正常！📱" });
-                    showToast("消息已发送 (没收到请检查系统通知中心)");
-                } catch (e) {
-                    alert("❌ 发送出错：" + e.message);
-                }
-            } else if (Notification.permission === "denied") {
-                alert("❌ 失败：通知权限被【禁止】。请去手机系统设置里找到浏览器，打开通知权限。");
+                sendSafeNotification("测试通知", "如果您看到这条消息，说明功能正常！📱");
+                showToast("已请求发送...");
             } else {
-                alert("⚠️ 提示：通知权限尚未开启，请先点击上方的“开启通知权限”按钮。");
+                alert("请先点击开启通知权限");
+            }
+        }
+
+        // === 修复后的发送通知函数 ===
+        function sendSafeNotification(title, body) {
+            // 优先使用 Service Worker (安卓 Chrome 必须)
+            if (swRegistration) {
+                swRegistration.showNotification(title, {
+                    body: body,
+                    icon: 'https://via.placeholder.com/128',
+                    vibrate: [200, 100, 200],
+                    requireInteraction: true
+                }).catch(e => alert("SW 通知失败: " + e));
+            } 
+            // 降级方案 (PC 或老设备)
+            else {
+                try {
+                    new Notification(title, { body: body, icon: 'https://via.placeholder.com/128' });
+                } catch (e) {
+                    alert("无法发送通知: " + e.message + "\n请确保通过 HTTPS 访问。");
+                }
             }
         }
 
@@ -586,15 +635,13 @@
             const input = document.getElementById('new-todo-input');
             const text = input.value.trim();
             if(!text) return;
-            
             const todayStr = formatDateKey(new Date());
-            
             state.todoData.unshift({
                 id: Date.now(),
                 text: text,
                 done: false,
-                date: todayStr, // YYYY-MM-DD
-                time: '',       // HH:MM
+                date: todayStr, 
+                time: '',
                 notified: false
             });
             input.value = '';
@@ -615,14 +662,12 @@
             const item = state.todoData.find(t => t.id === id);
             if(item) { 
                 item[field] = val; 
-                if(field === 'time' || field === 'date') item.notified = false; // 修改时间后重置通知状态
+                if(field === 'time' || field === 'date') item.notified = false;
                 saveTodo(); 
             }
         }
 
-        function saveTodo() {
-            localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData));
-        }
+        function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
 
         function renderTodoList() {
             const list = document.getElementById('todo-list');
@@ -630,7 +675,6 @@
             state.todoData.forEach(item => {
                 const div = document.createElement('div');
                 div.className = `todo-item ${item.done ? 'done' : ''}`;
-                
                 div.innerHTML = `
                     <div class="todo-checkbox ${item.done ? 'checked' : ''}" onclick="toggleTodo(${item.id})"></div>
                     <div class="todo-content-wrapper">
@@ -648,35 +692,28 @@
             });
         }
 
-        // --- 通知核心逻辑 ---
         function startNotificationCheck() {
             if(notifyInterval) clearInterval(notifyInterval);
-            // 每 5 秒检查一次
             notifyInterval = setInterval(() => checkNotifications(false), 5000);
         }
 
         function checkNotifications(isCatchUp) {
             if (!("Notification" in window) || Notification.permission !== "granted") return;
-
             const now = new Date();
-            const currentStrDate = formatDateKey(now); // YYYY-MM-DD
+            const currentStrDate = formatDateKey(now); 
             const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
 
             state.todoData.forEach(item => {
                 if(!item.done && item.date && item.time && !item.notified) {
-                    
                     if (item.date === currentStrDate) {
                         const [h, m] = item.time.split(':').map(Number);
                         const targetTotalMinutes = h * 60 + m;
-
                         const isTime = Math.abs(currentTotalMinutes - targetTotalMinutes) <= 1;
                         const isMissed = isCatchUp && (currentTotalMinutes > targetTotalMinutes);
-
                         if (isTime || isMissed) {
                             let bodyText = item.text;
                             if (isMissed) bodyText = "[错过提醒] " + bodyText;
-                            
-                            sendNotification(bodyText);
+                            sendSafeNotification("日记本提醒", bodyText);
                             item.notified = true; 
                             saveTodo();
                         }
@@ -685,123 +722,64 @@
             });
         }
 
-        function sendNotification(text) {
-            try {
-                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-                     navigator.serviceWorker.ready.then(reg => {
-                         reg.showNotification("日记本提醒", { body: text, icon: 'https://via.placeholder.com/128', requireInteraction: true });
-                     });
-                } else {
-                     new Notification("日记本提醒", { body: text, requireInteraction: true });
-                }
-            } catch(e) {
-                console.log("Notification error", e);
-            }
-        }
-
         // === 以下逻辑保持不变 ===
         function initDraggable(el, type) {
             let isDragging = false;
             let startX, startY, initialLeft, initialTop;
             const screenW = window.innerWidth;
             const screenH = window.innerHeight;
-
             el.addEventListener('touchstart', (e) => {
-                isDragging = false; 
-                el.classList.remove('snap-transition');
-                const touch = e.touches[0];
-                startX = touch.clientX;
-                startY = touch.clientY;
-                const rect = el.getBoundingClientRect();
-                initialLeft = rect.left;
-                initialTop = rect.top;
+                isDragging = false; el.classList.remove('snap-transition');
+                const touch = e.touches[0]; startX = touch.clientX; startY = touch.clientY;
+                const rect = el.getBoundingClientRect(); initialLeft = rect.left; initialTop = rect.top;
             }, {passive: false});
-
             el.addEventListener('touchmove', (e) => {
-                const touch = e.touches[0];
-                const deltaX = touch.clientX - startX;
-                const deltaY = touch.clientY - startY;
+                const touch = e.touches[0]; const deltaX = touch.clientX - startX; const deltaY = touch.clientY - startY;
                 if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) isDragging = true;
-                
                 if (isDragging) {
                     e.preventDefault(); 
-                    let newTop = initialTop + deltaY;
-                    let newLeft = initialLeft + deltaX;
-
-                    if (newTop < 0) newTop = 0;
-                    if (newTop > screenH - el.offsetHeight) newTop = screenH - el.offsetHeight;
-                    
-                    if (type === 'left') {
-                         el.style.top = newTop + 'px';
-                    } else {
-                        if (newLeft < 0) newLeft = 0;
-                        if (newLeft > screenW - el.offsetWidth) newLeft = screenW - el.offsetWidth;
-                        el.style.left = newLeft + 'px';
-                        el.style.top = newTop + 'px';
+                    let newTop = initialTop + deltaY; let newLeft = initialLeft + deltaX;
+                    if (newTop < 0) newTop = 0; if (newTop > screenH - el.offsetHeight) newTop = screenH - el.offsetHeight;
+                    if (type === 'left') { el.style.top = newTop + 'px'; } else {
+                        if (newLeft < 0) newLeft = 0; if (newLeft > screenW - el.offsetWidth) newLeft = screenW - el.offsetWidth;
+                        el.style.left = newLeft + 'px'; el.style.top = newTop + 'px';
                         document.getElementById('fmt-bar').classList.remove('active');
                     }
                 }
             }, {passive: false});
-
             el.addEventListener('touchend', (e) => {
-                if (!isDragging) return; 
-                el.classList.add('snap-transition');
+                if (!isDragging) return; el.classList.add('snap-transition');
                 if (type === 'any') {
-                    const rect = el.getBoundingClientRect();
-                    const centerX = rect.left + rect.width / 2;
-                    if (centerX < screenW / 2) {
-                        el.style.left = '10px';
-                        updateFormatBarPos('right');
-                    } else {
-                        el.style.left = (screenW - el.offsetWidth - 10) + 'px';
-                        updateFormatBarPos('left');
-                    }
+                    const rect = el.getBoundingClientRect(); const centerX = rect.left + rect.width / 2;
+                    if (centerX < screenW / 2) { el.style.left = '10px'; updateFormatBarPos('right'); } else { el.style.left = (screenW - el.offsetWidth - 10) + 'px'; updateFormatBarPos('left'); }
                 }
             });
         }
 
         function updateFormatBarPos(direction) {
-            const bar = document.getElementById('fmt-bar');
-            const toggle = document.getElementById('fmt-toggle');
-            if (direction === 'right') {
-                bar.style.left = '60px'; bar.style.right = 'auto'; bar.style.transformOrigin = 'top left';
-            } else {
-                bar.style.right = '60px'; bar.style.left = 'auto'; bar.style.transformOrigin = 'top right';
-            }
+            const bar = document.getElementById('fmt-bar'); const toggle = document.getElementById('fmt-toggle');
+            if (direction === 'right') { bar.style.left = '60px'; bar.style.right = 'auto'; bar.style.transformOrigin = 'top left'; } else { bar.style.right = '60px'; bar.style.left = 'auto'; bar.style.transformOrigin = 'top right'; }
             bar.style.top = toggle.style.top;
         }
 
         function handleGlobalClick(e) {
             const tab = document.getElementById('index-tab');
-            if (tab.classList.contains('visible') && !e.target.closest('#index-tab') && !e.target.closest('.day')) {
-                tab.classList.remove('visible');
-                tab.style.transform = ''; 
-            }
+            if (tab.classList.contains('visible') && !e.target.closest('#index-tab') && !e.target.closest('.day')) { tab.classList.remove('visible'); tab.style.transform = ''; }
             const fmtBar = document.getElementById('fmt-bar');
-            if(fmtBar.classList.contains('active') && !e.target.closest('.format-toolbar') && !e.target.closest('.format-toolbar-toggle')) {
-                fmtBar.classList.remove('active');
-            }
+            if(fmtBar.classList.contains('active') && !e.target.closest('.format-toolbar') && !e.target.closest('.format-toolbar-toggle')) { fmtBar.classList.remove('active'); }
         }
 
         function renderCalendar() {
-            const year = state.currentDate.getFullYear();
-            const month = state.currentDate.getMonth();
+            const year = state.currentDate.getFullYear(); const month = state.currentDate.getMonth();
             document.getElementById('current-month-label').textContent = `${year}年 ${String(month + 1).padStart(2, '0')}月`;
             document.getElementById('month-picker').value = `${year}-${String(month + 1).padStart(2, '0')}`;
-            
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-            const daysContainer = document.getElementById('calendar-days');
-            daysContainer.innerHTML = '';
-
+            const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0);
+            const daysContainer = document.getElementById('calendar-days'); daysContainer.innerHTML = '';
             for (let i = 0; i < firstDay.getDay(); i++) daysContainer.appendChild(document.createElement('div'));
             const today = new Date();
             for (let i = 1; i <= lastDay.getDate(); i++) {
-                const dayEl = document.createElement('div');
-                dayEl.className = 'day';
-                dayEl.textContent = i;
-                const thisDate = new Date(year, month, i);
-                const dateKey = formatDateKey(thisDate);
+                const dayEl = document.createElement('div'); dayEl.className = 'day'; dayEl.textContent = i;
+                const thisDate = new Date(year, month, i); const dateKey = formatDateKey(thisDate);
                 if (isSameDay(thisDate, today)) dayEl.classList.add('today');
                 if (isSameDay(thisDate, state.selectedDate)) dayEl.classList.add('selected');
                 if (state.diaryData[dateKey]) dayEl.classList.add('has-entry');
@@ -810,193 +788,94 @@
             }
         }
         function changeMonth(val) {
-            if(!val) return;
-            const [y, m] = val.split('-');
-            state.currentDate = new Date(parseInt(y), parseInt(m) - 1, 1);
-            renderCalendar();
+            if(!val) return; const [y, m] = val.split('-');
+            state.currentDate = new Date(parseInt(y), parseInt(m) - 1, 1); renderCalendar();
         }
         function selectDate(date) {
-            state.selectedDate = date;
-            renderCalendar();
+            state.selectedDate = date; renderCalendar();
             document.getElementById('tab-date').textContent = `${date.getMonth() + 1}/${date.getDate()}`;
             document.getElementById('index-tab').classList.add('visible');
         }
-
         function openDiary(e) {
-            if(e) e.stopPropagation();
-            const dateKey = formatDateKey(state.selectedDate);
+            if(e) e.stopPropagation(); const dateKey = formatDateKey(state.selectedDate);
             document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'});
             const content = state.diaryData[dateKey] || '';
             const inputDiv = document.getElementById('diary-input');
-            if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) inputDiv.innerText = content;
-            else inputDiv.innerHTML = content;
-            document.getElementById('diary-view').classList.remove('hidden-right');
-            state.isDirty = false;
+            if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) inputDiv.innerText = content; else inputDiv.innerHTML = content;
+            document.getElementById('diary-view').classList.remove('hidden-right'); state.isDirty = false;
         }
-
         function closeDiary() {
-            saveDiaryManual(false); 
-            document.getElementById('diary-view').classList.add('hidden-right');
-            document.getElementById('fmt-bar').classList.remove('active');
-            renderCalendar();
+            saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right');
+            document.getElementById('fmt-bar').classList.remove('active'); renderCalendar();
         }
-
         function changeDay(offset) {
-            saveDiaryManual(false);
-            const newDate = new Date(state.selectedDate);
-            newDate.setDate(newDate.getDate() + offset);
-            state.selectedDate = newDate;
-            const paper = document.getElementById('paper-layer');
-            const anim = offset > 0 ? 'anim-slide-left' : 'anim-slide-right';
-            paper.classList.add(anim);
-            setTimeout(() => {
-                openDiary(); 
-                paper.classList.remove(anim);
-                paper.style.opacity = '0';
-                requestAnimationFrame(() => paper.style.opacity = '1');
-            }, 350);
+            saveDiaryManual(false); const newDate = new Date(state.selectedDate); newDate.setDate(newDate.getDate() + offset);
+            state.selectedDate = newDate; const paper = document.getElementById('paper-layer');
+            const anim = offset > 0 ? 'anim-slide-left' : 'anim-slide-right'; paper.classList.add(anim);
+            setTimeout(() => { openDiary(); paper.classList.remove(anim); paper.style.opacity = '0'; requestAnimationFrame(() => paper.style.opacity = '1'); }, 350);
         }
-
         function toggleFormatToolbar(e) {
-            e.stopPropagation();
-            const toggle = document.getElementById('fmt-toggle');
-            const rect = toggle.getBoundingClientRect();
-            if (rect.left < window.innerWidth/2) updateFormatBarPos('right');
-            else updateFormatBarPos('left');
+            e.stopPropagation(); const toggle = document.getElementById('fmt-toggle'); const rect = toggle.getBoundingClientRect();
+            if (rect.left < window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left');
             document.getElementById('fmt-bar').classList.toggle('active');
         }
-        function execCmd(command, value = null) {
-            document.execCommand(command, false, value);
-            document.getElementById('diary-input').focus();
-        }
-
+        function execCmd(command, value = null) { document.execCommand(command, false, value); document.getElementById('diary-input').focus(); }
         function saveDiaryManual(showToastFlag = true) {
-            const inputDiv = document.getElementById('diary-input');
-            if (!state.isDirty && inputDiv.innerText.trim() === "") return;
-            const dateKey = formatDateKey(state.selectedDate);
-            const content = inputDiv.innerHTML;
-            if (inputDiv.innerText.trim() === "" && !content.includes('<img')) delete state.diaryData[dateKey];
-            else state.diaryData[dateKey] = content;
-            localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData));
-            state.isDirty = false;
+            const inputDiv = document.getElementById('diary-input'); if (!state.isDirty && inputDiv.innerText.trim() === "") return;
+            const dateKey = formatDateKey(state.selectedDate); const content = inputDiv.innerHTML;
+            if (inputDiv.innerText.trim() === "" && !content.includes('<img')) delete state.diaryData[dateKey]; else state.diaryData[dateKey] = content;
+            localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); state.isDirty = false;
             if (showToastFlag) showToast();
         }
         function autoSave() { if (state.isDirty) saveDiaryManual(true); }
         function showToast(msg) { 
-            const t=document.getElementById('save-toast'); 
-            t.innerText = msg || "☁️ 已自动保存";
-            t.classList.add('show'); 
-            setTimeout(()=>t.classList.remove('show'),3000); 
+            const t=document.getElementById('save-toast'); t.innerText = msg || "☁️ 已自动保存";
+            t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); 
         }
         function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
-
         function applyFont() {
-            const url = document.getElementById('font-url-input').value.trim();
-            if(!url) return;
-            state.settings.customFont = url;
-            loadCustomFont(url);
-            saveSettings();
-            alert("正在加载...");
+            const url = document.getElementById('font-url-input').value.trim(); if(!url) return;
+            state.settings.customFont = url; loadCustomFont(url); saveSettings(); alert("正在加载...");
         }
         function resetFont() {
-            state.settings.customFont = "";
-            document.getElementById('font-url-input').value = "";
-            document.documentElement.style.removeProperty('--font-main');
-            saveSettings();
-            alert("已还原默认字体");
+            state.settings.customFont = ""; document.getElementById('font-url-input').value = "";
+            document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原默认字体");
         }
         function loadCustomFont(url) {
-            if(url.includes('fonts.googleapis.com')) {
-                const link = document.createElement('link'); link.href = url; link.rel = 'stylesheet'; document.head.appendChild(link);
-                return; 
-            }
-            const fontName = 'MyCustomFont';
-            const fontFace = new FontFace(fontName, `url(${url})`);
-            fontFace.load().then(loadedFace => {
-                document.fonts.add(loadedFace);
-                document.documentElement.style.setProperty('--font-main', `"${fontName}", "Nunito", sans-serif`);
-            }).catch(e => { console.error(e); });
+            if(url.includes('fonts.googleapis.com')) { const link = document.createElement('link'); link.href = url; link.rel = 'stylesheet'; document.head.appendChild(link); return; }
+            const fontName = 'MyCustomFont'; const fontFace = new FontFace(fontName, `url(${url})`);
+            fontFace.load().then(loadedFace => { document.fonts.add(loadedFace); document.documentElement.style.setProperty('--font-main', `"${fontName}", "Nunito", sans-serif`); }).catch(e => { console.error(e); });
         }
-
-        // === 截图导出 ===
         function exportDiaryImage() {
-            const picker = document.getElementById('export-date-picker');
-            if(!picker.value) { alert("请选择日期"); return; }
-            const dateStr = picker.value;
-            const parts = dateStr.split('-');
-            const targetDate = new Date(parts[0], parts[1]-1, parts[2]);
-            const dateKey = formatDateKey(targetDate);
-            const content = state.diaryData[dateKey];
-            
-            if(!content) { alert("这一天没有日记哦"); return; }
-            showToast("正在生成图片...");
-            
-            const container = document.getElementById('screenshot-container');
-            container.innerHTML = '';
-            
-            const paper = document.createElement('div');
-            paper.className = `paper-container ${state.settings.paper}`;
-            if(state.bgImage) {
-                paper.style.backgroundImage = `url(${state.bgImage})`;
-                paper.classList.add('has-custom-bg');
-            }
-            paper.style.height = 'auto';
-            paper.style.minHeight = '800px';
-            paper.style.position = 'relative';
-            paper.style.overflow = 'visible';
-            paper.style.borderRadius = '0';
-            
-            const header = document.createElement('div');
-            header.className = 'paper-header';
+            const picker = document.getElementById('export-date-picker'); if(!picker.value) { alert("请选择日期"); return; }
+            const dateStr = picker.value; const parts = dateStr.split('-'); const targetDate = new Date(parts[0], parts[1]-1, parts[2]);
+            const dateKey = formatDateKey(targetDate); const content = state.diaryData[dateKey];
+            if(!content) { alert("这一天没有日记哦"); return; } showToast("正在生成图片...");
+            const container = document.getElementById('screenshot-container'); container.innerHTML = '';
+            const paper = document.createElement('div'); paper.className = `paper-container ${state.settings.paper}`;
+            if(state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); }
+            paper.style.height = 'auto'; paper.style.minHeight = '800px'; paper.style.position = 'relative'; paper.style.overflow = 'visible'; paper.style.borderRadius = '0';
+            const header = document.createElement('div'); header.className = 'paper-header';
             header.innerHTML = `<span class="date-display">${targetDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'})}</span>`;
-            header.style.background = 'none'; 
-            paper.appendChild(header);
-            
-            const body = document.createElement('div');
-            body.className = 'paper-content';
-            body.style.overflow = 'visible'; 
-            body.innerHTML = content;
-            paper.appendChild(body);
-            container.appendChild(paper);
-            
-            html2canvas(paper, {
-                scale: 2, 
-                useCORS: true,
-                backgroundColor: state.settings.theme === 'theme-beige' ? '#fffbf0' : null 
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `diary_${dateKey}.png`;
-                link.href = canvas.toDataURL();
-                link.click();
-                container.innerHTML = ''; 
-                showToast("图片已保存！");
-            }).catch(err => {
-                console.error(err);
-                alert("生成失败，请重试");
-                container.innerHTML = '';
-            });
+            header.style.background = 'none'; paper.appendChild(header);
+            const body = document.createElement('div'); body.className = 'paper-content'; body.style.overflow = 'visible'; body.innerHTML = content;
+            paper.appendChild(body); container.appendChild(paper);
+            html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: state.settings.theme === 'theme-beige' ? '#fffbf0' : null }).then(canvas => {
+                const link = document.createElement('a'); link.download = `diary_${dateKey}.png`; link.href = canvas.toDataURL(); link.click();
+                container.innerHTML = ''; showToast("图片已保存！");
+            }).catch(err => { console.error(err); alert("生成失败，请重试"); container.innerHTML = ''; });
         }
-
         function startCrop(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
+            const file = input.files[0]; if (!file) return; const reader = new FileReader();
             reader.onload = (e) => {
-                document.getElementById('cropper-modal').style.display = 'flex';
-                const image = document.getElementById('cropper-img');
-                image.src = e.target.result;
-                if (cropperInstance) cropperInstance.destroy();
-                cropperInstance = new Cropper(image, { viewMode: 2, dragMode: 'move', aspectRatio: NaN, autoCropArea: 1 });
-            };
-            reader.readAsDataURL(file);
-            input.value = '';
+                document.getElementById('cropper-modal').style.display = 'flex'; const image = document.getElementById('cropper-img'); image.src = e.target.result;
+                if (cropperInstance) cropperInstance.destroy(); cropperInstance = new Cropper(image, { viewMode: 2, dragMode: 'move', aspectRatio: NaN, autoCropArea: 1 });
+            }; reader.readAsDataURL(file); input.value = '';
         }
         function cancelCrop() { document.getElementById('cropper-modal').style.display = 'none'; if(cropperInstance) cropperInstance.destroy(); }
         function finishCrop() {
-            if (!cropperInstance) return;
-            const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 });
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            state.bgImage = dataUrl;
+            if (!cropperInstance) return; const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 });
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8); state.bgImage = dataUrl;
             try { localStorage.setItem('myDiaryBg_v2', dataUrl); applyBgImage(); cancelCrop(); showToast("背景设置成功"); } catch (e) { alert("图片太大了"); }
         }
         function applyBgImage() {
@@ -1005,36 +884,25 @@
             else { paper.style.backgroundImage = ''; paper.classList.remove('has-custom-bg'); }
         }
         function clearBgImage() { state.bgImage = null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("背景已还原"); }
-
-        function openSettings() { 
-            document.getElementById('settings-view').classList.remove('hidden-right'); 
-            document.getElementById('font-url-input').value = state.settings.customFont || '';
-        }
+        function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); document.getElementById('font-url-input').value = state.settings.customFont || ''; }
         function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); saveSettings(); }
         function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
-        
         function toggleDarkMode() { state.settings.darkMode = !state.settings.darkMode; applySettings(); }
         function setTheme(theme) { state.settings.theme = theme; applySettings(); }
         function setPaper(paper) { state.settings.paper = paper; applySettings(); }
-        
         function applySettings() {
             document.body.className = `${state.settings.theme} ${state.settings.paper}`;
-            if (state.settings.darkMode) document.body.classList.add('dark-mode');
-            else document.body.classList.remove('dark-mode');
-            document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF";
-            applyBgImage();
+            if (state.settings.darkMode) document.body.classList.add('dark-mode'); else document.body.classList.remove('dark-mode');
+            document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF"; applyBgImage();
         }
-
         function formatDateKey(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
         function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
-
         function exportData() {
             const blob = new Blob([JSON.stringify(state.diaryData)], {type: "application/json"});
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `diary_backup_${formatDateKey(new Date())}.json`; a.click();
         }
         function importData(input) {
-            const file = input.files[0]; if (!file) return;
-            const reader = new FileReader();
+            const file = input.files[0]; if (!file) return; const reader = new FileReader();
             reader.onload = (e) => {
                 try { state.diaryData = JSON.parse(e.target.result); localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); renderCalendar(); alert("导入成功"); } catch(err) { alert("文件格式错误"); }
             }; reader.readAsText(file);
