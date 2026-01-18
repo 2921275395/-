@@ -33,7 +33,7 @@
         body.dark-mode .day.selected { background-color: #333; border: 1px solid #fff; }
         body.dark-mode .day.today { color: #fff; border-color: #fff; }
 
-        /* === 修复：补回丢失的纸张颜色定义 === */
+        /* 纸张颜色定义 */
         body:not(.dark-mode).theme-green { --paper-color: #f1f8f3; --bg-color: #e8f5e9; }
         body:not(.dark-mode).theme-pink { --paper-color: #fff5f7; --bg-color: #fce4ec; }
         body:not(.dark-mode).theme-beige { --paper-color: #fffbf0; --bg-color: #fdf6e3; } 
@@ -169,7 +169,6 @@
             width: fit-content; font-family: inherit; font-weight: 500;
         }
 
-        /* 简化后的通知按钮区 */
         .notification-area { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
         .permission-btn { width: 100%; padding: 10px; background: var(--highlight); color: #fff; border: none; border-radius: 12px; font-weight: bold; display: none; }
         .test-notify-btn {
@@ -199,6 +198,25 @@
         .highlight-text { background-color: var(--highlight); color: #fff; padding: 0 2px; border-radius: 2px; }
         .no-results { padding: 15px; text-align: center; opacity: 0.5; font-size: 0.9rem; }
 
+        /* ================= 月度画廊样式 (新) ================= */
+        #month-gallery { background-color: var(--bg-color); z-index: 350; display: flex; flex-direction: column; overflow: hidden; }
+        #gallery-content { flex: 1; overflow-y: auto; padding: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; align-content: start; }
+        .gallery-card { position: relative; width: 100%; padding-bottom: 160%; /* 宽高比 3:5 */ border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.05); }
+        .thumb-scaler {
+            position: absolute; top: 0; left: 0; width: 300%; height: 300%; /* 放大3倍画布 */
+            transform: scale(0.33333333); transform-origin: top left; /* 缩小回1倍显示，实现等比缩放 */
+            background-color: var(--paper-color);
+            background-image: var(--paper-pattern); background-size: var(--paper-size);
+            padding: 30px; box-sizing: border-box; overflow: hidden;
+            display: flex; flex-direction: column;
+            pointer-events: none; /* 禁止缩略图内交互 */
+            border: 3px solid transparent; 
+        }
+        .gallery-card.has-bg .thumb-scaler { background-repeat: no-repeat; background-position: center; background-size: cover; }
+        .thumb-date { font-size: 3rem; font-weight: 800; color: var(--primary-color); margin-bottom: 20px; opacity: 0.6; }
+        .thumb-text { font-size: 2.2rem; line-height: 1.5; color: var(--text-color); white-space: pre-wrap; word-break: break-word; }
+        .thumb-split-2 .thumb-text { margin-top: -300%; /* 向上位移，显示第二页内容 */ }
+        
         #save-toast { position: fixed; top: 0; left: 0; right: 0; height: 80px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); color: #333; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); border-radius: 0 0 30px 30px; transform: translateY(-100%); transition: transform 0.4s; z-index: 500; font-weight: bold; font-size: 0.9rem; }
         #save-toast.show { transform: translateY(0); }
         #cropper-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 600; display: none; flex-direction: column; }
@@ -368,10 +386,27 @@
         </div>
     </div>
 
+    <!-- 月度回顾画廊 -->
+    <div id="month-gallery" class="view hidden-right">
+        <header><span style="font-weight:bold; font-size:1.2rem">月度回顾</span><button class="icon-btn" onclick="closeMonthGallery()">✕</button></header>
+        <div id="gallery-content"></div>
+    </div>
+
     <!-- 设置界面 -->
     <div id="settings-view" class="view hidden-right">
         <header><span style="font-weight:bold; font-size:1.2rem">设置</span><button class="icon-btn" onclick="closeSettings()">✕</button></header>
         
+        <div class="setting-group">
+            <div class="setting-title">日记回顾</div>
+            <div class="setting-row">
+                 <span>月度快速浏览</span>
+                 <div style="display:flex; align-items:center; gap:5px;">
+                     <input type="month" id="gallery-month-picker" class="input-text" style="width:130px">
+                     <button class="btn" onclick="openMonthGallery()">浏览</button>
+                 </div>
+            </div>
+        </div>
+
         <div class="setting-group">
             <div class="setting-title">全文搜索</div>
             <div class="input-row">
@@ -485,6 +520,11 @@
             initDraggable(document.getElementById('fmt-toggle'), 'any');
             
             document.getElementById('export-date-picker').valueAsDate = new Date();
+            
+            // 初始化月度浏览的月份选择器为当前月
+            const now = new Date();
+            document.getElementById('gallery-month-picker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
             checkNotifyState();
             
             document.body.addEventListener('click', (e) => {
@@ -771,6 +811,79 @@
                 }
             }
         });
+    }
+
+    /* ============ 月度回顾逻辑 (新) ============ */
+    function openMonthGallery() {
+        const picker = document.getElementById('gallery-month-picker');
+        if(!picker.value) { alert("请选择月份"); return; }
+        
+        document.getElementById('month-gallery').classList.remove('hidden-right');
+        document.getElementById('settings-view').classList.add('hidden-right');
+        
+        const gallery = document.getElementById('gallery-content');
+        gallery.innerHTML = '';
+        
+        const [y, m] = picker.value.split('-');
+        const daysInMonth = new Date(y, m, 0).getDate();
+        let hasData = false;
+
+        for(let d=1; d<=daysInMonth; d++) {
+            const dateStr = `${y}-${m}-${String(d).padStart(2,'0')}`;
+            if(state.diaryData[dateStr]) {
+                hasData = true;
+                const content = state.diaryData[dateStr];
+                const dateDisplay = `${parseInt(m)}/${d}`;
+                
+                // 第一页
+                createGalleryCard(gallery, content, dateDisplay, false, dateStr);
+
+                // 简单的"长文检测"：如果字符数过多，生成第二页
+                // 注意：由于是缩放显示，精确的高度计算较难，这里使用字符长度估算作为分割依据
+                // 假设大于300字符可能需要第二页显示
+                if(content.length > 500 || (content.match(/\n/g) || []).length > 10) {
+                    createGalleryCard(gallery, content, '', true, dateStr);
+                }
+            }
+        }
+        
+        if(!hasData) {
+            gallery.innerHTML = '<div style="width:100%; text-align:center; padding:50px; opacity:0.5">该月没有日记</div>';
+        }
+    }
+
+    function createGalleryCard(container, content, dateLabel, isPage2, dateKey) {
+        const wrapper = document.createElement('div');
+        wrapper.className = `gallery-card ${state.bgImage ? 'has-bg' : ''}`;
+        
+        const scaler = document.createElement('div');
+        scaler.className = `thumb-scaler ${isPage2 ? 'thumb-split-2' : ''}`;
+        if(state.bgImage) scaler.style.backgroundImage = `url(${state.bgImage})`;
+        
+        let html = '';
+        if(!isPage2) {
+            html += `<div class="thumb-date">${dateLabel}</div>`;
+        }
+        html += `<div class="thumb-text">${content}</div>`;
+        
+        scaler.innerHTML = html;
+        wrapper.appendChild(scaler);
+        
+        // 点击缩略图跳转到当天日记
+        wrapper.onclick = () => {
+            const parts = dateKey.split('-');
+            const targetDate = new Date(parts[0], parts[1]-1, parts[2]);
+            closeMonthGallery();
+            selectDate(targetDate);
+            setTimeout(openDiary, 300);
+        };
+
+        container.appendChild(wrapper);
+    }
+
+    function closeMonthGallery() {
+        document.getElementById('month-gallery').classList.add('hidden-right');
+        toggleUI(true); // 恢复侧边栏
     }
 
     function initDraggable(el, type) {
