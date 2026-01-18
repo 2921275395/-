@@ -152,7 +152,8 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.02);
         }
         body.dark-mode .todo-item-content { border: 1px solid #333; }
-        .todo-item-content.done { background-color: #f0f0f0; opacity: 0.8; }
+        /* 修改：去除了 opacity: 0.8 以避免删除按钮透出 */
+        .todo-item-content.done { background-color: #f0f0f0; } 
         body.dark-mode .todo-item-content.done { background-color: #222; }
         .todo-item-content.done .todo-text, .todo-item-content.done .todo-picker { text-decoration: line-through; color: #999; }
         
@@ -451,10 +452,13 @@
             </div>
             <div class="setting-row" style="display:block">
                 <div style="display:flex; justify-content:space-between; align-items:center">
-                    <span>自定义字体 URL</span>
+                    <span>自定义字体 (URL & 大小)</span>
                     <div><button class="btn-text" onclick="resetFont()">✕</button><button class="btn" onclick="applyFont()">应用</button></div>
                 </div>
-                <div class="input-row"><input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接..."></div>
+                <div class="input-row">
+                    <input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接..." style="flex:7">
+                    <input type="number" id="font-size-input" class="input-text" placeholder="大小(px)" style="flex:2">
+                </div>
             </div>
             <div class="setting-row">
                 <span>自定义背景图</span>
@@ -489,7 +493,7 @@
             selectedDate: new Date(),
             diaryData: JSON.parse(localStorage.getItem('myDiaryData_v2') || '{}'),
             todoData: JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]'),
-            settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":"","showTodo":true}'),
+            settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":"","customFontSize":"","showTodo":true}'),
             security: JSON.parse(localStorage.getItem('myDiarySecurity_v2') || '{"enabled":false, "pin":"", "biometrics":false, "credentialId": null}'),
             bgImage: localStorage.getItem('myDiaryBg_v2') || null,
             isDirty: false
@@ -906,8 +910,26 @@
     function autoSave() { if (state.isDirty) saveDiaryManual(true); }
     function showToast(msg) { const t=document.getElementById('save-toast'); t.innerText = msg || "☁️ 已自动保存"; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
     function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
-    function applyFont() { const url = document.getElementById('font-url-input').value.trim(); if(!url) return; state.settings.customFont = url; loadCustomFont(url); saveSettings(); alert("正在加载..."); }
-    function resetFont() { state.settings.customFont = ""; document.getElementById('font-url-input').value = ""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原默认字体"); }
+    function applyFont() { 
+        const url = document.getElementById('font-url-input').value.trim(); 
+        const size = document.getElementById('font-size-input').value.trim();
+        
+        if(url) { state.settings.customFont = url; loadCustomFont(url); }
+        if(size) { state.settings.customFontSize = size; document.documentElement.style.fontSize = size + 'px'; }
+        
+        saveSettings(); 
+        alert("设置已应用"); 
+    }
+    function resetFont() { 
+        state.settings.customFont = ""; 
+        state.settings.customFontSize = "";
+        document.getElementById('font-url-input').value = ""; 
+        document.getElementById('font-size-input').value = "";
+        document.documentElement.style.removeProperty('--font-main'); 
+        document.documentElement.style.removeProperty('font-size');
+        saveSettings(); 
+        alert("已还原默认设置"); 
+    }
     function loadCustomFont(url) { if(url.includes('fonts.googleapis.com')) { const link = document.createElement('link'); link.href = url; link.rel = 'stylesheet'; document.head.appendChild(link); return; } const fontName = 'MyCustomFont'; const fontFace = new FontFace(fontName, `url(${url})`); fontFace.load().then(loadedFace => { document.fonts.add(loadedFace); document.documentElement.style.setProperty('--font-main', `"${fontName}", "Nunito", sans-serif`); }).catch(e => { console.error(e); }); }
     function exportDiaryImage() { const picker = document.getElementById('export-date-picker'); if(!picker.value) { alert("请选择日期"); return; } const dateStr = picker.value; const parts = dateStr.split('-'); const targetDate = new Date(parts[0], parts[1]-1, parts[2]); const dateKey = formatDateKey(targetDate); const content = state.diaryData[dateKey]; if(!content) { alert("这一天没有日记哦"); return; } showToast("正在生成图片..."); const container = document.getElementById('screenshot-container'); container.innerHTML = ''; const paper = document.createElement('div'); paper.className = `paper-container ${state.settings.paper}`; if(state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } paper.style.height = 'auto'; paper.style.minHeight = '800px'; paper.style.position = 'relative'; paper.style.overflow = 'visible'; paper.style.borderRadius = '0'; const header = document.createElement('div'); header.className = 'paper-header'; header.innerHTML = `<span class="date-display">${targetDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'})}</span>`; header.style.background = 'none'; paper.appendChild(header); const body = document.createElement('div'); body.className = 'paper-content'; body.style.overflow = 'visible'; body.innerHTML = content; paper.appendChild(body); container.appendChild(paper); html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: state.settings.theme === 'theme-beige' ? '#fffbf0' : null }).then(canvas => { const link = document.createElement('a'); link.download = `diary_${dateKey}.png`; link.href = canvas.toDataURL(); link.click(); container.innerHTML = ''; showToast("图片已保存！"); }).catch(err => { console.error(err); alert("生成失败，请重试"); container.innerHTML = ''; }); }
     
@@ -922,7 +944,12 @@
     function finishCrop() { if (!cropperInstance) return; const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 }); const dataUrl = canvas.toDataURL('image/jpeg', 0.8); state.bgImage = dataUrl; try { localStorage.setItem('myDiaryBg_v2', dataUrl); applyBgImage(); cancelCrop(); showToast("背景设置成功"); } catch (e) { alert("图片太大了"); } }
     function applyBgImage() { const paper = document.getElementById('paper-layer'); if (state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } else { paper.style.backgroundImage = ''; paper.classList.remove('has-custom-bg'); } }
     function clearBgImage() { state.bgImage = null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("背景已还原"); }
-    function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); toggleUI(false); document.getElementById('font-url-input').value = state.settings.customFont || ''; }
+    function openSettings() { 
+        document.getElementById('settings-view').classList.remove('hidden-right'); 
+        toggleUI(false); 
+        document.getElementById('font-url-input').value = state.settings.customFont || ''; 
+        document.getElementById('font-size-input').value = state.settings.customFontSize || '';
+    }
     function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); toggleUI(true); saveSettings(); }
     function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
     function toggleDarkMode() { state.settings.darkMode = !state.settings.darkMode; applySettings(); }
@@ -936,6 +963,10 @@
         document.getElementById('btn-pin-toggle').textContent = state.security.enabled ? "ON" : "OFF";
         document.getElementById('btn-bio-toggle').textContent = state.security.biometrics ? "ON" : "OFF";
         document.getElementById('row-bio').style.display = state.security.enabled ? 'flex' : 'none';
+        
+        if(state.settings.customFontSize) document.documentElement.style.fontSize = state.settings.customFontSize + 'px';
+        else document.documentElement.style.removeProperty('font-size');
+
         applyBgImage(); 
         updateTodoTabVisibility();
     }
