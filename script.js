@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极存储版 (全IndexedDB存储)
+// script.js - 终极修复版 (高清背景 + 智能缩略图)
 // ==========================================
 
 // 全局状态
@@ -14,58 +14,41 @@ let state = {
     isDirty: false
 };
 
-// 全局 Z-index 计数器，解决层级问题
+// 全局 Z-index 计数器
 let globalMaxZIndex = 10;
 
 // ==========================================
-// 数据库管理器 (AppDB) - 核心修改
-// 负责存储日记内容和贴纸库，解决容量限制
+// 数据库管理器 (AppDB) - 保持 IndexedDB 存储
 // ==========================================
 const AppDB = {
-    dbName: 'MyDiaryProDB', // 新数据库名，防止冲突
+    dbName: 'MyDiaryProDB',
     dbVersion: 1,
     db: null,
 
     async init() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, this.dbVersion);
-            
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
-                // 存储库1: 日记内容 (key: 日期字符串, value: html内容)
                 if (!db.objectStoreNames.contains('entries')) {
                     db.createObjectStore('entries', { keyPath: 'date' });
                 }
-                // 存储库2: 贴纸原图 (key: id)
                 if (!db.objectStoreNames.contains('stickers')) {
                     db.createObjectStore('stickers', { keyPath: 'id', autoIncrement: true });
                 }
             };
-
-            request.onsuccess = (e) => {
-                this.db = e.target.result;
-                console.log("Database initialized");
-                resolve();
-            };
-            request.onerror = (e) => {
-                console.error("DB Error", e);
-                alert("数据库打开失败，请刷新重试");
-                reject(e);
-            };
+            request.onsuccess = (e) => { this.db = e.target.result; resolve(); };
+            request.onerror = (e) => reject(e);
         });
     },
 
-    // --- 日记存取 ---
     async loadAllEntries() {
         return new Promise((resolve) => {
             const tx = this.db.transaction(['entries'], 'readonly');
-            const store = tx.objectStore('entries');
-            const req = store.getAll();
+            const req = tx.objectStore('entries').getAll();
             req.onsuccess = () => {
                 const result = {};
-                req.result.forEach(item => {
-                    result[item.date] = item.content;
-                });
+                req.result.forEach(item => { result[item.date] = item.content; });
                 resolve(result);
             };
         });
@@ -75,18 +58,13 @@ const AppDB = {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(['entries'], 'readwrite');
             const store = tx.objectStore('entries');
-            // 如果内容为空，则删除该条目
-            if (!content) {
-                store.delete(dateKey);
-            } else {
-                store.put({ date: dateKey, content: content });
-            }
+            if (!content) store.delete(dateKey);
+            else store.put({ date: dateKey, content: content });
             tx.oncomplete = () => resolve();
             tx.onerror = (e) => reject(e);
         });
     },
 
-    // --- 贴纸存取 ---
     async addSticker(blob) {
         return new Promise((resolve) => {
             const tx = this.db.transaction(['stickers'], 'readwrite');
@@ -119,16 +97,10 @@ let currentPinInput = "";
 let isEditingDrawer = false;
 
 async function init() {
-    // 1. 先初始化数据库
     await AppDB.init();
-
-    // 2. 尝试从旧的 LocalStorage 迁移数据 (仅执行一次)
     migrateOldData();
-
-    // 3. 从 DB 加载所有日记到内存 state
     state.diaryData = await AppDB.loadAllEntries();
 
-    // 4. 加载其他轻量级设置 (TodoList 和 Settings 依然留在 LocalStorage，因为它们很小)
     try {
         state.todoData = JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]');
         state.settings = Object.assign(state.settings, JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{}'));
@@ -136,19 +108,17 @@ async function init() {
         state.bgImage = localStorage.getItem('myDiaryBg_v2') || null;
     } catch (e) { console.error("Settings Load Error", e); }
 
-    // 5. UI 初始化
     checkLockStatus();
     applySettings();
     if(state.settings.customFont) loadCustomFont(state.settings.customFont);
     renderCalendar();
     renderTodoList();
-    renderStickerDrawer(); // 初始加载贴纸库
+    renderStickerDrawer(); 
     
-    setInterval(autoSave, 60000); // 自动保存
+    setInterval(autoSave, 60000); 
     registerRealSW();
     startNotificationCheck();
     
-    // UI 事件监听
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNotifications(true); });
     document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
     
@@ -168,7 +138,6 @@ async function init() {
 
     checkNotifyState();
     
-    // 点击空白处取消选中
     document.body.addEventListener('click', (e) => {
         if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
         if(!e.target.closest('.sticker-item')) {
@@ -177,33 +146,20 @@ async function init() {
     });
 }
 
-// 数据迁移函数
 function migrateOldData() {
     const oldData = localStorage.getItem('myDiaryData_v2');
     if (oldData) {
         try {
-            console.log("Migrating data from LocalStorage to IndexedDB...");
             const parsed = JSON.parse(oldData);
-            // 逐条写入新数据库
-            Object.keys(parsed).forEach(async (dateKey) => {
-                await AppDB.saveEntry(dateKey, parsed[dateKey]);
-            });
-            // 迁移完成后重命名旧数据key，防止下次重复迁移，同时作为备份
+            Object.keys(parsed).forEach(async (dateKey) => { await AppDB.saveEntry(dateKey, parsed[dateKey]); });
             localStorage.setItem('myDiaryData_v2_backup', oldData);
             localStorage.removeItem('myDiaryData_v2');
-            showToast("数据已升级存储引擎 ✅");
-        } catch (e) {
-            console.error("Migration failed", e);
-        }
+        } catch (e) {}
     }
 }
 
-/* ============ 贴纸功能 (DB版) ============ */
-function toggleStickerSetting() {
-    state.settings.enableSticker = !state.settings.enableSticker;
-    saveSettings();
-    applySettings();
-}
+/* ============ 贴纸功能 ============ */
+function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 function openStickerDrawer() { renderStickerDrawer(); document.getElementById('sticker-drawer').classList.add('open'); toggleUI(false); }
 function closeStickerDrawer() { document.getElementById('sticker-drawer').classList.remove('open'); isEditingDrawer = false; toggleUI(true); renderStickerDrawer(); }
 function toggleEditStickerDrawer() { isEditingDrawer = !isEditingDrawer; renderStickerDrawer(); }
@@ -211,13 +167,10 @@ function toggleEditStickerDrawer() { isEditingDrawer = !isEditingDrawer; renderS
 async function renderStickerDrawer() {
     const list = document.getElementById('sticker-list');
     const uploadBtn = list.querySelector('.sticker-add-btn');
-    list.innerHTML = '';
-    list.appendChild(uploadBtn);
-    
+    list.innerHTML = ''; list.appendChild(uploadBtn);
     const stickers = await AppDB.getAllStickers();
     stickers.forEach(s => {
-        const div = document.createElement('div');
-        div.className = 'sticker-thumb';
+        const div = document.createElement('div'); div.className = 'sticker-thumb';
         const url = URL.createObjectURL(s.image);
         let inner = `<img src="${url}">`;
         if(isEditingDrawer) inner += `<div class="del-mark" onclick="deleteStickerFromLib(${s.id}, event)">删除</div>`;
@@ -230,7 +183,6 @@ async function renderStickerDrawer() {
 async function importStickers(input) {
     if(!input.files.length) return;
     for(let file of input.files) {
-        // 既然用了IndexedDB，我们可以稍微放宽一点压缩限制，但为了性能还是保持1024
         const compressed = await compressImage(file, 1024, 0.8); 
         const blob = await (await fetch(compressed)).blob();
         await AppDB.addSticker(blob);
@@ -247,16 +199,10 @@ async function addStickerToPage(blob) {
     reader.onload = (e) => {
         const base64 = e.target.result;
         const wrapper = document.createElement('div');
-        wrapper.className = 'sticker-item selected';
-        wrapper.contentEditable = "false"; 
-        
-        // 初始Z轴
-        globalMaxZIndex++;
-        wrapper.style.zIndex = globalMaxZIndex;
-        
+        wrapper.className = 'sticker-item selected'; wrapper.contentEditable = "false"; 
+        globalMaxZIndex++; wrapper.style.zIndex = globalMaxZIndex;
         wrapper.style.left = '50px'; wrapper.style.top = '100px'; wrapper.style.width = '150px'; 
         wrapper.innerHTML = `<img src="${base64}" draggable="false"><div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div><div class="sticker-ctrl ctrl-layer" onmousedown="toggleLayer(event)" ontouchstart="toggleLayer(event)">L</div><div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>`;
-        
         document.getElementById('diary-input').appendChild(wrapper);
         attachStickerEvents(wrapper);
         state.isDirty = true;
@@ -264,24 +210,15 @@ async function addStickerToPage(blob) {
     reader.readAsDataURL(blob);
 }
 
-// 贴纸交互事件
 function attachStickerEvents(el) {
     let mode = ''; let startX, startY, startLeft, startTop; let centerX, centerY, startWidth, startHeight, startAngle = 0, initialAngle = 0; let startDist = 0, startScaleWidth = 0, startRotation = 0;
-    
-    // 点击置顶逻辑
     const activate = (e) => {
         e.stopPropagation();
         document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected'));
         el.classList.add('selected');
-        
-        // 如果不在底层，则提升到最顶层
         const z = parseInt(window.getComputedStyle(el).zIndex);
-        if(z !== -1) {
-            globalMaxZIndex++;
-            el.style.zIndex = globalMaxZIndex;
-        }
+        if(z !== -1) { globalMaxZIndex++; el.style.zIndex = globalMaxZIndex; }
     };
-
     el.addEventListener('mousedown', activate);
     el.addEventListener('touchstart', (e) => {
         activate(e);
@@ -330,19 +267,10 @@ function attachStickerEvents(el) {
 
 window.removeSticker = function(e) { e.stopPropagation(); e.preventDefault(); e.target.closest('.sticker-item')?.remove(); state.isDirty = true; };
 window.toggleLayer = function(e) { 
-    e.stopPropagation(); e.preventDefault(); 
-    const el = e.target.closest('.sticker-item'); 
+    e.stopPropagation(); e.preventDefault(); const el = e.target.closest('.sticker-item'); 
     const currentZ = parseInt(window.getComputedStyle(el).zIndex);
-    
-    // 如果是底层(-1)，提上来；否则放到底层
-    if(currentZ === -1) { 
-        globalMaxZIndex++;
-        el.style.zIndex = globalMaxZIndex;
-        showToast("图层：文字上方"); 
-    } else { 
-        el.style.zIndex = '-1'; 
-        showToast("图层：文字下方"); 
-    } 
+    if(currentZ === -1) { globalMaxZIndex++; el.style.zIndex = globalMaxZIndex; showToast("图层：文字上方"); } 
+    else { el.style.zIndex = '-1'; showToast("图层：文字下方"); } 
     state.isDirty = true; 
 };
 
@@ -352,7 +280,6 @@ function compressImage(file, maxWidth, quality) { return new Promise((resolve) =
 function performSearch(query) {
     const container = document.getElementById('search-results'); container.innerHTML = ''; if(!query.trim()) return;
     const results = []; const tempDiv = document.createElement('div');
-    // 搜索内存中的 state.diaryData
     Object.keys(state.diaryData).sort().reverse().forEach(dateKey => {
         tempDiv.innerHTML = state.diaryData[dateKey];
         if(tempDiv.innerText.toLowerCase().includes(query.toLowerCase())) results.push({ date: dateKey, text: tempDiv.innerText });
@@ -364,12 +291,8 @@ function performSearch(query) {
         const snippet = item.text.substring(Math.max(0, idx-10), Math.min(item.text.length, idx+query.length+20));
         el.innerHTML = `<div class="search-date">${item.date}</div><div class="search-snippet">...${snippet.replace(new RegExp(`(${query})`,'gi'), '<span class="highlight-text">$1</span>')}...</div>`;
         el.onclick = () => { 
-            // 修复：清空搜索
-            document.getElementById('search-input').value = '';
-            container.innerHTML = '';
-            closeSettings(); 
-            selectDate(new Date(item.date)); 
-            setTimeout(openDiary, 300); 
+            document.getElementById('search-input').value = ''; container.innerHTML = '';
+            closeSettings(); selectDate(new Date(item.date)); setTimeout(openDiary, 300); 
         };
         container.appendChild(el);
     });
@@ -430,7 +353,7 @@ function startNotificationCheck() { if(notifyInterval) clearInterval(notifyInter
     state.todoData.forEach(t=>{ if(!t.done && t.date===d && t.time && !t.notified) { const [th,tm]=t.time.split(':').map(Number); if(Math.abs(m-(th*60+tm))<=1) { new Notification("日记本提醒",{body:t.text}); t.notified=true; saveTodo(); } } });
 },5000); }
 
-/* ============ 画廊 ============ */
+/* ============ 画廊 (修复：贴纸透明防遮挡) ============ */
 function openMonthGallery() { 
     const v=document.getElementById('gallery-month-picker').value; if(!v) return alert("请选月份");
     document.getElementById('month-gallery').classList.remove('hidden-right'); document.getElementById('settings-view').classList.add('hidden-right');
@@ -443,9 +366,34 @@ function openMonthGallery() {
     if(!has) c.innerHTML='<div style="opacity:0.5;text-align:center;padding:20px;width:100%">暂无日记</div>';
 }
 function createGalleryCard(container, content, dateLabel, dateKey) {
-    const w=document.createElement('div'); w.className=`gallery-card ${state.bgImage?'has-bg':''}`;
-    w.innerHTML=`<div class="thumb-scaler" style="${state.bgImage?'background-image:url('+state.bgImage+')':''}"><div class="thumb-date">${dateLabel}</div><div class="thumb-text">${content}</div></div>`;
-    w.onclick=()=>{ closeMonthGallery(); selectDate(new Date(dateKey)); setTimeout(openDiary,300); };
+    const w = document.createElement('div'); 
+    w.className = `gallery-card ${state.bgImage?'has-bg':''}`;
+    
+    // 构建卡片内容容器
+    const thumbScaler = document.createElement('div');
+    thumbScaler.className = 'thumb-scaler';
+    if(state.bgImage) thumbScaler.style.backgroundImage = `url(${state.bgImage})`;
+    
+    const dateDiv = document.createElement('div');
+    dateDiv.className = 'thumb-date';
+    dateDiv.innerText = dateLabel;
+    
+    const textDiv = document.createElement('div');
+    textDiv.className = 'thumb-text';
+    textDiv.innerHTML = content;
+    
+    // 关键修复：遍历所有缩略图里的贴纸，强制设为半透明，防止遮挡文字
+    textDiv.querySelectorAll('.sticker-item').forEach(s => {
+        s.style.opacity = '0.2'; // 20% 不透明度 (很淡的水印)
+        s.style.pointerEvents = 'none'; // 禁止交互
+        s.style.zIndex = '0'; // 放在最底层
+    });
+
+    thumbScaler.appendChild(dateDiv);
+    thumbScaler.appendChild(textDiv);
+    w.appendChild(thumbScaler);
+
+    w.onclick = () => { closeMonthGallery(); selectDate(new Date(dateKey)); setTimeout(openDiary,300); };
     container.appendChild(w);
 }
 function closeMonthGallery() { document.getElementById('month-gallery').classList.add('hidden-right'); toggleUI(true); }
@@ -479,20 +427,12 @@ function openDiary(e) {
     div.querySelectorAll('.sticker-item').forEach(el=>attachStickerEvents(el)); 
     document.getElementById('diary-view').classList.remove('hidden-right'); 
     toggleUI(false); 
-    
-    // 修复：进入日记彻底隐藏侧边栏
     document.getElementById('todo-tab').style.display = 'none';
     document.getElementById('index-tab').style.display = 'none'; 
-
     if(state.settings.enableSticker) document.getElementById('sticker-btn').style.display='flex'; 
     state.isDirty=false; 
-    
-    // 重新计算最大Z轴
     let maxZ = 10;
-    div.querySelectorAll('.sticker-item').forEach(el => {
-        const z = parseInt(window.getComputedStyle(el).zIndex);
-        if(!isNaN(z) && z > maxZ) maxZ = z;
-    });
+    div.querySelectorAll('.sticker-item').forEach(el => { const z = parseInt(window.getComputedStyle(el).zIndex); if(!isNaN(z) && z > maxZ) maxZ = z; });
     globalMaxZIndex = maxZ;
 }
 function closeDiary() { 
@@ -501,13 +441,8 @@ function closeDiary() {
     document.getElementById('diary-view').classList.add('hidden-right'); 
     document.getElementById('fmt-bar').classList.remove('active'); 
     document.getElementById('sticker-btn').style.display='none'; 
-    closeStickerDrawer(); 
-    toggleUI(true); 
-    
-    // 修复：退出日记恢复侧边栏
-    updateTodoTabVisibility();
+    closeStickerDrawer(); toggleUI(true); updateTodoTabVisibility();
     document.getElementById('index-tab').style.display = 'flex';
-    
     renderCalendar(); 
 }
 function changeDay(o) { saveDiaryManual(false); state.selectedDate.setDate(state.selectedDate.getDate()+o); const p=document.getElementById('paper-layer'); const a=o>0?'anim-slide-left':'anim-slide-right'; p.classList.add(a); setTimeout(()=>{openDiary();p.classList.remove(a);p.style.opacity='0';requestAnimationFrame(()=>p.style.opacity='1')},350); }
@@ -519,22 +454,10 @@ async function saveDiaryManual(toast=true) {
     div.querySelectorAll('.selected').forEach(e=>e.classList.remove('selected'));
     const k=formatDateKey(state.selectedDate); 
     const c=div.innerHTML;
-    
     if(!state.isDirty && div.innerText.trim()==="" && !div.querySelector('img')) return;
-    
-    // 内存更新
-    if(div.innerText.trim()==="" && !c.includes('<img')) delete state.diaryData[k];
-    else state.diaryData[k]=c;
-    
+    if(div.innerText.trim()==="" && !c.includes('<img')) delete state.diaryData[k]; else state.diaryData[k]=c;
     state.isDirty=false; 
-
-    // 数据库异步存储 (不再使用LocalStorage)
-    try {
-        await AppDB.saveEntry(k, state.diaryData[k] || null);
-        if(toast) showToast();
-    } catch(e) {
-        alert("保存失败: " + e.message);
-    }
+    try { await AppDB.saveEntry(k, state.diaryData[k] || null); if(toast) showToast(); } catch(e) { alert("保存失败: " + e.message); }
 }
 
 function autoSave() { if(state.isDirty) saveDiaryManual(true); }
@@ -560,7 +483,15 @@ function exportDiaryImage() {
 }
 function startCrop(i) { const f=i.files[0]; if(f) { const r=new FileReader(); r.onload=e=>{ document.getElementById('cropper-modal').style.display='flex'; document.getElementById('cropper-img').src=e.target.result; if(cropperInstance)cropperInstance.destroy(); cropperInstance=new Cropper(document.getElementById('cropper-img'),{viewMode:2,dragMode:'move',autoCropArea:1}); }; r.readAsDataURL(f); i.value=''; } }
 function cancelCrop() { document.getElementById('cropper-modal').style.display='none'; if(cropperInstance)cropperInstance.destroy(); }
-function finishCrop() { if(cropperInstance) { state.bgImage=cropperInstance.getCroppedCanvas({maxWidth:1024,maxHeight:1024}).toDataURL('image/jpeg',0.8); localStorage.setItem('myDiaryBg_v2',state.bgImage); applyBgImage(); cancelCrop(); showToast("背景已设置"); } }
+function finishCrop() { 
+    if(cropperInstance) { 
+        // 修复：极大提升裁剪分辨率到 2560px (2K)，确保背景清晰
+        state.bgImage=cropperInstance.getCroppedCanvas({
+            maxWidth:2560, maxHeight:2560, fillColor:'#fff'
+        }).toDataURL('image/jpeg', 0.9); 
+        localStorage.setItem('myDiaryBg_v2',state.bgImage); applyBgImage(); cancelCrop(); showToast("高清背景已设置"); 
+    } 
+}
 function applyBgImage() { const p=document.getElementById('paper-layer'); if(state.bgImage){p.style.backgroundImage=`url(${state.bgImage})`;p.classList.add('has-custom-bg')}else{p.style.backgroundImage='';p.classList.remove('has-custom-bg')} }
 function clearBgImage() { state.bgImage=null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("已还原"); }
 
