@@ -3,280 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#f7f9fc">
     <title>我的日记本</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- 引入 Cropper.js 样式 -->
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
-    <!-- 引入 Supabase SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="theme-beige paper-lines">
+<body class="theme-beige paper-lines" onclick="handleGlobalClick(event)">
 
-    <!-- 这里的结构保持不变，直到 settings-view -->
-    
-    <div id="index-tab" class="side-tab">
-        <div id="tab-date"></div>
-        <div class="tab-icon">📅</div>
-    </div>
-
-    <div id="todo-tab" class="side-tab" onclick="openTodo()">
-        <div class="tab-icon">📝</div>
-        <div class="tab-label">待办</div>
-    </div>
-
-    <div id="main-view">
-        <div class="header">
-            <div class="date-selector">
-                <div id="current-month-label"></div>
-                <input type="month" id="month-picker" onchange="changeMonth(this.value)">
-            </div>
-            <div class="header-icons">
-                <div class="icon-btn" onclick="openMonthGallery()">📷</div>
-                <div class="icon-btn" onclick="openSettings()">⚙️</div>
-            </div>
-        </div>
-
-        <div id="calendar-days"></div>
-        
-        <div id="search-bar">
-            <input type="text" id="search-input" placeholder="🔍 搜索日记..." oninput="performSearch(this.value)">
-        </div>
-        <div id="search-results"></div>
-    </div>
-
-    <!-- 写日记界面 -->
-    <div id="diary-view" class="hidden-right">
-        <div class="top-bar">
-            <div class="icon-btn back-btn" onclick="closeDiary()">✕</div>
-            <div id="diary-date-display"></div>
-            <div class="icon-btn" onclick="exportDiaryImage()">📤</div>
-        </div>
-        
-        <div id="paper-layer">
-            <div id="diary-input" contenteditable="true" spellcheck="false" placeholder="今天发生了什么..."></div>
-        </div>
-
-        <!-- 格式工具栏 (保持不变) -->
-        <div id="fmt-toggle" onclick="toggleFormatToolbar(event)">Aa</div>
-        <div id="fmt-bar">
-            <div class="fmt-btn" onclick="execCmd('bold')"><b>B</b></div>
-            <div class="fmt-btn" onclick="execCmd('italic')"><i>I</i></div>
-            <div class="fmt-btn" onclick="execCmd('underline')"><u>U</u></div>
-            <div class="fmt-btn" onclick="execCmd('justifyLeft')">⬅</div>
-            <div class="fmt-btn" onclick="execCmd('justifyCenter')">➡⬅</div>
-            <div class="fmt-btn" onclick="execCmd('insertUnorderedList')">list</div>
-        </div>
-
-        <!-- 贴纸按钮 -->
-        <div id="sticker-btn" onclick="openStickerDrawer()">☺</div>
-    </div>
-
-    <!-- 贴纸抽屉 -->
-    <div id="sticker-drawer">
-        <div class="drawer-header">
-            <span>我的贴纸</span>
-            <div style="display:flex;gap:10px">
-                <span onclick="toggleEditStickerDrawer()" style="font-size:12px;color:#666">编辑</span>
-                <span onclick="closeStickerDrawer()">▼</span>
-            </div>
-        </div>
-        <div id="sticker-list">
-            <div class="sticker-thumb sticker-add-btn" onclick="document.getElementById('sticker-upload').click()">
-                +
-                <input type="file" id="sticker-upload" hidden accept="image/*" multiple onchange="importStickers(this)">
-            </div>
-        </div>
-    </div>
-
-    <!-- 待办清单 -->
-    <div id="todo-view" class="hidden-right">
-        <div class="top-bar">
-            <div class="icon-btn back-btn" onclick="closeTodo()">✕</div>
-            <div style="font-weight:bold; font-size:18px;">待办清单</div>
-            <div class="icon-btn" onclick="document.getElementById('perm-btn').click()" id="perm-btn" style="display:none">🔔</div>
-        </div>
-        <div style="padding:20px;">
-            <div class="todo-input-group">
-                <input type="text" id="new-todo-input" class="todo-input" placeholder="添加新任务...">
-                <button class="btn-primary" onclick="addTodo()">添加</button>
-            </div>
-            <div id="todo-list"></div>
-        </div>
-    </div>
-
-    <!-- 画廊模式 -->
-    <div id="month-gallery" class="hidden-right" style="background:var(--bg-color);z-index:150">
-        <div class="top-bar">
-            <div class="icon-btn back-btn" onclick="closeMonthGallery()">✕</div>
-            <input type="month" id="gallery-month-picker" style="border:none;background:none;font-size:16px;font-family:inherit" onchange="openMonthGallery()">
-        </div>
-        <div id="gallery-content"></div>
-    </div>
-
-    <!-- 设置界面 -->
-    <div id="settings-view" class="hidden-right">
-        <div class="top-bar">
-            <div class="icon-btn back-btn" onclick="closeSettings()">✕</div>
-            <div style="font-weight:bold;">设置</div>
-            <div></div> 
-        </div>
-        <div class="settings-list">
-            
-            <!-- 外观设置 -->
-            <div class="setting-group-title">外观</div>
-            <div class="setting-item">
-                <span class="setting-label">夜间模式</span>
-                <button class="btn-toggle" id="btn-dark" onclick="toggleDarkMode()">OFF</button>
-            </div>
-            <div class="setting-item">
-                <span class="setting-label">主题色</span>
-                <div class="theme-dots">
-                    <div class="dot" style="background:#fdf6e3" onclick="setTheme('theme-beige')"></div>
-                    <div class="dot" style="background:#fff" onclick="setTheme('theme-white')"></div>
-                    <div class="dot" style="background:#e3f2fd" onclick="setTheme('theme-blue')"></div>
-                    <div class="dot" style="background:#fce4ec" onclick="setTheme('theme-pink')"></div>
-                </div>
-            </div>
-            <div class="setting-item">
-                <span class="setting-label">信纸样式</span>
-                <div class="paper-opts">
-                    <span onclick="setPaper('paper-lines')">横线</span>
-                    <span onclick="setPaper('paper-grid')">方格</span>
-                    <span onclick="setPaper('paper-blank')">空白</span>
-                    <span onclick="setPaper('paper-dots')">点阵</span>
-                </div>
-            </div>
-            <div class="setting-item column">
-                <span class="setting-label">自定义背景图</span>
-                <div style="display:flex;gap:10px;margin-top:5px">
-                    <button class="btn-secondary" onclick="document.getElementById('bg-upload').click()">上传图片</button>
-                    <button class="btn-secondary" onclick="clearBgImage()">清除</button>
-                    <input type="file" id="bg-upload" hidden accept="image/*" onchange="startCrop(this)">
-                </div>
-            </div>
-            <div class="setting-item column">
-                <span class="setting-label">自定义字体 (URL)</span>
-                <div style="display:flex;gap:10px;margin-top:5px">
-                    <input type="text" id="font-url-input" class="todo-input" placeholder="https://...">
-                    <button class="btn-secondary" onclick="applyFont()">应用</button>
-                    <button class="btn-secondary" onclick="resetFont()">重置</button>
-                </div>
-            </div>
-
-            <!-- 功能开关 -->
-            <div class="setting-group-title">功能</div>
-            <div class="setting-item">
-                <span class="setting-label">待办清单</span>
-                <button class="btn-toggle" id="btn-todo-toggle" onclick="toggleTodoSetting()">ON</button>
-            </div>
-            <div class="setting-item">
-                <span class="setting-label">贴纸功能</span>
-                <button class="btn-toggle" id="btn-sticker-toggle" onclick="toggleStickerSetting()">OFF</button>
-            </div>
-
-            <!-- 安全 -->
-            <div class="setting-group-title">安全</div>
-            <div class="setting-item">
-                <span class="setting-label">PIN码锁定</span>
-                <button class="btn-toggle" id="btn-pin-toggle" onclick="togglePinLock()">OFF</button>
-            </div>
-            <div class="setting-item" id="row-bio" style="display:none">
-                <span class="setting-label">生物识别 (指纹/面容)</span>
-                <button class="btn-toggle" id="btn-bio-toggle" onclick="toggleBiometrics()">OFF</button>
-            </div>
-
-            <!-- 数据管理 (新增了云端同步部分) -->
-            <div class="setting-group-title">数据与备份</div>
-            
-            <!-- 云端同步模块 START -->
-            <div class="setting-item column cloud-section">
-                <div class="cloud-header">
-                    <div class="cloud-title-area">
-                        <span class="setting-label">☁️ 私有云同步</span>
-                        <div class="help-btn-circle" onclick="openCloudHelp(event)">?</div>
-                    </div>
-                    <button class="btn-secondary btn-sm" onclick="toggleCloudPanel()">配置</button>
-                </div>
-                
-                <div id="cloud-panel" class="cloud-panel">
-                    <div class="cloud-desc">配置 Supabase 数据库实现多端同步</div>
-                    <input type="text" id="cloud-url" placeholder="Project URL (https://...)" class="todo-input sm-input">
-                    <input type="password" id="cloud-key" placeholder="API Key (Anon Public)" class="todo-input sm-input">
-                    
-                    <div class="cloud-actions">
-                        <button onclick="saveCloudConfig()" class="btn-primary sm-btn">保存配置</button>
-                        <button onclick="testCloudConnection()" class="btn-secondary sm-btn">测试连接</button>
-                    </div>
-
-                    <div id="cloud-ops" class="cloud-ops">
-                        <div class="divider"></div>
-                        <button onclick="backupToCloud()" class="btn-cloud-upload">⬆️ 备份全量数据</button>
-                        <button onclick="restoreFromCloud()" class="btn-cloud-download">⬇️ 从云端恢复</button>
-                        <div id="cloud-status"></div>
-                    </div>
-                </div>
-            </div>
-            <!-- 云端同步模块 END -->
-
-            <div class="setting-item">
-                <span class="setting-label">导出数据 (JSON)</span>
-                <button class="btn-secondary" onclick="exportData()">导出</button>
-            </div>
-            <div class="setting-item">
-                <span class="setting-label">恢复数据 (JSON)</span>
-                <button class="btn-secondary" onclick="document.getElementById('import-file').click()">导入</button>
-                <input type="file" id="import-file" hidden accept=".json" onchange="importData(this)">
-            </div>
-            
-            <div style="height:50px"></div>
-        </div>
-    </div>
-
-    <!-- 裁剪弹窗 -->
-    <div id="cropper-modal" style="display:none">
-        <div class="cropper-container">
-            <img id="cropper-img">
-        </div>
-        <div class="cropper-actions">
-            <button class="btn-secondary" onclick="cancelCrop()">取消</button>
-            <button class="btn-primary" onclick="finishCrop()">确定</button>
-        </div>
-    </div>
-
-    <!-- 锁屏界面 -->
-    <div id="lock-screen">
-        <div class="lock-icon">🔒</div>
-        <div class="pin-dots">
-            <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
-        </div>
-        <div class="numpad">
-            <div onclick="enterPin('1')">1</div><div onclick="enterPin('2')">2</div><div onclick="enterPin('3')">3</div>
-            <div onclick="enterPin('4')">4</div><div onclick="enterPin('5')">5</div><div onclick="enterPin('6')">6</div>
-            <div onclick="enterPin('7')">7</div><div onclick="enterPin('8')">8</div><div onclick="enterPin('9')">9</div>
-            <div onclick="tryBiometric()">🆔</div><div onclick="enterPin('0')">0</div><div onclick="deletePin()">⌫</div>
-        </div>
-    </div>
-    
-    <!-- 截图容器 -->
-    <div id="screenshot-container" style="position:fixed;left:-9999px;top:0;width:800px;z-index:-1"></div>
-
-    <!-- 保存提示 Toast -->
     <div id="save-toast">☁️ 已自动保存</div>
 
-    <!-- 帮助弹窗 HTML (新增) -->
+    <!-- 云端同步帮助弹窗 (静态结构) -->
     <div id="cloud-help" class="cloud-help-modal">
         <div class="help-content">
             <div class="help-close" onclick="closeCloudHelp()">×</div>
-            <h2 class="help-title">☁️ 私有云同步教程</h2>
+            <h2 style="margin-top:0; border-bottom:2px solid var(--line-color); padding-bottom:10px;">☁️ 云端同步设置教程</h2>
             
             <div class="help-step">
-                <h3>1. 注册 Supabase</h3>
-                <p>访问 <a href="https://supabase.com" target="_blank">supabase.com</a>，点击 "Start your project"。</p>
+                <h3>第一步：注册 Supabase</h3>
+                <p>1. 访问 <a href="https://supabase.com" target="_blank" style="color:var(--primary-color);font-weight:bold;">supabase.com</a> 并点击 "Start your project"。</p>
+                <p>2. 注册账号，点击 "New Project"，填写 Name (如 Diary)，设置 Password (要记住)，Region 选 Singapore/Tokyo。</p>
+                <p>3. 等待项目变成绿色 "Active" 状态。</p>
             </div>
 
             <div class="help-step">
-                <h3>2. 建表 (最关键一步)</h3>
-                <p>进入 <strong>SQL Editor</strong>，粘贴下方代码并点击 <strong>Run</strong>：</p>
+                <h3>第二步：创建数据表</h3>
+                <p>1. 在 Supabase 页面左侧菜单点击 <strong>SQL Editor</strong> 图标。</p>
+                <p>2. 点击 "New query"，将下方代码复制进去，然后点击右下角 <strong>Run</strong>。</p>
                 <div class="code-block" id="sql-code">create table diary_backup (
   id bigint primary key,
   updated_at timestamp with time zone,
@@ -285,23 +43,217 @@
   settings jsonb,
   device_info text
 );
+
 alter table diary_backup enable row level security;
 create policy "Public Access" on diary_backup for all using (true);</div>
-                <button onclick="copySQL()" class="btn-copy">📋 复制代码</button>
+                <button onclick="copySQL()" class="btn" style="width:100%;">📋 点击复制上方代码</button>
             </div>
 
             <div class="help-step">
-                <h3>3. 获取 Key</h3>
-                <p>在 <strong>Project Settings</strong> -> <strong>API</strong> 中找到 URL 和 Key，填入日记本。</p>
+                <h3>第三步：连接日记本</h3>
+                <p>1. 点击 Supabase 左下角齿轮 <strong>Project Settings</strong> -> <strong>API</strong>。</p>
+                <p>2. 找到 <strong>Project URL</strong> 和 <strong>anon public key</strong>。</p>
+                <p>3. 复制这两个值，填入日记本的输入框中，点击保存。</p>
             </div>
             
-            <button onclick="closeCloudHelp()" class="btn-primary" style="width:100%">我明白了</button>
+            <button onclick="closeCloudHelp()" class="btn" style="width:100%; background:var(--primary-color); color:#fff; border:none;">我明白了</button>
         </div>
     </div>
 
-    <!-- 脚本引用 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <!-- 隐私锁屏界面 -->
+    <div id="lock-screen">
+        <div class="lock-icon"><span class="material-icons-round">lock</span></div>
+        <div class="status-text" style="margin-bottom:20px; font-weight:bold;">日记本已锁定</div>
+        <div class="pin-dots" id="pin-dots">
+            <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+        </div>
+        <div class="pin-pad">
+            <div class="pin-btn" onclick="enterPin(1)">1</div>
+            <div class="pin-btn" onclick="enterPin(2)">2</div>
+            <div class="pin-btn" onclick="enterPin(3)">3</div>
+            <div class="pin-btn" onclick="enterPin(4)">4</div>
+            <div class="pin-btn" onclick="enterPin(5)">5</div>
+            <div class="pin-btn" onclick="enterPin(6)">6</div>
+            <div class="pin-btn" onclick="enterPin(7)">7</div>
+            <div class="pin-btn" onclick="enterPin(8)">8</div>
+            <div class="pin-btn" onclick="enterPin(9)">9</div>
+            <div class="pin-btn bio-btn" onclick="tryBiometric()"><span class="material-icons-round">fingerprint</span></div>
+            <div class="pin-btn" onclick="enterPin(0)">0</div>
+            <div class="pin-btn del-btn" onclick="deletePin()">删除</div>
+        </div>
+    </div>
+
+    <!-- 裁剪器界面 -->
+    <div id="cropper-modal">
+        <div class="crop-container"><img id="cropper-img" style="max-width:100%;"></div>
+        <div class="crop-actions">
+            <button class="crop-btn" onclick="cancelCrop()">取消</button>
+            <button class="crop-btn confirm" onclick="finishCrop()">应用背景</button>
+        </div>
+    </div>
+
+    <!-- 贴纸抽屉 -->
+    <div id="sticker-drawer" class="sticker-drawer">
+        <div class="drawer-header">
+            <span style="font-weight:bold;">贴纸库 (高清版)</span>
+            <div class="header-actions">
+                <button class="btn" style="font-size:0.8rem" onclick="toggleEditStickerDrawer()">管理</button>
+                <button class="icon-btn" onclick="closeStickerDrawer()">✕</button>
+            </div>
+        </div>
+        <div class="drawer-content" id="sticker-list">
+            <label class="sticker-thumb sticker-add-btn">
+                <span class="material-icons-round">add</span>
+                <input type="file" id="sticker-upload" accept="image/*" multiple onchange="importStickers(this)">
+            </label>
+        </div>
+    </div>
+
+    <!-- 左侧悬浮标签 -->
+    <div id="todo-tab" class="side-tab" onclick="openTodo()"><span class="material-icons-round">checklist</span></div>
+    <div id="index-tab" class="side-tab" onclick="openDiary(event)"><span id="tab-date">10/24</span></div>
+
+    <!-- 主界面 -->
+    <div id="home-view" class="view">
+        <header>
+            <div style="width: 40px;"></div> 
+            <label class="date-picker-wrapper" style="justify-content:center;">
+                <span id="current-month-label">2026年 01月</span>
+                <input type="month" id="month-picker" onchange="changeMonth(this.value)">
+            </label>
+            <button class="icon-btn" onclick="openSettings()">
+                <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12-0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+            </button>
+        </header>
+        <div class="calendar-container">
+            <div class="weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
+            <div id="calendar-days" class="days"></div>
+        </div>
+    </div>
+
+    <!-- 待办清单 -->
+    <div id="todo-view" class="view hidden-right">
+        <div class="todo-header"><span style="font-weight:bold; font-size:1.2rem">待办 & 提醒</span><button class="icon-btn" onclick="closeTodo()">✕</button></div>
+        <div class="notification-area">
+            <div id="android-sw-missing">⚠️ <strong>推送配置：</strong>请确保目录包含 sw.js</div>
+            <button id="perm-btn" class="permission-btn" onclick="requestNotifyPermission()">🔔 开启通知权限</button>
+            <button class="test-notify-btn" onclick="testNotification()">发送测试通知</button>
+        </div>
+        <div class="todo-input-container"><input type="text" id="new-todo-input" class="todo-text-input" placeholder="添加新任务..."><button class="todo-add-btn" onclick="addTodo()">＋</button></div>
+        <div class="todo-list" id="todo-list"></div>
+    </div>
+
+    <!-- 日记界面 -->
+    <div id="diary-view" class="view hidden-right">
+        <div class="paper-container" id="paper-layer">
+            <div class="paper-header"><span class="date-display" id="diary-date-display">10月24日</span><button class="icon-btn" onclick="closeDiary()">✕</button></div>
+            <div class="format-toolbar-toggle" id="fmt-toggle" onclick="toggleFormatToolbar(event)"><span class="material-icons-round">text_format</span></div>
+            <div class="format-toolbar" id="fmt-bar">
+                <button class="fmt-btn" onclick="execCmd('bold')"><span class="material-icons-round">format_bold</span></button>
+                <button class="fmt-btn" onclick="execCmd('italic')"><span class="material-icons-round">format_italic</span></button>
+                <button class="fmt-btn" onclick="execCmd('underline')"><span class="material-icons-round">format_underlined</span></button>
+                <button class="fmt-btn" onclick="execCmd('strikeThrough')"><span class="material-icons-round">strikethrough_s</span></button>
+                <div style="height:1px; background:var(--line-color); margin:5px 0;"></div>
+                <button class="fmt-btn" onclick="execCmd('foreColor', '#ff6b6b')"><div class="color-dot-btn" style="background:#ff6b6b"></div></button>
+                <button class="fmt-btn" onclick="execCmd('foreColor', '#4dabf7')"><div class="color-dot-btn" style="background:#4dabf7"></div></button>
+                <button class="fmt-btn" onclick="execCmd('removeFormat')"><span class="material-icons-round" style="font-size:1rem; opacity:0.6">format_clear</span></button>
+                <div style="height:1px; background:var(--line-color); margin:5px 0;"></div>
+                <button class="fmt-btn" onclick="execCmd('fontSize', 3)"><span class="material-icons-round" style="font-size:1rem">text_decrease</span></button>
+                <button class="fmt-btn" onclick="execCmd('fontSize', 5)"><span class="material-icons-round" style="font-size:1.4rem">text_increase</span></button>
+            </div>
+            
+            <div id="sticker-btn" class="sticker-float-btn" onclick="openStickerDrawer()" style="display:none">
+                <span class="material-icons-round">sentiment_satisfied_alt</span>
+            </div>
+
+            <div id="diary-input" class="paper-content" contenteditable="true" placeholder="记录此刻的心情... (选中文本可调整格式)"></div>
+            <div class="page-nav">
+                <button class="icon-btn" onclick="changeDay(-1)">←</button>
+                <button class="icon-btn save-btn" onclick="saveDiaryManual()"><svg viewBox="0 0 24 24"><path d="M17,3H5C3.89,3,3,3.9,3,5v14c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V7L17,3z M12,19c-1.66,0-3-1.34-3-3s1.34-3,3-3 s3,1.34,3,3S13.66,19,12,19z M15,9H5V5h10V9z"/></svg></button>
+                <button class="icon-btn" onclick="changeDay(1)">→</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 月度回顾画廊 -->
+    <div id="month-gallery" class="view hidden-right">
+        <header><span style="font-weight:bold; font-size:1.2rem">月度回顾</span><button class="icon-btn" onclick="closeMonthGallery()">✕</button></header>
+        <div id="gallery-content"></div>
+    </div>
+
+    <!-- 设置界面 -->
+    <div id="settings-view" class="view hidden-right">
+        <header><span style="font-weight:bold; font-size:1.2rem">设置</span><button class="icon-btn" onclick="closeSettings()">✕</button></header>
+        
+        <div class="setting-group">
+            <div class="setting-title">日记回顾</div>
+            <div class="setting-row"><span>月度快速浏览</span><div style="display:flex; align-items:center; gap:5px;"><input type="month" id="gallery-month-picker" class="input-text" style="width:130px"><button class="btn" onclick="openMonthGallery()">浏览</button></div></div>
+        </div>
+        
+        <div class="setting-group">
+            <div class="setting-title">全文搜索</div>
+            <div class="input-row"><input type="text" id="search-input" class="input-text" placeholder="输入关键词查找日记..." oninput="performSearch(this.value)"></div>
+            <div id="search-results" class="search-results"></div>
+        </div>
+        
+        <div class="setting-group">
+            <div class="setting-title">个性化</div>
+            <div class="setting-row"><span>夜间模式</span><button class="btn" onclick="toggleDarkMode()" id="btn-dark">OFF</button></div>
+            <div class="setting-row"><span>待办清单入口</span><button class="btn" onclick="toggleTodoSetting()" id="btn-todo-toggle">ON</button></div>
+            <div class="setting-row"><span>贴纸功能</span><button class="btn" onclick="toggleStickerSetting()" id="btn-sticker-toggle">OFF</button></div>
+            <div class="setting-row"><span>纸张颜色</span><div class="color-dots"><div class="dot" style="background:#fffbf0" onclick="setTheme('theme-beige')"></div><div class="dot" style="background:#ffffff" onclick="setTheme('theme-white')"></div><div class="dot" style="background:#f1f8f3" onclick="setTheme('theme-green')"></div><div class="dot" style="background:#fff5f7" onclick="setTheme('theme-pink')"></div></div></div>
+            <div class="setting-row"><span>纸张样式</span><div><button class="btn" onclick="setPaper('paper-lines')">横线</button><button class="btn" onclick="setPaper('paper-grid')">方格</button><button class="btn" onclick="setPaper('paper-blank')">空白</button></div></div>
+            <div class="setting-row" style="display:block"><div style="display:flex; justify-content:space-between; align-items:center"><span>自定义字体 URL</span><div><button class="btn-text" onclick="resetFont()">✕</button><button class="btn" onclick="applyFont()">应用</button></div></div><div class="input-row"><input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接..."></div></div>
+            <div class="setting-row"><span>自定义背景图</span><input type="file" id="bg-upload" accept="image/*" onchange="startCrop(this)"><button class="btn" onclick="document.getElementById('bg-upload').click()">选图裁剪</button></div>
+            <div class="setting-row"><span>还原默认背景</span><button class="btn" onclick="clearBgImage()">还原</button></div>
+        </div>
+        
+        <div class="setting-group">
+            <div class="setting-title">安全与隐私</div>
+            <div class="setting-row"><span>密码保护 (PIN)</span><button class="btn" onclick="togglePinLock()" id="btn-pin-toggle">OFF</button></div>
+            <div class="setting-row" id="row-bio" style="display:none"><span>生物识别解锁 (指纹/面容)</span><button class="btn" onclick="toggleBiometrics()" id="btn-bio-toggle">OFF</button></div>
+        </div>
+        
+        <!-- 数据栏：云端同步功能已放入此处 -->
+        <div class="setting-group">
+            <div class="setting-title">数据</div>
+            
+            <!-- 云端同步模块 (静态结构) -->
+            <div class="setting-row" style="display:block">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center;">
+                        <span>☁️ 私有云同步</span>
+                        <div class="help-btn-circle" onclick="openCloudHelp(event)">?</div>
+                    </div>
+                    <button class="btn" onclick="toggleCloudPanel()" style="font-size:0.8rem">配置</button>
+                </div>
+                
+                <div id="cloud-panel" class="cloud-panel">
+                    <div style="font-size:12px;opacity:0.7;margin-bottom:10px">配置你的专属数据库，实现多设备同步。</div>
+                    <input type="text" id="cloud-url" placeholder="Project URL (https://...)" class="input-text" style="margin-bottom:5px; font-size:12px;">
+                    <input type="password" id="cloud-key" placeholder="API Key (Anon Public)" class="input-text" style="margin-bottom:10px; font-size:12px;">
+                    
+                    <div class="cloud-actions" style="display:flex;gap:10px;justify-content:space-between; margin-bottom:15px;">
+                        <button onclick="saveCloudConfig()" class="btn" style="flex:1; border-color:var(--primary-color); color:var(--primary-color)">💾 保存</button>
+                        <button onclick="testCloudConnection()" class="btn" style="flex:1;">📡 测试</button>
+                    </div>
+
+                    <div id="cloud-ops" style="display:none; flex-direction:column; gap:8px; border-top:1px dashed var(--line-color); padding-top:15px;">
+                        <button onclick="backupToCloud()" class="btn" style="background:var(--primary-color); color:#fff; border:none;">⬆️ 备份到云端</button>
+                        <button onclick="restoreFromCloud()" class="btn" style="background:#2196f3; color:#fff; border:none;">⬇️ 从云端恢复</button>
+                        <div id="cloud-status" style="font-size:11px;text-align:center;opacity:0.7;margin-top:5px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-row" style="display:block"><div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span>生成日记长图</span><button class="btn" onclick="exportDiaryImage()">导出图片</button></div><input type="date" id="export-date-picker" class="input-text" style="width:100%"></div>
+            <div class="setting-row"><span>导出备份 (JSON)</span><button class="btn" onclick="exportData()">导出</button></div>
+            <div class="setting-row"><span>恢复备份</span><input type="file" id="import-file" accept=".json" onchange="importData(this)"><button class="btn" onclick="document.getElementById('import-file').click()">导入</button></div>
+        </div>
+    </div>
+
+    <div id="screenshot-container" style="position:fixed; top:0; left:-9999px; width:450px; z-index:-1; pointer-events:none;"></div>
+
     <script src="script.js"></script>
 </body>
 </html>
