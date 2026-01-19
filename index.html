@@ -18,7 +18,7 @@
 
     <div id="save-toast">☁️ 已自动保存</div>
 
-    <!-- 云端同步帮助弹窗 (静态结构) -->
+    <!-- 云端同步帮助弹窗 -->
     <div id="cloud-help" class="cloud-help-modal">
         <div class="help-content">
             <div class="help-close" onclick="closeCloudHelp()">×</div>
@@ -214,15 +214,15 @@ create policy "Public Access" on diary_backup for all using (true);</div>
             <div class="setting-row" id="row-bio" style="display:none"><span>生物识别解锁 (指纹/面容)</span><button class="btn" onclick="toggleBiometrics()" id="btn-bio-toggle">OFF</button></div>
         </div>
         
-        <!-- 数据栏：云端同步功能已放入此处 -->
+        <!-- 数据栏 -->
         <div class="setting-group">
             <div class="setting-title">数据</div>
             
-            <!-- 云端同步模块 (静态结构) -->
+            <!-- 云端同步模块 (去掉了 Emoji) -->
             <div class="setting-row" style="display:block">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; align-items:center;">
-                        <span>☁️ 私有云同步</span>
+                        <span>私有云同步</span>
                         <div class="help-btn-circle" onclick="openCloudHelp(event)">?</div>
                     </div>
                     <button class="btn" onclick="toggleCloudPanel()" style="font-size:0.8rem">配置</button>
@@ -245,6 +245,9 @@ create policy "Public Access" on diary_backup for all using (true);</div>
                     </div>
                 </div>
             </div>
+
+            <!-- 新增：清理缓存 -->
+            <div class="setting-row"><span>清理缓存 (重置)</span><button class="btn" onclick="clearCache()" style="color:#ff6b6b; border-color:#ff6b6b">清理</button></div>
 
             <div class="setting-row" style="display:block"><div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span>生成日记长图</span><button class="btn" onclick="exportDiaryImage()">导出图片</button></div><input type="date" id="export-date-picker" class="input-text" style="width:100%"></div>
             <div class="setting-row"><span>导出备份 (JSON)</span><button class="btn" onclick="exportData()">导出</button></div>
