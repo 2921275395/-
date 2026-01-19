@@ -1,29 +1,6 @@
 // ==========================================
-// script.js - 云端同步修复版 (强制显示)
+// script.js - 纯逻辑版
 // ==========================================
-
-// 动态加载 Supabase SDK
-const script = document.createElement('script');
-script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-document.head.appendChild(script);
-
-// 注入样式
-const cloudStyle = document.createElement('style');
-cloudStyle.innerHTML = `
-.cloud-help-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-.cloud-help-modal.active { opacity: 1; pointer-events: auto; }
-.help-content { background: var(--bg-color); width: 90%; max-width: 500px; max-height: 85vh; overflow-y: auto; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; }
-.help-step { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
-.help-step h3 { font-size: 16px; margin-bottom: 8px; color: var(--text-color); font-weight: bold; }
-.help-step p { font-size: 14px; opacity: 0.8; line-height: 1.5; margin-bottom: 8px; }
-.code-block { background: #f5f5f5; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; color: #333; word-break: break-all; margin: 10px 0; border: 1px solid #ddd; user-select: text; -webkit-user-select: text; }
-.help-close { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; opacity: 0.5; }
-.help-btn-circle { width: 24px; height: 24px; border-radius: 50%; border: 1px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; margin-left: 8px; cursor: pointer; opacity: 0.6; }
-.cloud-panel { background: rgba(0,0,0,0.03); border-radius: 8px; padding: 15px; margin-top: 10px; display: none; }
-.cloud-panel.open { display: block; animation: fadeIn 0.3s; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-`;
-document.head.appendChild(cloudStyle);
 
 // 全局状态
 let state = {
@@ -48,9 +25,13 @@ let state = {
 
 let supabaseClient = null;
 let globalMaxZIndex = 10;
+let cropperInstance = null;
+let notifyInterval = null;
+let currentPinInput = ""; 
+let isEditingDrawer = false;
 
 // ==========================================
-// 数据库 (AppDB)
+// 数据库管理器
 // ==========================================
 const AppDB = {
     dbName: 'MyDiaryProDB',
@@ -87,6 +68,7 @@ const AppDB = {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(['entries'], 'readwrite');
             const s = tx.objectStore('entries');
+            // store.clear(); // 如果需要清空旧数据可解开
             Object.keys(dataObj).forEach(k => s.put({ date: k, content: dataObj[k] }));
             tx.oncomplete = () => resolve(); tx.onerror = (e) => reject(e);
         });
@@ -117,11 +99,6 @@ const AppDB = {
 // ==========================================
 // 初始化
 // ==========================================
-let cropperInstance = null;
-let notifyInterval = null;
-let currentPinInput = ""; 
-let isEditingDrawer = false;
-
 async function init() {
     await AppDB.init();
     state.diaryData = await AppDB.loadAllEntries();
@@ -133,155 +110,76 @@ async function init() {
         state.bgImage = localStorage.getItem('myDiaryBg_v2') || null;
     } catch (e) { console.error("Settings Load Error", e); }
 
+    // 初始化界面状态
     checkLockStatus();
     applySettings();
     initSupabase(); 
     if(state.settings.customFont) loadCustomFont(state.settings.customFont);
+    
+    // 渲染数据
     renderCalendar();
     renderTodoList();
     renderStickerDrawer(); 
     
+    // 启动服务
     setInterval(autoSave, 60000); 
     registerRealSW();
     startNotificationCheck();
-    
+    checkNotifyState();
+
+    // 绑定事件
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNotifications(true); });
     document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
     
+    // 可拖拽元素
     initDraggable(document.getElementById('index-tab'), 'left');
     initDraggable(document.getElementById('todo-tab'), 'left');
     initDraggable(document.getElementById('fmt-toggle'), 'any');
     initDraggable(document.getElementById('sticker-btn'), 'any'); 
-    
-    document.getElementById('export-date-picker').valueAsDate = new Date();
+
+    // 初始化日期控件
+    document.getElementById('export-date-picker').valueAsDate = new Date(); // 这里的ID可能在HTML里没有对应input，需要确认是否有导出弹窗HTML，如果没有可忽略
     const now = new Date();
     document.getElementById('gallery-month-picker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-
-    checkNotifyState();
-    createCloudHelpModal(); // 1. 创建弹窗
-    injectCloudUI();        // 2. 注入UI (确保执行)
     
+    // 全局点击处理 (重置状态)
     document.body.addEventListener('click', (e) => {
         if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
         if(!e.target.closest('.sticker-item')) {
             document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
         }
     });
+
+    // 回填云端配置到输入框
+    if(state.settings.cloudUrl) document.getElementById('cloud-url').value = state.settings.cloudUrl;
+    if(state.settings.cloudKey) document.getElementById('cloud-key').value = state.settings.cloudKey;
+    if(state.settings.cloudUrl && state.settings.cloudKey) document.getElementById('cloud-ops').style.display = 'flex';
+
+    // 修复上滑关闭 Toast 功能
+    initToastSwipe();
 }
 
-// 1. 创建帮助弹窗 DOM
-function createCloudHelpModal() {
-    if(document.getElementById('cloud-help')) return;
-    const modal = document.createElement('div');
-    modal.id = 'cloud-help';
-    modal.className = 'cloud-help-modal';
-    modal.innerHTML = `
-        <div class="help-content">
-            <div class="help-close" onclick="closeCloudHelp()">×</div>
-            <h2 style="margin-top:0; border-bottom:2px solid #ddd; padding-bottom:10px;">☁️ 云端同步设置教程</h2>
-            
-            <div class="help-step">
-                <h3>第一步：注册 Supabase</h3>
-                <p>1. 访问 <a href="https://supabase.com" target="_blank" style="color:#2196f3;font-weight:bold;">supabase.com</a> 并点击 "Start your project"。</p>
-                <p>2. 注册账号，点击 "New Project"，填写 Name (如 Diary)，设置 Password (要记住)，Region 选 Singapore/Tokyo。</p>
-                <p>3. 等待项目变成绿色 "Active" 状态。</p>
-            </div>
-
-            <div class="help-step">
-                <h3>第二步：创建数据表</h3>
-                <p>1. 在 Supabase 页面左侧菜单点击 <strong>SQL Editor</strong> 图标。</p>
-                <p>2. 点击 "New query"，将下方代码复制进去，然后点击右下角 <strong>Run</strong>。</p>
-                <div class="code-block" id="sql-code">create table diary_backup (
-  id bigint primary key,
-  updated_at timestamp with time zone,
-  diary_data jsonb,
-  todo_data jsonb,
-  settings jsonb,
-  device_info text
-);
-
-alter table diary_backup enable row level security;
-create policy "Public Access" on diary_backup for all using (true);</div>
-                <button onclick="copySQL()" class="btn-secondary" style="font-size:12px; padding:5px 10px; width:100%;">📋 点击复制上方代码</button>
-            </div>
-
-            <div class="help-step">
-                <h3>第三步：连接日记本</h3>
-                <p>1. 点击 Supabase 左下角齿轮 <strong>Project Settings</strong> -> <strong>API</strong>。</p>
-                <p>2. 找到 <strong>Project URL</strong> 和 <strong>anon public key</strong>。</p>
-                <p>3. 复制这两个值，填入日记本的输入框中，点击保存。</p>
-            </div>
-            
-            <button onclick="closeCloudHelp()" class="btn-primary" style="width:100%">我明白了</button>
-        </div>
-    `;
-    document.body.appendChild(modal);
-}
-
-// 2. 注入云端设置界面 (最稳妥的插入方式)
-function injectCloudUI() {
-    // 尝试寻找设置列表容器
-    let settingsList = document.querySelector('.settings-list');
+function initToastSwipe() {
+    const toast = document.getElementById('save-toast');
+    let startY = 0;
+    // 记录触摸开始的Y坐标
+    toast.addEventListener('touchstart', e => {
+        startY = e.touches[0].clientY;
+    }, {passive: true});
     
-    // 如果找不到类名，尝试通过 ID 找
-    if (!settingsList) settingsList = document.querySelector('#settings-view > div'); 
-
-    // 如果还是找不到，就在控制台报错并退出
-    if (!settingsList) return console.error("无法找到设置列表容器，云端功能无法注入");
-
-    // 如果已经存在，就不重复添加
-    if(document.getElementById('cloud-settings-section')) return;
-
-    const div = document.createElement('div');
-    div.id = 'cloud-settings-section';
-    div.className = 'setting-item column';
-    div.style.borderTop = "1px solid rgba(0,0,0,0.1)"; // 加个分割线让它更明显
-    div.style.marginTop = "20px";
-    
-    div.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-            <div style="display:flex; align-items:center;">
-                <span class="setting-label" style="margin:0; font-weight:bold;">☁️ 私有云同步</span>
-                <div class="help-btn-circle" onclick="openCloudHelp(event)">?</div>
-            </div>
-            <div class="btn-secondary" onclick="toggleCloudPanel()" style="font-size:12px; padding:4px 8px;">展开/收起</div>
-        </div>
-        
-        <div id="cloud-panel" class="cloud-panel">
-            <div style="font-size:12px;opacity:0.7;margin-bottom:10px">配置你的专属数据库，实现多设备同步。</div>
-            
-            <input type="text" id="cloud-url" placeholder="Project URL (https://...)" class="todo-input" style="margin-bottom:5px; font-size:12px;">
-            <input type="password" id="cloud-key" placeholder="API Key (Anon Public)" class="todo-input" style="margin-bottom:10px; font-size:12px;">
-            
-            <div class="cloud-actions" style="display:flex;gap:10px;justify-content:space-between; margin-bottom:15px;">
-                <button onclick="saveCloudConfig()" class="btn-primary" style="flex:1; font-size:12px;">💾 保存配置</button>
-                <button onclick="testCloudConnection()" class="btn-secondary" style="flex:1; font-size:12px;">📡 测试连接</button>
-            </div>
-
-            <div id="cloud-ops" style="display:none; flex-direction:column; gap:8px; border-top:1px dashed #ccc; padding-top:15px;">
-                <button onclick="backupToCloud()" class="btn-primary" style="background:#4caf50; font-size:13px;">⬆️ 备份到云端</button>
-                <button onclick="restoreFromCloud()" class="btn-primary" style="background:#2196f3; font-size:13px;">⬇️ 从云端恢复</button>
-                <div id="cloud-status" style="font-size:11px;text-align:center;color:#666;margin-top:5px;"></div>
-            </div>
-        </div>
-    `;
-    
-    // 强制添加到列表的最末尾 (这样最不容易出错)
-    settingsList.appendChild(div);
-    
-    // 回填数据
-    setTimeout(() => {
-        if(document.getElementById('cloud-url')) {
-            document.getElementById('cloud-url').value = state.settings.cloudUrl || '';
-            document.getElementById('cloud-key').value = state.settings.cloudKey || '';
-            if(state.settings.cloudUrl && state.settings.cloudKey) {
-                 document.getElementById('cloud-ops').style.display = 'flex';
-            }
+    // 触摸移动时判断
+    toast.addEventListener('touchmove', e => {
+        const currentY = e.touches[0].clientY;
+        // 如果向上滑动超过10px (startY > currentY)
+        if (startY - currentY > 10) {
+            hideToast();
         }
-    }, 100);
+    }, {passive: true});
 }
 
-// 辅助函数
+// ==========================================
+// 云端同步逻辑
+// ==========================================
 function openCloudHelp(e) { e.stopPropagation(); document.getElementById('cloud-help').classList.add('active'); }
 function closeCloudHelp() { document.getElementById('cloud-help').classList.remove('active'); }
 function toggleCloudPanel() { const p = document.getElementById('cloud-panel'); p.classList.toggle('open'); }
@@ -290,7 +188,6 @@ function copySQL() {
     navigator.clipboard.writeText(text).then(() => showToast("已复制SQL代码"));
 }
 
-/* ============ Supabase 逻辑 ============ */
 function initSupabase() {
     if(window.supabase && state.settings.cloudUrl && state.settings.cloudKey) {
         try { supabaseClient = window.supabase.createClient(state.settings.cloudUrl, state.settings.cloudKey); } 
@@ -305,8 +202,10 @@ function saveCloudConfig() {
     state.settings.cloudKey = key;
     saveSettings();
     initSupabase();
-    if(url && key) document.getElementById('cloud-ops').style.display = 'flex';
-    showToast("配置已保存");
+    if(url && key) {
+        document.getElementById('cloud-ops').style.display = 'flex';
+        showToast("配置已保存");
+    }
 }
 
 async function testCloudConnection() {
@@ -315,18 +214,18 @@ async function testCloudConnection() {
     const { data, error } = await supabaseClient.from('diary_backup').select('id').limit(1);
     if (error) {
         if(error.code === 'PGRST204' || error.message.includes('does not exist')) {
-            alert("连接成功！\n\n提示：云端尚未创建数据表。\n请点击旁边的 (?) 问号，查看教程第二步，一键复制代码去 Supabase 运行。");
+            alert("连接成功，但表不存在！\n请点击 (?) 查看教程第二步。");
         } else {
             alert("连接失败: " + error.message);
         }
     } else {
-        alert("✅ 连接成功！数据库就绪，可以备份了。");
+        alert("✅ 连接成功！");
     }
 }
 
 async function backupToCloud() {
     if(!supabaseClient) return;
-    if(!confirm("确定要备份到云端吗？\n(云端旧数据将被覆盖)")) return;
+    if(!confirm("确定要备份到云端吗？(覆盖旧备份)")) return;
     const status = document.getElementById('cloud-status');
     status.innerText = "正在打包上传...";
     try {
@@ -342,7 +241,7 @@ async function backupToCloud() {
 
 async function restoreFromCloud() {
     if(!supabaseClient) return;
-    if(!confirm("⚠️ 警告：这将下载云端备份并【覆盖】当前数据！\n确定吗？")) return;
+    if(!confirm("⚠️ 警告：下载将【覆盖】当前数据！\n确定吗？")) return;
     const status = document.getElementById('cloud-status');
     status.innerText = "正在下载...";
     try {
@@ -356,7 +255,9 @@ async function restoreFromCloud() {
     } catch(e) { status.innerText = "❌ 恢复失败"; alert("恢复失败: " + e.message); }
 }
 
-/* ============ 其他基础功能 (保持一致) ============ */
+// ==========================================
+// 核心功能 (保持不变)
+// ==========================================
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 function openStickerDrawer() { renderStickerDrawer(); document.getElementById('sticker-drawer').classList.add('open'); toggleUI(false); }
 function closeStickerDrawer() { document.getElementById('sticker-drawer').classList.remove('open'); isEditingDrawer = false; toggleUI(true); renderStickerDrawer(); }
@@ -369,7 +270,11 @@ function attachStickerEvents(el) { let mode = ''; let startX, startY, startLeft,
 window.removeSticker = function(e) { e.stopPropagation(); e.preventDefault(); e.target.closest('.sticker-item')?.remove(); state.isDirty = true; };
 window.toggleLayer = function(e) { e.stopPropagation(); e.preventDefault(); const el = e.target.closest('.sticker-item'); const currentZ = parseInt(window.getComputedStyle(el).zIndex); if(currentZ === -1) { globalMaxZIndex++; el.style.zIndex = globalMaxZIndex; showToast("图层：文字上方"); } else { el.style.zIndex = '-1'; showToast("图层：文字下方"); } state.isDirty = true; };
 function compressImage(file, maxWidth, quality) { return new Promise((resolve) => { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); let w = img.width, h = img.height; if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth; } canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL(file.type, quality)); }; img.src = e.target.result; }; reader.readAsDataURL(file); }); }
+
+// 搜索
 function performSearch(query) { const container = document.getElementById('search-results'); container.innerHTML = ''; if(!query.trim()) return; const results = []; const tempDiv = document.createElement('div'); Object.keys(state.diaryData).sort().reverse().forEach(dateKey => { tempDiv.innerHTML = state.diaryData[dateKey]; if(tempDiv.innerText.toLowerCase().includes(query.toLowerCase())) results.push({ date: dateKey, text: tempDiv.innerText }); }); if(!results.length) { container.innerHTML = '<div class="no-results">无结果</div>'; return; } results.forEach(item => { const el = document.createElement('div'); el.className = 'search-item'; const idx = item.text.toLowerCase().indexOf(query.toLowerCase()); const snippet = item.text.substring(Math.max(0, idx-10), Math.min(item.text.length, idx+query.length+20)); el.innerHTML = `<div class="search-date">${item.date}</div><div class="search-snippet">...${snippet.replace(new RegExp(`(${query})`,'gi'), '<span class="highlight-text">$1</span>')}...</div>`; el.onclick = () => { document.getElementById('search-input').value = ''; container.innerHTML = ''; closeSettings(); selectDate(new Date(item.date)); setTimeout(openDiary, 300); }; container.appendChild(el); }); }
+
+// 锁屏
 function checkLockStatus() { if (state.security.enabled) { document.getElementById('lock-screen').classList.add('active'); updatePinDots(); if (state.security.biometrics && state.security.credentialId) setTimeout(tryBiometric, 500); } else { document.getElementById('lock-screen').classList.remove('active'); } }
 function enterPin(num) { if (currentPinInput.length < 4) { currentPinInput += num; updatePinDots(); if (currentPinInput.length === 4) setTimeout(verifyPin, 100); } }
 function deletePin() { currentPinInput = currentPinInput.slice(0, -1); updatePinDots(); }
@@ -380,6 +285,8 @@ async function registerBiometric() { if (!window.PublicKeyCredential) { alert("�
 function togglePinLock() { if(state.security.enabled) { if(prompt("输入PIN关闭")==state.security.pin) { state.security.enabled=false; state.security.biometrics=false; saveSecurity(); applySettings(); } } else { const p=prompt("设置4位PIN"); if(p&&p.length==4) { state.security.enabled=true; state.security.pin=p; saveSecurity(); applySettings(); } } }
 async function toggleBiometrics() { if(!state.security.enabled) return alert("先开启PIN"); if(!state.security.biometrics) { if(await registerBiometric()) { state.security.biometrics=true; saveSecurity(); applySettings(); } } else { state.security.biometrics=false; saveSecurity(); applySettings(); } }
 function saveSecurity() { localStorage.setItem('myDiarySecurity_v2', JSON.stringify(state.security)); }
+
+// UI 切换
 function toggleUI(show) { document.querySelectorAll('.side-tab').forEach(tab => { if(show) { if(tab.id!=='todo-tab' || state.settings.showTodo) tab.classList.remove('hidden-ui'); } else tab.classList.add('hidden-ui'); }); document.getElementById('sticker-btn').style.display = (show && state.settings.enableSticker) ? 'flex' : 'none'; }
 function updateTodoTabVisibility() { document.getElementById('todo-tab').style.display = state.settings.showTodo ? 'flex' : 'none'; if(state.settings.showTodo) document.getElementById('todo-tab').classList.remove('hidden-ui'); }
 function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); toggleUI(false); }
@@ -389,6 +296,8 @@ function registerRealSW() { if ('serviceWorker' in navigator) navigator.serviceW
 function checkNotifyState() { if("Notification" in window && Notification.permission !== "granted") document.getElementById('perm-btn').style.display = 'block'; else document.getElementById('perm-btn').style.display = 'none'; }
 function requestNotifyPermission() { Notification.requestPermission().then(p => { if(p==="granted") { document.getElementById('perm-btn').style.display='none'; showToast("通知已开启"); } }); }
 function testNotification() { if(Notification.permission==="granted") new Notification("测试通知", {body:"功能正常"}); else alert("无权限"); }
+
+// 待办事项
 function addTodo() { const t=document.getElementById('new-todo-input').value.trim(); if(!t) return; state.todoData.unshift({id:Date.now(), text:t, done:false, date:'', time:'', notified:false}); document.getElementById('new-todo-input').value=''; saveTodo(); renderTodoList(); }
 function deleteTodo(id) { state.todoData = state.todoData.filter(t=>t.id!==id); saveTodo(); renderTodoList(); }
 function toggleTodo(id) { const t=state.todoData.find(i=>i.id===id); if(t) { t.done=!t.done; saveTodo(); renderTodoList(); } }
@@ -399,6 +308,8 @@ let currentOpenSwipe = null;
 function attachSwipeEvents(el) { let sX; el.addEventListener('touchstart',e=>{if(currentOpenSwipe&&currentOpenSwipe!==el){currentOpenSwipe.style.transform='translateX(0)';currentOpenSwipe=null}sX=e.touches[0].clientX;el.style.transition='none'},{passive:true}); el.addEventListener('touchmove',e=>{let d=e.touches[0].clientX-sX; if(d>0)d=0; if(d<-80)d=-80; el.style.transform=`translateX(${d}px)`},{passive:true}); el.addEventListener('touchend',e=>{el.style.transition='transform 0.2s'; if(e.changedTouches[0].clientX-sX<-40){el.style.transform='translateX(-80px)';currentOpenSwipe=el}else{el.style.transform='translateX(0)'}});}
 function resetAllSwipes() { if(currentOpenSwipe) { currentOpenSwipe.style.transform='translateX(0)'; currentOpenSwipe=null; } }
 function startNotificationCheck() { if(notifyInterval) clearInterval(notifyInterval); notifyInterval=setInterval(()=>{ if(Notification.permission!=="granted") return; const now=new Date(); const m=now.getHours()*60+now.getMinutes(); const d=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; state.todoData.forEach(t=>{ if(!t.done && t.date===d && t.time && !t.notified) { const [th,tm]=t.time.split(':').map(Number); if(Math.abs(m-(th*60+tm))<=1) { new Notification("日记本提醒",{body:t.text}); t.notified=true; saveTodo(); } } }); },5000); }
+
+// 画廊 & 拖拽 & 基础功能
 function openMonthGallery() { const v=document.getElementById('gallery-month-picker').value; if(!v) return alert("请选月份"); document.getElementById('month-gallery').classList.remove('hidden-right'); document.getElementById('settings-view').classList.add('hidden-right'); const c=document.getElementById('gallery-content'); c.innerHTML=''; const [y,m]=v.split('-'); const days=new Date(y,m,0).getDate(); let has=false; for(let d=1; d<=days; d++) { const k=`${y}-${m}-${String(d).padStart(2,'0')}`; if(state.diaryData[k]) { has=true; createGalleryCard(c, state.diaryData[k], `${parseInt(m)}/${d}`, k); } } if(!has) c.innerHTML='<div style="opacity:0.5;text-align:center;padding:20px;width:100%">暂无日记</div>'; }
 function createGalleryCard(container, content, dateLabel, dateKey) { const w = document.createElement('div'); w.className = `gallery-card ${state.bgImage?'has-bg':''}`; const thumbScaler = document.createElement('div'); thumbScaler.className = 'thumb-scaler'; if(state.bgImage) thumbScaler.style.backgroundImage = `url(${state.bgImage})`; const dateDiv = document.createElement('div'); dateDiv.className = 'thumb-date'; dateDiv.innerText = dateLabel; const textDiv = document.createElement('div'); textDiv.className = 'thumb-text'; textDiv.innerHTML = content; textDiv.querySelectorAll('.sticker-item').forEach(s => { s.style.opacity = '0.2'; s.style.pointerEvents = 'none'; s.style.zIndex = '0'; }); thumbScaler.appendChild(dateDiv); thumbScaler.appendChild(textDiv); w.appendChild(thumbScaler); w.onclick = () => { closeMonthGallery(); selectDate(new Date(dateKey)); setTimeout(openDiary,300); }; container.appendChild(w); }
 function closeMonthGallery() { document.getElementById('month-gallery').classList.add('hidden-right'); toggleUI(true); }
@@ -425,7 +336,7 @@ function cancelCrop() { document.getElementById('cropper-modal').style.display='
 function finishCrop() { if(cropperInstance) { state.bgImage=cropperInstance.getCroppedCanvas({ maxWidth:2560, maxHeight:2560, fillColor:'#fff' }).toDataURL('image/jpeg', 0.9); localStorage.setItem('myDiaryBg_v2',state.bgImage); applyBgImage(); cancelCrop(); showToast("高清背景已设置"); } }
 function applyBgImage() { const p=document.getElementById('paper-layer'); if(state.bgImage){p.style.backgroundImage=`url(${state.bgImage})`;p.classList.add('has-custom-bg')}else{p.style.backgroundImage='';p.classList.remove('has-custom-bg')} }
 function clearBgImage() { state.bgImage=null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("已还原"); }
-function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); toggleUI(false); document.getElementById('font-url-input').value=state.settings.customFont||''; injectCloudUI(); }
+function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); toggleUI(false); document.getElementById('font-url-input').value=state.settings.customFont||''; }
 function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); toggleUI(true); saveSettings(); }
 function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
 function toggleDarkMode() { state.settings.darkMode=!state.settings.darkMode; applySettings(); }
