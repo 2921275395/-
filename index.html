@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#f7f9fc">
     <title>我的日记本</title>
     
@@ -109,8 +110,8 @@
         .paper-content {
             flex: 1; padding: 10px 25px; overflow-y: auto; overflow-x: hidden;
             font-size: 1.15rem; line-height: 32px; border: none; background: transparent; color: var(--text-color); font-family: inherit; white-space: pre-wrap; word-break: break-word;
-            position: relative; z-index: 1; /* 默认层级 */
-            isolation: isolate; /* 关键：建立层级隔离，让贴纸z-index:-1时只沉到底部，不穿透到最外层 */
+            position: relative; 
+            z-index: 1; /* 重要：创建堆叠上下文 */
         }
         .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.5; }
         .page-nav { display: flex; justify-content: space-between; padding: 15px 25px; background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 10; }
@@ -139,6 +140,7 @@
         .todo-text-input { flex: 1; border: none; background: transparent; color: var(--text-color); font-size: 1rem; }
         .todo-add-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: #fff; border: none; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; }
         .todo-list { display: flex; flex-direction: column; gap: 12px; padding-bottom: 50px;}
+        
         .todo-item-wrapper { position: relative; height: auto; border-radius: 16px; overflow: hidden; background-color: #ff6b6b; flex-shrink: 0; }
         .todo-delete-bg { position: absolute; top: 0; bottom: 0; right: 0; width: 80px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.9rem; z-index: 1; }
         .todo-item-content { 
@@ -155,16 +157,27 @@
         .todo-item-content.done { background-color: #f0f0f0; }
         body.dark-mode .todo-item-content.done { background-color: #222; }
         .todo-item-content.done .todo-text, .todo-item-content.done .todo-picker { text-decoration: line-through; color: #999; }
+        
         .todo-checkbox { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--primary-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; margin-top: 2px; transition: background 0.2s; }
         .todo-checkbox.checked { background: var(--primary-color); }
         .todo-checkbox.checked::after { content: '✓'; color: #fff; font-size: 14px; font-weight: bold; }
+        
         .todo-content-wrapper { flex: 1; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
         .todo-text { font-size: 1rem; font-weight: 600; line-height: 1.4; pointer-events: auto; }
         .todo-datetime { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; pointer-events: auto; margin-top: 2px; }
-        .todo-picker { border: none; background: rgba(0,0,0,0.05); border-radius: 6px; color: var(--text-color); font-size: 0.75rem; padding: 4px 8px; width: fit-content; font-family: inherit; font-weight: 500; }
+        .todo-picker { 
+            border: none; background: rgba(0,0,0,0.05); border-radius: 6px; 
+            color: var(--text-color); font-size: 0.75rem; padding: 4px 8px; 
+            width: fit-content; font-family: inherit; font-weight: 500;
+        }
+
         .notification-area { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
         .permission-btn { width: 100%; padding: 10px; background: var(--highlight); color: #fff; border: none; border-radius: 12px; font-weight: bold; display: none; }
-        .test-notify-btn { padding: 8px 15px; font-size: 0.8rem; border: 1px dashed var(--text-color); opacity: 0.5; background: transparent; color: var(--text-color); border-radius: 20px; cursor: pointer; width: fit-content; align-self: center; }
+        .test-notify-btn {
+            padding: 8px 15px; font-size: 0.8rem; border: 1px dashed var(--text-color); opacity: 0.5;
+            background: transparent; color: var(--text-color); border-radius: 20px; cursor: pointer; 
+            width: fit-content; align-self: center;
+        }
         #android-sw-missing { display: none; background: #fff3e0; padding: 12px; border-radius: 12px; font-size: 0.8rem; color: #e65100; margin-bottom: 10px; }
 
         /* ================= 设置 & 搜索 ================= */
@@ -179,6 +192,7 @@
         .dot { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ccc; cursor: pointer; }
         .input-row { width: 100%; display: flex; gap: 10px; margin-top: 10px; }
         .input-text { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--line-color); background: transparent; color: var(--text-color); width: 100%; }
+        
         .search-results { margin-top: 15px; max-height: 250px; overflow-y: auto; }
         .search-item { padding: 10px; border-bottom: 1px solid var(--line-color); cursor: pointer; }
         .search-date { font-weight: bold; font-size: 0.9rem; color: var(--primary-color); margin-bottom: 4px; }
@@ -186,15 +200,24 @@
         .highlight-text { background-color: var(--highlight); color: #fff; padding: 0 2px; border-radius: 2px; }
         .no-results { padding: 15px; text-align: center; opacity: 0.5; font-size: 0.9rem; }
 
-        /* ================= 月度画廊样式 ================= */
+        /* ================= 月度画廊样式 (新) ================= */
         #month-gallery { background-color: var(--bg-color); z-index: 350; display: flex; flex-direction: column; overflow: hidden; }
         #gallery-content { flex: 1; overflow-y: auto; padding: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; align-content: start; }
-        .gallery-card { position: relative; width: 100%; padding-bottom: 160%; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.05); }
-        .thumb-scaler { position: absolute; top: 0; left: 0; width: 300%; height: 300%; transform: scale(0.33333333); transform-origin: top left; background-color: var(--paper-color); background-image: var(--paper-pattern); background-size: var(--paper-size); padding: 30px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; pointer-events: none; border: 3px solid transparent; }
+        .gallery-card { position: relative; width: 100%; padding-bottom: 160%; /* 宽高比 3:5 */ border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.05); }
+        .thumb-scaler {
+            position: absolute; top: 0; left: 0; width: 300%; height: 300%; /* 放大3倍画布 */
+            transform: scale(0.33333333); transform-origin: top left; /* 缩小回1倍显示，实现等比缩放 */
+            background-color: var(--paper-color);
+            background-image: var(--paper-pattern); background-size: var(--paper-size);
+            padding: 30px; box-sizing: border-box; overflow: hidden;
+            display: flex; flex-direction: column;
+            pointer-events: none; /* 禁止缩略图内交互 */
+            border: 3px solid transparent; 
+        }
         .gallery-card.has-bg .thumb-scaler { background-repeat: no-repeat; background-position: center; background-size: cover; }
         .thumb-date { font-size: 3rem; font-weight: 800; color: var(--primary-color); margin-bottom: 20px; opacity: 0.6; }
         .thumb-text { font-size: 2.2rem; line-height: 1.5; color: var(--text-color); white-space: pre-wrap; word-break: break-word; }
-        .thumb-split-2 .thumb-text { margin-top: -300%; }
+        .thumb-split-2 .thumb-text { margin-top: -300%; /* 向上位移，显示第二页内容 */ }
         
         #save-toast { position: fixed; top: 0; left: 0; right: 0; height: 80px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); color: #333; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); border-radius: 0 0 30px 30px; transform: translateY(-100%); transition: transform 0.4s; z-index: 500; font-weight: bold; font-size: 0.9rem; }
         #save-toast.show { transform: translateY(0); }
@@ -210,22 +233,37 @@
         @keyframes slideRight { to { transform: translateX(100%) rotateY(10deg); opacity: 0; } }
 
         /* ================= 隐私锁屏样式 ================= */
-        #lock-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(247, 249, 252, 0.6); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.3s, visibility 0.3s; opacity: 0; visibility: hidden; pointer-events: none; }
+        #lock-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(247, 249, 252, 0.6);
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            z-index: 9999; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            transition: opacity 0.3s, visibility 0.3s;
+            opacity: 0; visibility: hidden; pointer-events: none;
+        }
         body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
         #lock-screen.active { opacity: 1; visibility: visible; pointer-events: auto; }
+        
         .lock-icon { margin-bottom: 20px; color: var(--primary-color); }
         .lock-icon span { font-size: 48px; }
         .pin-dots { display: flex; gap: 15px; margin-bottom: 40px; }
         .pin-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--text-color); opacity: 0.3; transition: all 0.2s; }
         .pin-dot.filled { background-color: var(--text-color); opacity: 0.8; }
+        
         .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 300px; width: 100%; padding: 0 20px; }
-        .pin-btn { width: 65px; height: 65px; border-radius: 50%; border: 1px solid rgba(128,128,128,0.2); background: rgba(255,255,255,0.5); font-size: 1.5rem; color: var(--text-color); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .pin-btn { 
+            width: 65px; height: 65px; border-radius: 50%; border: 1px solid rgba(128,128,128,0.2); 
+            background: rgba(255,255,255,0.5); font-size: 1.5rem; color: var(--text-color);
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            transition: background 0.2s; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
         body.dark-mode .pin-btn { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.1); }
         .pin-btn:active { background: var(--primary-color); color: #fff; }
         .pin-btn.bio-btn { border: none; box-shadow: none; background: transparent; color: var(--primary-color); transform: scale(1.2); }
         .pin-btn.del-btn { border: none; box-shadow: none; background: transparent; font-size: 1rem; }
 
-        /* ================= 贴纸功能样式 (新) ================= */
+        /* ================= 贴纸功能样式 (升级版) ================= */
         .sticker-float-btn {
             position: fixed; right: 20px; bottom: 100px; 
             width: 40px; height: 40px; 
@@ -236,7 +274,7 @@
             color: var(--icon-color); touch-action: none;
             transition: opacity 0.3s, transform 0.2s;
         }
-        .sticker-float-btn span { font-size: 20px; }
+        .sticker-float-btn span { font-size: 20px; } 
         .sticker-float-btn:active { transform: scale(0.9); }
         body.dark-mode .sticker-float-btn { background: rgba(50,50,50,0.6); border-color: #444; }
 
@@ -262,18 +300,21 @@
 
         /* 放在页面上的贴纸 */
         .sticker-item {
-            position: absolute; display: block; cursor: move; 
+            position: absolute; display: inline-block; cursor: grab; 
             user-select: none; -webkit-user-select: none; touch-action: none;
-            z-index: 2; /* 默认在文字上方 */
-            transform-origin: center center; /* 修复旋转偏移 */
-            line-height: 0; /* 修复底部空白 */
+            z-index: 2; /* 默认: 文字上方 */
+            line-height: 0; /* 消除img底部的间隙，完美贴合 */
+            /* 禁止贴纸被contenteditable拉伸或对齐影响 */
+            transform-origin: center center;
         }
         .sticker-item img { 
-            width: 100%; height: 100%; display: block; pointer-events: none; 
-            object-fit: fill; /* 强制填满容器 */
+            display: block; width: 100%; height: 100%; pointer-events: none; 
         }
         /* 贴纸选中状态 */
-        .sticker-item.selected { outline: 1px dashed var(--primary-color); }
+        .sticker-item.selected { 
+            outline: 1.5px dashed var(--primary-color); 
+            /* 保证outline紧贴图片 */
+        }
         .sticker-ctrl {
             position: absolute; width: 24px; height: 24px; background: #fff; border: 1px solid var(--primary-color);
             border-radius: 50%; color: var(--primary-color); display: none;
@@ -283,9 +324,6 @@
         .ctrl-del { top: -12px; right: -12px; color: #ff6b6b; border-color: #ff6b6b; }
         .ctrl-resize { bottom: -12px; right: -12px; cursor: nwse-resize; }
         .ctrl-layer { top: -12px; left: -12px; font-size: 12px; font-weight: bold; }
-        
-        /* 贴纸置于底层样式 */
-        .sticker-item.layer-bottom { z-index: -1 !important; }
 
     </style>
 </head>
@@ -295,34 +333,51 @@
 
     <!-- 隐私锁屏界面 -->
     <div id="lock-screen">
-        <div class="lock-icon"><span class="material-icons-round">lock</span></div>
+        <div class="lock-icon">
+            <span class="material-icons-round">lock</span>
+        </div>
         <div class="status-text" style="margin-bottom:20px; font-weight:bold;">日记本已锁定</div>
-        <div class="pin-dots" id="pin-dots"><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div></div>
+        <div class="pin-dots" id="pin-dots">
+            <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+        </div>
         <div class="pin-pad">
-            <div class="pin-btn" onclick="enterPin(1)">1</div><div class="pin-btn" onclick="enterPin(2)">2</div><div class="pin-btn" onclick="enterPin(3)">3</div>
-            <div class="pin-btn" onclick="enterPin(4)">4</div><div class="pin-btn" onclick="enterPin(5)">5</div><div class="pin-btn" onclick="enterPin(6)">6</div>
-            <div class="pin-btn" onclick="enterPin(7)">7</div><div class="pin-btn" onclick="enterPin(8)">8</div><div class="pin-btn" onclick="enterPin(9)">9</div>
-            <div class="pin-btn bio-btn" onclick="tryBiometric()"><span class="material-icons-round">fingerprint</span></div>
-            <div class="pin-btn" onclick="enterPin(0)">0</div><div class="pin-btn del-btn" onclick="deletePin()">删除</div>
+            <div class="pin-btn" onclick="enterPin(1)">1</div>
+            <div class="pin-btn" onclick="enterPin(2)">2</div>
+            <div class="pin-btn" onclick="enterPin(3)">3</div>
+            <div class="pin-btn" onclick="enterPin(4)">4</div>
+            <div class="pin-btn" onclick="enterPin(5)">5</div>
+            <div class="pin-btn" onclick="enterPin(6)">6</div>
+            <div class="pin-btn" onclick="enterPin(7)">7</div>
+            <div class="pin-btn" onclick="enterPin(8)">8</div>
+            <div class="pin-btn" onclick="enterPin(9)">9</div>
+            <div class="pin-btn bio-btn" onclick="tryBiometric()">
+                <span class="material-icons-round">fingerprint</span>
+            </div>
+            <div class="pin-btn" onclick="enterPin(0)">0</div>
+            <div class="pin-btn del-btn" onclick="deletePin()">删除</div>
         </div>
     </div>
 
     <!-- 裁剪器界面 -->
     <div id="cropper-modal">
         <div class="crop-container"><img id="cropper-img" style="max-width:100%;"></div>
-        <div class="crop-actions"><button class="crop-btn" onclick="cancelCrop()">取消</button><button class="crop-btn confirm" onclick="finishCrop()">应用背景</button></div>
+        <div class="crop-actions">
+            <button class="crop-btn" onclick="cancelCrop()">取消</button>
+            <button class="crop-btn confirm" onclick="finishCrop()">应用背景</button>
+        </div>
     </div>
 
     <!-- 贴纸抽屉 -->
     <div id="sticker-drawer" class="sticker-drawer">
         <div class="drawer-header">
-            <span style="font-weight:bold;">贴纸库 (IndexedDB)</span>
+            <span style="font-weight:bold;">贴纸库 (高清版)</span>
             <div class="header-actions">
                 <button class="btn" style="font-size:0.8rem" onclick="toggleEditStickerDrawer()">管理</button>
                 <button class="icon-btn" onclick="closeStickerDrawer()">✕</button>
             </div>
         </div>
         <div class="drawer-content" id="sticker-list">
+            <!-- 贴纸列表 -->
             <label class="sticker-thumb sticker-add-btn">
                 <span class="material-icons-round">add</span>
                 <input type="file" id="sticker-upload" accept="image/*" multiple onchange="importStickers(this)">
@@ -330,11 +385,17 @@
         </div>
     </div>
 
-    <!-- 侧边标签 -->
-    <div id="todo-tab" class="side-tab" onclick="openTodo()"><span class="material-icons-round">checklist</span></div>
-    <div id="index-tab" class="side-tab" onclick="openDiary(event)"><span id="tab-date">10/24</span></div>
+    <!-- 左侧悬浮标签：待办 -->
+    <div id="todo-tab" class="side-tab" onclick="openTodo()">
+        <span class="material-icons-round">checklist</span>
+    </div>
 
-    <!-- 主界面 -->
+    <!-- 左侧悬浮标签：日记索引 -->
+    <div id="index-tab" class="side-tab" onclick="openDiary(event)">
+        <span id="tab-date">10/24</span>
+    </div>
+
+    <!-- 主界面：日历 -->
     <div id="home-view" class="view">
         <header>
             <div style="width: 40px;"></div> 
@@ -352,16 +413,30 @@
         </div>
     </div>
 
-    <!-- 待办清单 -->
+    <!-- 待办清单界面 -->
     <div id="todo-view" class="view hidden-right">
-        <div class="todo-header"><span style="font-weight:bold; font-size:1.2rem">待办 & 提醒</span><button class="icon-btn" onclick="closeTodo()">✕</button></div>
+        <div class="todo-header">
+            <span style="font-weight:bold; font-size:1.2rem">待办 & 提醒</span>
+            <button class="icon-btn" onclick="closeTodo()">✕</button>
+        </div>
+
         <div class="notification-area">
-            <div id="android-sw-missing">⚠️ <strong>推送配置：</strong>请确保目录包含 sw.js</div>
+            <div id="android-sw-missing">
+                ⚠️ <strong>推送配置：</strong>请确保目录包含 sw.js
+            </div>
             <button id="perm-btn" class="permission-btn" onclick="requestNotifyPermission()">🔔 开启通知权限</button>
             <button class="test-notify-btn" onclick="testNotification()">发送测试通知</button>
+            <div id="sw-status" class="status-text" style="display:none"></div>
         </div>
-        <div class="todo-input-container"><input type="text" id="new-todo-input" class="todo-text-input" placeholder="添加新任务..."><button class="todo-add-btn" onclick="addTodo()">＋</button></div>
-        <div class="todo-list" id="todo-list"></div>
+
+        <div class="todo-input-container">
+            <input type="text" id="new-todo-input" class="todo-text-input" placeholder="添加新任务...">
+            <button class="todo-add-btn" onclick="addTodo()">＋</button>
+        </div>
+
+        <div class="todo-list" id="todo-list">
+            <!-- JS 生成左滑列表 -->
+        </div>
     </div>
 
     <!-- 日记界面 -->
@@ -380,11 +455,13 @@
                 <div style="height:1px; background:var(--line-color); margin:5px 0;"></div>
                 <button class="fmt-btn" onclick="execCmd('foreColor', '#ff6b6b')"><div class="color-dot-btn" style="background:#ff6b6b"></div></button>
                 <button class="fmt-btn" onclick="execCmd('foreColor', '#4dabf7')"><div class="color-dot-btn" style="background:#4dabf7"></div></button>
+                <button class="fmt-btn" onclick="execCmd('removeFormat')"><span class="material-icons-round" style="font-size:1rem; opacity:0.6">format_clear</span></button>
                 <div style="height:1px; background:var(--line-color); margin:5px 0;"></div>
                 <button class="fmt-btn" onclick="execCmd('fontSize', 3)"><span class="material-icons-round" style="font-size:1rem">text_decrease</span></button>
                 <button class="fmt-btn" onclick="execCmd('fontSize', 5)"><span class="material-icons-round" style="font-size:1.4rem">text_increase</span></button>
             </div>
             
+            <!-- 贴纸悬浮球 -->
             <div id="sticker-btn" class="sticker-float-btn" onclick="openStickerDrawer()" style="display:none">
                 <span class="material-icons-round">sentiment_satisfied_alt</span>
             </div>
@@ -398,92 +475,251 @@
         </div>
     </div>
 
-    <!-- 月度回顾 -->
+    <!-- 月度回顾画廊 -->
     <div id="month-gallery" class="view hidden-right">
         <header><span style="font-weight:bold; font-size:1.2rem">月度回顾</span><button class="icon-btn" onclick="closeMonthGallery()">✕</button></header>
         <div id="gallery-content"></div>
     </div>
 
-    <!-- 设置 -->
+    <!-- 设置界面 -->
     <div id="settings-view" class="view hidden-right">
         <header><span style="font-weight:bold; font-size:1.2rem">设置</span><button class="icon-btn" onclick="closeSettings()">✕</button></header>
+        
+        <div class="setting-group">
+            <div class="setting-title">日记回顾</div>
+            <div class="setting-row">
+                 <span>月度快速浏览</span>
+                 <div style="display:flex; align-items:center; gap:5px;">
+                     <input type="month" id="gallery-month-picker" class="input-text" style="width:130px">
+                     <button class="btn" onclick="openMonthGallery()">浏览</button>
+                 </div>
+            </div>
+        </div>
+
         <div class="setting-group">
             <div class="setting-title">全文搜索</div>
-            <div class="input-row"><input type="text" id="search-input" class="input-text" placeholder="输入关键词查找..." oninput="performSearch(this.value)"></div>
+            <div class="input-row">
+                <input type="text" id="search-input" class="input-text" placeholder="输入关键词查找日记..." oninput="performSearch(this.value)">
+            </div>
             <div id="search-results" class="search-results"></div>
         </div>
+
         <div class="setting-group">
             <div class="setting-title">个性化</div>
             <div class="setting-row"><span>夜间模式</span><button class="btn" onclick="toggleDarkMode()" id="btn-dark">OFF</button></div>
-            <div class="setting-row"><span>待办入口</span><button class="btn" onclick="toggleTodoSetting()" id="btn-todo-toggle">ON</button></div>
+            <div class="setting-row"><span>待办清单入口</span><button class="btn" onclick="toggleTodoSetting()" id="btn-todo-toggle">ON</button></div>
             <div class="setting-row"><span>贴纸功能</span><button class="btn" onclick="toggleStickerSetting()" id="btn-sticker-toggle">OFF</button></div>
-            <div class="setting-row"><span>纸张颜色</span><div class="color-dots"><div class="dot" style="background:#fffbf0" onclick="setTheme('theme-beige')"></div><div class="dot" style="background:#ffffff" onclick="setTheme('theme-white')"></div><div class="dot" style="background:#f1f8f3" onclick="setTheme('theme-green')"></div><div class="dot" style="background:#fff5f7" onclick="setTheme('theme-pink')"></div></div></div>
-            <div class="setting-row"><span>纸张样式</span><div><button class="btn" onclick="setPaper('paper-lines')">横线</button><button class="btn" onclick="setPaper('paper-grid')">方格</button><button class="btn" onclick="setPaper('paper-blank')">空白</button></div></div>
-            <div class="setting-row" style="display:block"><div style="display:flex; justify-content:space-between; align-items:center"><span>自定义字体</span><div><button class="btn-text" onclick="resetFont()">✕</button><button class="btn" onclick="applyFont()">应用</button></div></div><div class="input-row"><input type="text" id="font-url-input" class="input-text" placeholder="woff2/ttf 链接..."></div></div>
-            <div class="setting-row"><span>自定义背景</span><input type="file" id="bg-upload" accept="image/*" onchange="startCrop(this)"><button class="btn" onclick="document.getElementById('bg-upload').click()">选图</button></div>
-            <div class="setting-row"><span>还原背景</span><button class="btn" onclick="clearBgImage()">还原</button></div>
+            
+            <div class="setting-row">
+                <span>纸张颜色</span>
+                <div class="color-dots">
+                    <div class="dot" style="background:#fffbf0" onclick="setTheme('theme-beige')"></div>
+                    <div class="dot" style="background:#ffffff" onclick="setTheme('theme-white')"></div>
+                    <div class="dot" style="background:#f1f8f3" onclick="setTheme('theme-green')"></div>
+                    <div class="dot" style="background:#fff5f7" onclick="setTheme('theme-pink')"></div>
+                </div>
+            </div>
+            <div class="setting-row">
+                <span>纸张样式</span>
+                <div>
+                    <button class="btn" onclick="setPaper('paper-lines')">横线</button>
+                    <button class="btn" onclick="setPaper('paper-grid')">方格</button>
+                    <button class="btn" onclick="setPaper('paper-blank')">空白</button>
+                </div>
+            </div>
+            <div class="setting-row" style="display:block">
+                <div style="display:flex; justify-content:space-between; align-items:center">
+                    <span>自定义字体 URL</span>
+                    <div><button class="btn-text" onclick="resetFont()">✕</button><button class="btn" onclick="applyFont()">应用</button></div>
+                </div>
+                <div class="input-row"><input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接..."></div>
+            </div>
+            <div class="setting-row">
+                <span>自定义背景图</span>
+                <input type="file" id="bg-upload" accept="image/*" onchange="startCrop(this)">
+                <button class="btn" onclick="document.getElementById('bg-upload').click()">选图裁剪</button>
+            </div>
+            <div class="setting-row"><span>还原默认背景</span><button class="btn" onclick="clearBgImage()">还原</button></div>
         </div>
-        <div class="setting-group"><div class="setting-title">安全</div><div class="setting-row"><span>密码保护</span><button class="btn" onclick="togglePinLock()" id="btn-pin-toggle">OFF</button></div><div class="setting-row" id="row-bio" style="display:none"><span>生物识别</span><button class="btn" onclick="toggleBiometrics()" id="btn-bio-toggle">OFF</button></div></div>
-        <div class="setting-group"><div class="setting-title">数据</div><div class="setting-row" style="display:block"><div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span>生成长图</span><button class="btn" onclick="exportDiaryImage()">导出</button></div><input type="date" id="export-date-picker" class="input-text" style="width:100%"></div><div class="setting-row"><span>导出备份</span><button class="btn" onclick="exportData()">导出</button></div><div class="setting-row"><span>恢复备份</span><input type="file" id="import-file" accept=".json" onchange="importData(this)"><button class="btn" onclick="document.getElementById('import-file').click()">导入</button></div></div>
+        
+        <div class="setting-group">
+            <div class="setting-title">安全与隐私</div>
+            <div class="setting-row">
+                <span>密码保护 (PIN)</span>
+                <button class="btn" onclick="togglePinLock()" id="btn-pin-toggle">OFF</button>
+            </div>
+            <div class="setting-row" id="row-bio" style="display:none">
+                <span>生物识别解锁 (指纹/面容)</span>
+                <button class="btn" onclick="toggleBiometrics()" id="btn-bio-toggle">OFF</button>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <div class="setting-title">数据</div>
+            <div class="setting-row" style="display:block">
+                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <span>生成日记长图</span>
+                    <button class="btn" onclick="exportDiaryImage()">导出图片</button>
+                 </div>
+                 <input type="date" id="export-date-picker" class="input-text" style="width:100%">
+            </div>
+            <div class="setting-row"><span>导出备份 (JSON)</span><button class="btn" onclick="exportData()">导出</button></div>
+            <div class="setting-row">
+                <span>恢复备份</span>
+                <input type="file" id="import-file" accept=".json" onchange="importData(this)">
+                <button class="btn" onclick="document.getElementById('import-file').click()">导入</button>
+            </div>
+        </div>
     </div>
 
     <div id="screenshot-container" style="position:fixed; top:0; left:-9999px; width:450px; z-index:-1; pointer-events:none;"></div>
 
     <script>
         const state = {
-            currentDate: new Date(), selectedDate: new Date(),
+            currentDate: new Date(),
+            selectedDate: new Date(),
             diaryData: JSON.parse(localStorage.getItem('myDiaryData_v2') || '{}'),
             todoData: JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]'),
             settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":"","showTodo":true,"enableSticker":false}'),
             security: JSON.parse(localStorage.getItem('myDiarySecurity_v2') || '{"enabled":false, "pin":"", "biometrics":false, "credentialId": null}'),
-            bgImage: localStorage.getItem('myDiaryBg_v2') || null, isDirty: false
+            bgImage: localStorage.getItem('myDiaryBg_v2') || null,
+            isDirty: false
         };
 
+        // IndexedDB 管理器 (贴纸库)
         const StickerDB = {
-            dbName: 'DiaryStickerDB', dbVersion: 1, db: null,
-            init() { return new Promise((resolve,reject)=>{const r=indexedDB.open(this.dbName,this.dbVersion);r.onupgradeneeded=e=>{if(!e.target.result.objectStoreNames.contains('stickers'))e.target.result.createObjectStore('stickers',{keyPath:'id',autoIncrement:true})};r.onsuccess=e=>{this.db=e.target.result;resolve()};r.onerror=e=>reject(e)})},
-            addSticker(blob) { return new Promise((resolve,reject)=>{const t=this.db.transaction(['stickers'],'readwrite');t.objectStore('stickers').add({image:blob,created:Date.now()}).onsuccess=e=>resolve(e.target.result);t.onerror=()=>reject()}) },
-            getAllStickers() { return new Promise(resolve=>{const t=this.db.transaction(['stickers'],'readonly');t.objectStore('stickers').getAll().onsuccess=e=>resolve(e.target.result||[])}) },
-            deleteSticker(id) { return new Promise(resolve=>{const t=this.db.transaction(['stickers'],'readwrite');t.objectStore('stickers').delete(id);t.oncomplete=()=>resolve()}) }
+            dbName: 'DiaryStickerDB',
+            dbVersion: 1,
+            db: null,
+            init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.dbVersion);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('stickers')) {
+                            db.createObjectStore('stickers', { keyPath: 'id', autoIncrement: true });
+                        }
+                    };
+                    request.onsuccess = (e) => { this.db = e.target.result; resolve(); };
+                    request.onerror = (e) => reject(e);
+                });
+            },
+            addSticker(blob) {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['stickers'], 'readwrite');
+                    const store = transaction.objectStore('stickers');
+                    const request = store.add({ image: blob, created: Date.now() });
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject();
+                });
+            },
+            getAllStickers() {
+                return new Promise((resolve) => {
+                    const transaction = this.db.transaction(['stickers'], 'readonly');
+                    const store = transaction.objectStore('stickers');
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result || []);
+                });
+            },
+            deleteSticker(id) {
+                return new Promise((resolve) => {
+                    const transaction = this.db.transaction(['stickers'], 'readwrite');
+                    const store = transaction.objectStore('stickers');
+                    store.delete(id);
+                    transaction.oncomplete = () => resolve();
+                });
+            }
         };
 
-        let cropperInstance = null, notifyInterval = null, currentPinInput = "", isEditingDrawer = false;
+        let cropperInstance = null;
+        let notifyInterval = null;
+        let currentPinInput = ""; 
+        let isEditingDrawer = false;
 
         function init() {
-            checkLockStatus(); applySettings();
+            checkLockStatus();
+            applySettings();
             if(state.settings.customFont) loadCustomFont(state.settings.customFont);
-            renderCalendar(); renderTodoList();
-            StickerDB.init().then(() => renderStickerDrawer());
-            setInterval(autoSave, 60000); registerRealSW(); startNotificationCheck();
+            renderCalendar();
+            renderTodoList();
+            StickerDB.init().then(() => renderStickerDrawer()); // 初始化 DB
+            
+            setInterval(autoSave, 60000);
+            registerRealSW();
+            startNotificationCheck();
             document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNotifications(true); });
             document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
-            const toast = document.getElementById('save-toast'); let startY = 0;
+            const toast = document.getElementById('save-toast');
+            let startY = 0;
             toast.addEventListener('touchstart', e => startY = e.touches[0].clientY);
             toast.addEventListener('touchmove', e => { if (startY - e.touches[0].clientY > 10) hideToast(); });
-            initDraggable(document.getElementById('index-tab'), 'left'); initDraggable(document.getElementById('todo-tab'), 'left');
-            initDraggable(document.getElementById('fmt-toggle'), 'any'); initDraggable(document.getElementById('sticker-btn'), 'any');
+            
+            initDraggable(document.getElementById('index-tab'), 'left');
+            initDraggable(document.getElementById('todo-tab'), 'left');
+            initDraggable(document.getElementById('fmt-toggle'), 'any');
+            initDraggable(document.getElementById('sticker-btn'), 'any'); 
+            
             document.getElementById('export-date-picker').valueAsDate = new Date();
-            const now = new Date(); document.getElementById('gallery-month-picker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+            const now = new Date();
+            document.getElementById('gallery-month-picker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
             checkNotifyState();
+            
             document.body.addEventListener('click', (e) => {
                 if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
-                if(!e.target.closest('.sticker-item')) document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
+                // 点击贴纸以外区域取消选中，并自动清理选区
+                if(!e.target.closest('.sticker-item')) {
+                    document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
+                }
             });
         }
 
-        /* ============ 贴纸功能 ============ */
-        function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
-        function openStickerDrawer() { renderStickerDrawer(); document.getElementById('sticker-drawer').classList.add('open'); toggleUI(false); }
-        function closeStickerDrawer() { document.getElementById('sticker-drawer').classList.remove('open'); isEditingDrawer = false; toggleUI(true); renderStickerDrawer(); }
-        function toggleEditStickerDrawer() { isEditingDrawer = !isEditingDrawer; renderStickerDrawer(); }
+        /* ============ 贴纸功能逻辑 ============ */
+        function toggleStickerSetting() {
+            state.settings.enableSticker = !state.settings.enableSticker;
+            saveSettings();
+            applySettings();
+        }
+
+        function openStickerDrawer() {
+            renderStickerDrawer();
+            document.getElementById('sticker-drawer').classList.add('open');
+            toggleUI(false);
+        }
+
+        function closeStickerDrawer() {
+            document.getElementById('sticker-drawer').classList.remove('open');
+            isEditingDrawer = false;
+            toggleUI(true);
+            renderStickerDrawer(); 
+        }
+
+        function toggleEditStickerDrawer() {
+            isEditingDrawer = !isEditingDrawer;
+            renderStickerDrawer();
+        }
 
         async function renderStickerDrawer() {
-            const list = document.getElementById('sticker-list'); const uploadBtn = list.querySelector('.sticker-add-btn'); list.innerHTML = ''; list.appendChild(uploadBtn);
+            const list = document.getElementById('sticker-list');
+            const uploadBtn = list.querySelector('.sticker-add-btn');
+            list.innerHTML = '';
+            list.appendChild(uploadBtn);
+
             const stickers = await StickerDB.getAllStickers();
             stickers.forEach(s => {
-                const div = document.createElement('div'); div.className = 'sticker-thumb';
-                div.innerHTML = `<img src="${URL.createObjectURL(s.image)}">` + (isEditingDrawer ? `<div class="del-mark" onclick="deleteStickerFromLib(${s.id}, event)">删除</div>` : '');
-                if(!isEditingDrawer) div.onclick = () => addStickerToPage(s.image);
+                const div = document.createElement('div');
+                div.className = 'sticker-thumb';
+                const url = URL.createObjectURL(s.image);
+                
+                let inner = `<img src="${url}">`;
+                if(isEditingDrawer) {
+                    inner += `<div class="del-mark" onclick="deleteStickerFromLib(${s.id}, event)">删除</div>`;
+                }
+                div.innerHTML = inner;
+                
+                if(!isEditingDrawer) {
+                    div.onclick = () => addStickerToPage(s.image);
+                }
                 list.appendChild(div);
             });
         }
@@ -491,15 +727,21 @@
         async function importStickers(input) {
             if(!input.files.length) return;
             for(let file of input.files) {
-                // 提高画质: 1500px, 90% quality
-                const compressed = await compressImage(file, 1500, 0.9); 
+                // 高清化：压缩宽度从300提升至1500
+                const compressed = await compressImage(file, 1500, 0.85); 
                 const blob = await (await fetch(compressed)).blob();
                 await StickerDB.addSticker(blob);
             }
-            renderStickerDrawer(); input.value = '';
+            renderStickerDrawer();
+            input.value = '';
         }
 
-        function deleteStickerFromLib(id, e) { e.stopPropagation(); if(confirm("确定删除？")) StickerDB.deleteSticker(id).then(renderStickerDrawer); }
+        function deleteStickerFromLib(id, e) {
+            e.stopPropagation();
+            if(confirm("确定从库中删除此贴纸？")) {
+                StickerDB.deleteSticker(id).then(renderStickerDrawer);
+            }
+        }
 
         async function addStickerToPage(blob) {
             closeStickerDrawer();
@@ -509,25 +751,18 @@
                 const wrapper = document.createElement('div');
                 wrapper.className = 'sticker-item selected';
                 wrapper.contentEditable = "false"; 
-                // 默认宽高，后续根据图片比例自适应
-                wrapper.style.left = '50px'; wrapper.style.top = '100px';
-                wrapper.style.width = '150px'; wrapper.style.height = '150px'; // 初始正方形
+                // 默认位置
+                wrapper.style.left = '50px';
+                wrapper.style.top = '100px';
+                wrapper.style.width = '150px'; 
                 
-                // 加载图片获取比例
-                const img = new Image();
-                img.src = base64;
-                img.onload = () => {
-                   const ratio = img.height / img.width;
-                   wrapper.style.height = (150 * ratio) + 'px';
-                   state.isDirty = true;
-                };
-
                 wrapper.innerHTML = `
                     <img src="${base64}" draggable="false">
                     <div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div>
                     <div class="sticker-ctrl ctrl-layer" onmousedown="toggleLayer(event)" ontouchstart="toggleLayer(event)">L</div>
                     <div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>
                 `;
+                
                 document.getElementById('diary-input').appendChild(wrapper);
                 attachStickerEvents(wrapper);
                 state.isDirty = true;
@@ -535,11 +770,18 @@
             reader.readAsDataURL(blob);
         }
 
+        // 贴纸交互：单指移动，双指缩放/旋转
         function attachStickerEvents(el) {
+            let mode = ''; // 'move', 'resize', 'gesture'
+            
+            // 单指操作变量
             let startX, startY, startLeft, startTop;
-            let startWidth, startHeight, startAngle = 0, initialAngle = 0, startDist = 0;
-            let mode = ''; // 'move', 'resize-handle', 'pinch'
-            let centerX, centerY;
+            
+            // 右下角手柄操作变量
+            let centerX, centerY, startWidth, startHeight, startAngle = 0, initialAngle = 0;
+            
+            // 双指操作变量
+            let startDist = 0, startScaleWidth = 0, startRotation = 0;
 
             // 点击选中
             el.addEventListener('click', (e) => {
@@ -550,121 +792,130 @@
 
             // 触摸开始
             el.addEventListener('touchstart', (e) => {
-                if(!el.classList.contains('selected')) return; // 只有选中才能操作
-                
+                const touches = e.touches;
                 const target = e.target;
                 
-                // 双指操作 (缩放/旋转)
-                if (e.touches.length === 2) {
-                    mode = 'pinch';
-                    e.preventDefault(); e.stopPropagation();
-                    const t1 = e.touches[0]; const t2 = e.touches[1];
-                    
-                    const rect = el.getBoundingClientRect();
-                    startWidth = rect.width; startHeight = rect.height;
-                    
-                    // 计算初始距离
-                    startDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-                    
-                    // 计算初始角度
-                    startAngle = Math.atan2(t1.clientY - t2.clientY, t1.clientX - t2.clientX);
-                    
-                    // 获取元素当前旋转
-                    const style = window.getComputedStyle(el);
-                    const matrix = new WebKitCSSMatrix(style.transform);
-                    initialAngle = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI));
-                    return;
-                }
+                if (touches.length === 2) {
+                    // 双指操作：旋转 + 缩放
+                    mode = 'gesture';
+                    e.preventDefault(); 
+                    e.stopPropagation();
 
-                // 单指操作
-                const touch = e.touches[0];
-                if (target.dataset.action === 'resize') {
-                    // 右下角手柄操作
-                    mode = 'resize-handle';
-                    e.preventDefault(); e.stopPropagation();
                     const rect = el.getBoundingClientRect();
-                    centerX = rect.left + rect.width / 2; centerY = rect.top + rect.height / 2;
-                    startWidth = rect.width; startHeight = rect.height;
-                    startAngle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX);
+                    // 记录初始宽度
+                    startScaleWidth = rect.width;
+
+                    // 获取当前旋转角度
                     const style = window.getComputedStyle(el);
                     const matrix = new WebKitCSSMatrix(style.transform);
-                    initialAngle = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI));
-                } else if (!target.classList.contains('sticker-ctrl')) {
-                    // 移动
-                    mode = 'move';
-                    startX = touch.clientX; startY = touch.clientY;
-                    startLeft = el.offsetLeft; startTop = el.offsetTop;
+                    startRotation = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI));
+
+                    // 计算双指初始距离
+                    startDist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+                    
+                    // 计算双指初始角度
+                    startAngle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX);
+                } 
+                else if (touches.length === 1) {
+                    // 单指操作
+                    if (target.dataset.action === 'resize') {
+                        // 手柄缩放/旋转
+                        mode = 'resize';
+                        e.preventDefault(); 
+                        e.stopPropagation();
+                        const rect = el.getBoundingClientRect();
+                        centerX = rect.left + rect.width / 2;
+                        centerY = rect.top + rect.height / 2;
+                        startWidth = rect.width;
+                        startHeight = rect.height;
+                        startAngle = Math.atan2(touches[0].clientY - centerY, touches[0].clientX - centerX);
+                        const style = window.getComputedStyle(el);
+                        const matrix = new WebKitCSSMatrix(style.transform);
+                        initialAngle = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI));
+                    } else if(!target.classList.contains('sticker-ctrl')) {
+                        // 移动
+                        mode = 'move';
+                        // 允许默认行为，以便能点到文字进行编辑，但如果已经选中且按住，则移动
+                        if(el.classList.contains('selected')) {
+                             // e.preventDefault(); // 如需非常灵敏的拖拽可取消注释，但这会影响页面滚动
+                        }
+                        startX = touches[0].clientX;
+                        startY = touches[0].clientY;
+                        startLeft = el.offsetLeft;
+                        startTop = el.offsetTop;
+                    }
                 }
             }, {passive: false});
 
             // 触摸移动
             document.addEventListener('touchmove', (e) => {
                 if(!el.classList.contains('selected')) return;
-                
-                if (mode === 'pinch' && e.touches.length === 2) {
-                    e.preventDefault();
-                    const t1 = e.touches[0]; const t2 = e.touches[1];
-                    
-                    // 缩放
-                    const currentDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-                    const scale = currentDist / startDist;
-                    // 使用 width/height 调整大小，保持贴合
-                    const newW = startWidth * scale;
-                    // 保持宽高比
-                    const ratio = startHeight / startWidth;
-                    
-                    el.style.width = newW + 'px';
-                    el.style.height = (newW * ratio) + 'px';
+                const touches = e.touches;
 
-                    // 旋转
-                    const currentAngle = Math.atan2(t1.clientY - t2.clientY, t1.clientX - t2.clientX);
-                    const rotation = initialAngle + (currentAngle - startAngle) * (180 / Math.PI);
-                    el.style.transform = `rotate(${rotation}deg)`;
-
-                } else if (mode === 'resize-handle') {
+                if (mode === 'gesture' && touches.length === 2) {
                     e.preventDefault();
-                    const touch = e.touches[0];
+                    
+                    // 1. 缩放计算
+                    const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+                    const scaleFactor = dist / startDist;
+                    el.style.width = (startScaleWidth * scaleFactor) + 'px';
+
+                    // 2. 旋转计算
+                    const angle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX);
+                    const rotationDiff = (angle - startAngle) * (180 / Math.PI);
+                    el.style.transform = `rotate(${startRotation + rotationDiff}deg)`;
+
+                } else if (mode === 'move' && touches.length === 1) {
+                    e.preventDefault(); // 移动时阻止屏幕滚动
+                    const dx = touches[0].clientX - startX;
+                    const dy = touches[0].clientY - startY;
+                    el.style.left = (startLeft + dx) + 'px';
+                    el.style.top = (startTop + dy) + 'px';
+
+                } else if (mode === 'resize' && touches.length === 1) {
+                    e.preventDefault();
+                    const touch = touches[0];
                     const currentAngle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX);
                     const rotation = initialAngle + (currentAngle - startAngle) * (180 / Math.PI);
                     const dist = Math.hypot(touch.clientX - centerX, touch.clientY - centerY);
                     const scale = dist / (Math.hypot(startWidth, startHeight) / 2);
-                    
-                    const newW = startWidth * scale;
-                    const ratio = startHeight / startWidth;
-                    el.style.width = newW + 'px';
-                    el.style.height = (newW * ratio) + 'px';
+                    el.style.width = (startWidth * scale) + 'px';
                     el.style.transform = `rotate(${rotation}deg)`;
-                    
-                } else if (mode === 'move') {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    const dx = touch.clientX - startX;
-                    const dy = touch.clientY - startY;
-                    el.style.left = (startLeft + dx) + 'px';
-                    el.style.top = (startTop + dy) + 'px';
                 }
             }, {passive: false});
 
-            document.addEventListener('touchend', () => { if(mode) state.isDirty = true; mode = ''; });
+            document.addEventListener('touchend', () => { 
+                if(mode) state.isDirty = true;
+                mode = ''; 
+            });
         }
         
-        window.removeSticker = function(e) { e.stopPropagation(); e.preventDefault(); e.target.closest('.sticker-item').remove(); state.isDirty = true; };
-        
+        window.removeSticker = function(e) {
+            e.stopPropagation(); e.preventDefault();
+            const el = e.target.closest('.sticker-item');
+            if(el) el.remove();
+            state.isDirty = true;
+        };
+
+        // 切换层级：在 文字上方(2) 和 文字下方(-1) 之间切换
         window.toggleLayer = function(e) {
             e.stopPropagation(); e.preventDefault();
             const el = e.target.closest('.sticker-item');
-            // 切换 z-index: 2 (顶层) <-> -1 (文字下方)
-            // 注意: 父级需要 isolation: isolate 才能保证 -1 不穿透背景
-            if (el.classList.contains('layer-bottom')) {
-                el.classList.remove('layer-bottom');
-                showToast("已置于顶层");
+            const current = window.getComputedStyle(el).zIndex;
+            
+            // 如果当前是自动或大于0，设为-1（沉底）
+            // 如果当前是-1，设为2（浮起）
+            if (current === '-1') {
+                el.style.zIndex = '2';
+                showToast("图层：文字上方");
             } else {
-                el.classList.add('layer-bottom');
-                showToast("已置于文字下方");
+                el.style.zIndex = '-1';
+                showToast("图层：文字下方");
             }
             state.isDirty = true;
         };
         
+        // 图片压缩工具 (升级版: 支持更大尺寸)
         function compressImage(file, maxWidth, quality) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -677,7 +928,7 @@
                         canvas.width = w; canvas.height = h;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, w, h);
-                        resolve(canvas.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', quality));
+                        resolve(canvas.toDataURL(file.type, quality));
                     };
                     img.src = e.target.result;
                 };
@@ -685,88 +936,480 @@
             });
         }
 
-        /* ============ 其他辅助函数 ============ */
-        function performSearch(query) { /* 搜索逻辑保持不变 */ const container = document.getElementById('search-results'); container.innerHTML = ''; if(!query.trim()) return; const results = []; const tempDiv = document.createElement('div'); Object.keys(state.diaryData).sort().reverse().forEach(dateKey => { const htmlContent = state.diaryData[dateKey]; tempDiv.innerHTML = htmlContent; const textContent = tempDiv.innerText; if(textContent.toLowerCase().includes(query.toLowerCase())) { results.push({ date: dateKey, text: textContent }); } }); if(results.length === 0) { container.innerHTML = '<div class="no-results">没有找到相关日记</div>'; return; } results.forEach(item => { const dateObj = new Date(item.date); const dateStr = dateObj.toLocaleDateString('zh-CN', {year:'numeric', month:'long', day:'numeric', weekday:'short'}); const index = item.text.toLowerCase().indexOf(query.toLowerCase()); let start = Math.max(0, index - 10); let end = Math.min(item.text.length, index + query.length + 20); let snippet = item.text.substring(start, end); if(start > 0) snippet = '...' + snippet; if(end < item.text.length) snippet = snippet + '...'; const regex = new RegExp(`(${query})`, 'gi'); const highlightSnippet = snippet.replace(regex, '<span class="highlight-text">$1</span>'); const el = document.createElement('div'); el.className = 'search-item'; el.innerHTML = `<div class="search-date">${dateStr}</div><div class="search-snippet">${highlightSnippet}</div>`; el.onclick = () => { document.getElementById('search-input').value = ''; container.innerHTML = ''; closeSettings(); selectDate(dateObj); setTimeout(openDiary, 300); }; container.appendChild(el); }); }
-        
-        // 生物识别 & PIN
+        /* ============ 🔍 搜索功能 ============ */
+        function performSearch(query) {
+            const container = document.getElementById('search-results');
+            container.innerHTML = '';
+            if(!query.trim()) return;
+            const results = [];
+            const tempDiv = document.createElement('div');
+            Object.keys(state.diaryData).sort().reverse().forEach(dateKey => {
+                const htmlContent = state.diaryData[dateKey];
+                tempDiv.innerHTML = htmlContent;
+                const textContent = tempDiv.innerText;
+                if(textContent.toLowerCase().includes(query.toLowerCase())) {
+                    results.push({ date: dateKey, text: textContent });
+                }
+            });
+            if(results.length === 0) { container.innerHTML = '<div class="no-results">没有找到相关日记</div>'; return; }
+            results.forEach(item => {
+                const dateObj = new Date(item.date);
+                const dateStr = dateObj.toLocaleDateString('zh-CN', {year:'numeric', month:'long', day:'numeric', weekday:'short'});
+                const index = item.text.toLowerCase().indexOf(query.toLowerCase());
+                let start = Math.max(0, index - 10);
+                let end = Math.min(item.text.length, index + query.length + 20);
+                let snippet = item.text.substring(start, end);
+                if(start > 0) snippet = '...' + snippet;
+                if(end < item.text.length) snippet = snippet + '...';
+                const regex = new RegExp(`(${query})`, 'gi');
+                const highlightSnippet = snippet.replace(regex, '<span class="highlight-text">$1</span>');
+                const el = document.createElement('div');
+                el.className = 'search-item';
+                el.innerHTML = `<div class="search-date">${dateStr}</div><div class="search-snippet">${highlightSnippet}</div>`;
+                el.onclick = () => {
+                    document.getElementById('search-input').value = '';
+                    container.innerHTML = '';
+                    closeSettings();
+                    selectDate(dateObj);
+                    setTimeout(openDiary, 300);
+                };
+                container.appendChild(el);
+            });
+        }
+
+        /* ============ 🔒 生物识别 (指纹) 逻辑 ============ */
         function bufferToBase64(buffer) { return btoa(String.fromCharCode(...new Uint8Array(buffer))); }
         function base64ToBuffer(base64) { return Uint8Array.from(atob(base64), c => c.charCodeAt(0)); }
-        function checkLockStatus() { if (state.security.enabled) { document.getElementById('lock-screen').classList.add('active'); updatePinDots(); if (state.security.biometrics && state.security.credentialId) setTimeout(tryBiometric, 500); } else document.getElementById('lock-screen').classList.remove('active'); }
-        function enterPin(num) { if (currentPinInput.length < 4) { currentPinInput += num; updatePinDots(); if (currentPinInput.length === 4) setTimeout(verifyPin, 100); } }
+
+        function checkLockStatus() {
+            if (state.security.enabled) {
+                document.getElementById('lock-screen').classList.add('active');
+                updatePinDots();
+                if (state.security.biometrics && state.security.credentialId) {
+                    setTimeout(tryBiometric, 500);
+                }
+            } else {
+                document.getElementById('lock-screen').classList.remove('active');
+            }
+        }
+
+        function enterPin(num) {
+            if (currentPinInput.length < 4) {
+                currentPinInput += num;
+                updatePinDots();
+                if (currentPinInput.length === 4) setTimeout(verifyPin, 100);
+            }
+        }
         function deletePin() { currentPinInput = currentPinInput.slice(0, -1); updatePinDots(); }
-        function updatePinDots() { document.querySelectorAll('.pin-dot').forEach((dot, index) => { if (index < currentPinInput.length) dot.classList.add('filled'); else dot.classList.remove('filled'); }); }
-        function verifyPin() { if (currentPinInput === state.security.pin) unlockSuccess(); else { navigator.vibrate?.([100, 50, 100]); showToast("密码错误"); currentPinInput = ""; updatePinDots(); } }
-        function unlockSuccess() { document.getElementById('lock-screen').classList.remove('active'); currentPinInput = ""; updatePinDots(); showToast("解锁成功"); }
-        async function registerBiometric() { if (!window.PublicKeyCredential) { alert("环境不支持生物识别"); return false; } const publicKey = { challenge: new Uint8Array(32), rp: { name: "我的日记本", id: window.location.hostname }, user: { id: Uint8Array.from("USER_ID", c => c.charCodeAt(0)), name: "user@diary.local", displayName: "日记本主人" }, pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }], authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }, timeout: 60000 }; try { showToast("请验证以注册..."); const credential = await navigator.credentials.create({ publicKey }); state.security.credentialId = bufferToBase64(credential.rawId); return true; } catch (e) { console.error(e); alert("注册失败: " + e.message); return false; } }
-        async function tryBiometric() { if (!state.security.credentialId) { if(state.security.enabled) showToast("未绑定指纹"); return; } try { const publicKey = { challenge: new Uint8Array(32), allowCredentials: [{ id: base64ToBuffer(state.security.credentialId), type: 'public-key', transports: ['internal'] }], userVerification: "required", timeout: 60000 }; await navigator.credentials.get({ publicKey }); unlockSuccess(); } catch (e) { console.log("Biometric failed", e); } }
-        function togglePinLock() { if (state.security.enabled) { const pin = prompt("输入当前PIN码关闭："); if (pin === state.security.pin) { state.security.enabled = false; state.security.biometrics = false; state.security.credentialId = null; saveSecurity(); applySettings(); showToast("已关闭"); } else if (pin !== null) alert("密码错误"); } else { const newPin = prompt("设置4位PIN码："); if (newPin && newPin.length === 4 && !isNaN(newPin)) { state.security.enabled = true; state.security.pin = newPin; saveSecurity(); applySettings(); showToast("已开启"); } else if (newPin !== null) alert("请输入4位数字"); } }
-        async function toggleBiometrics() { if (!state.security.enabled) { alert("请先开启PIN码"); return; } if (!state.security.biometrics) { const success = await registerBiometric(); if (success) { state.security.biometrics = true; saveSecurity(); applySettings(); showToast("生物识别已开启"); } } else { state.security.biometrics = false; state.security.credentialId = null; saveSecurity(); applySettings(); showToast("生物识别已关闭"); } }
+        function updatePinDots() {
+            const dots = document.querySelectorAll('.pin-dot');
+            dots.forEach((dot, index) => {
+                if (index < currentPinInput.length) dot.classList.add('filled');
+                else dot.classList.remove('filled');
+            });
+        }
+        function verifyPin() {
+            if (currentPinInput === state.security.pin) unlockSuccess();
+            else { navigator.vibrate?.([100, 50, 100]); showToast("密码错误"); currentPinInput = ""; updatePinDots(); }
+        }
+        function unlockSuccess() {
+            document.getElementById('lock-screen').classList.remove('active');
+            currentPinInput = ""; updatePinDots(); showToast("解锁成功");
+        }
+
+        async function registerBiometric() {
+            if (!window.PublicKeyCredential) { alert("环境不支持生物识别"); return false; }
+            const publicKey = {
+                challenge: new Uint8Array(32),
+                rp: { name: "我的日记本", id: window.location.hostname },
+                user: { id: Uint8Array.from("USER_ID", c => c.charCodeAt(0)), name: "user@diary.local", displayName: "日记本主人" },
+                pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+                authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+                timeout: 60000
+            };
+            try {
+                showToast("请验证以注册...");
+                const credential = await navigator.credentials.create({ publicKey });
+                state.security.credentialId = bufferToBase64(credential.rawId);
+                return true;
+            } catch (e) { console.error(e); alert("注册失败: " + e.message); return false; }
+        }
+
+        async function tryBiometric() {
+            if (!state.security.credentialId) { if(state.security.enabled) showToast("未绑定指纹"); return; }
+            try {
+                const publicKey = {
+                    challenge: new Uint8Array(32),
+                    allowCredentials: [{ id: base64ToBuffer(state.security.credentialId), type: 'public-key', transports: ['internal'] }],
+                    userVerification: "required", timeout: 60000
+                };
+                await navigator.credentials.get({ publicKey });
+                unlockSuccess();
+            } catch (e) { console.log("Biometric failed", e); }
+        }
+
+        function togglePinLock() {
+            if (state.security.enabled) {
+                const pin = prompt("输入当前PIN码关闭：");
+                if (pin === state.security.pin) { state.security.enabled = false; state.security.biometrics = false; state.security.credentialId = null; saveSecurity(); applySettings(); showToast("已关闭"); }
+                else if (pin !== null) alert("密码错误");
+            } else {
+                const newPin = prompt("设置4位PIN码：");
+                if (newPin && newPin.length === 4 && !isNaN(newPin)) { state.security.enabled = true; state.security.pin = newPin; saveSecurity(); applySettings(); showToast("已开启"); }
+                else if (newPin !== null) alert("请输入4位数字");
+            }
+        }
+
+        async function toggleBiometrics() {
+            if (!state.security.enabled) { alert("请先开启PIN码"); return; }
+            if (!state.security.biometrics) {
+                const success = await registerBiometric();
+                if (success) { state.security.biometrics = true; saveSecurity(); applySettings(); showToast("生物识别已开启"); }
+            } else {
+                state.security.biometrics = false; state.security.credentialId = null; saveSecurity(); applySettings(); showToast("生物识别已关闭");
+            }
+        }
         function saveSecurity() { localStorage.setItem('myDiarySecurity_v2', JSON.stringify(state.security)); }
 
-        /* ============ UI Logic ============ */
-        function toggleUI(show) { const tabs = document.querySelectorAll('.side-tab'); tabs.forEach(tab => { if(show) { if(tab.id === 'todo-tab') { if(state.settings.showTodo) tab.classList.remove('hidden-ui'); } else tab.classList.remove('hidden-ui'); } else tab.classList.add('hidden-ui'); }); const stickerBtn = document.getElementById('sticker-btn'); if(show && state.settings.enableSticker) stickerBtn.style.display = 'flex'; else stickerBtn.style.display = 'none'; }
-        function updateTodoTabVisibility() { const tab = document.getElementById('todo-tab'); if(state.settings.showTodo) { tab.style.display = 'flex'; const isViewOpen = !document.getElementById('settings-view').classList.contains('hidden-right') || !document.getElementById('diary-view').classList.contains('hidden-right'); if(!isViewOpen) tab.classList.remove('hidden-ui'); } else tab.style.display = 'none'; }
+        /* ============ UI & Notify ============ */
+        function toggleUI(show) {
+            const tabs = document.querySelectorAll('.side-tab');
+            tabs.forEach(tab => {
+                if(show) {
+                    if(tab.id === 'todo-tab') {
+                        if(state.settings.showTodo) tab.classList.remove('hidden-ui');
+                    } else {
+                        tab.classList.remove('hidden-ui');
+                    }
+                } else {
+                    tab.classList.add('hidden-ui');
+                }
+            });
+            
+            // 贴纸球显隐
+            const stickerBtn = document.getElementById('sticker-btn');
+            if(show && state.settings.enableSticker) {
+                stickerBtn.style.display = 'flex';
+            } else {
+                stickerBtn.style.display = 'none';
+            }
+        }
+        
+        function updateTodoTabVisibility() {
+            const tab = document.getElementById('todo-tab');
+            if(state.settings.showTodo) {
+                tab.style.display = 'flex';
+                const isViewOpen = !document.getElementById('settings-view').classList.contains('hidden-right') || !document.getElementById('diary-view').classList.contains('hidden-right');
+                if(!isViewOpen) tab.classList.remove('hidden-ui');
+            } else {
+                tab.style.display = 'none';
+            }
+        }
+
         function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); toggleUI(false); }
         function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); toggleUI(true); }
         function toggleTodoSetting() { state.settings.showTodo = !state.settings.showTodo; saveSettings(); applySettings(); }
-        function registerRealSW() { if (!('serviceWorker' in navigator)) return; navigator.serviceWorker.register('sw.js').catch(err => { if (/Android/i.test(navigator.userAgent)) document.getElementById('android-sw-missing').style.display = 'block'; }); }
-        function checkNotifyState() { if (!("Notification" in window)) { document.getElementById('perm-btn').innerText = "❌ 不支持通知"; document.getElementById('perm-btn').style.display = 'block'; } else if (Notification.permission !== "granted") { document.getElementById('perm-btn').style.display = 'block'; } else { document.getElementById('perm-btn').style.display = 'none'; } }
-        async function sendSafeNotification(title, body) { if ('serviceWorker' in navigator) { try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) { reg.showNotification(title, { body: body, icon: 'https://via.placeholder.com/128', vibrate: [200, 100, 200], requireInteraction: true }); return; } } catch (e) { console.error(e); } } if (/Android/i.test(navigator.userAgent)) { showToast("⚠️ 安卓未连接 sw.js"); return; } try { new Notification(title, { body: body }); } catch (e) {} }
-        function requestNotifyPermission() { Notification.requestPermission().then(permission => { if (permission === "granted") { document.getElementById('perm-btn').style.display = 'none'; showToast("通知已开启 ✅"); sendSafeNotification("日记本提醒", "权限获取成功！"); } else alert("权限被拒绝。"); }); }
-        function testNotification() { if (Notification.permission === "granted") { showToast("已请求发送..."); sendSafeNotification("测试通知", "如果您看到这条消息，说明功能正常！📱"); } else alert("请先点击开启通知权限"); }
-        function addTodo() { const input = document.getElementById('new-todo-input'); const text = input.value.trim(); if(!text) return; state.todoData.unshift({ id: Date.now(), text: text, done: false, date: '', time: '', notified: false }); input.value = ''; saveTodo(); renderTodoList(); }
-        function toggleTodo(id) { const item = state.todoData.find(t => t.id === id); if(item) { item.done = !item.done; saveTodo(); renderTodoList(); } }
+
+        function registerRealSW() {
+            if (!('serviceWorker' in navigator)) { return; }
+            navigator.serviceWorker.register('sw.js').catch(err => {
+                if (/Android/i.test(navigator.userAgent)) {
+                    document.getElementById('android-sw-missing').style.display = 'block';
+                }
+            });
+        }
+
+        function checkNotifyState() {
+            if (!("Notification" in window)) { document.getElementById('perm-btn').innerText = "❌ 不支持通知"; document.getElementById('perm-btn').style.display = 'block'; } 
+            else if (Notification.permission !== "granted") { document.getElementById('perm-btn').style.display = 'block'; } 
+            else { document.getElementById('perm-btn').style.display = 'none'; }
+        }
+
+        async function sendSafeNotification(title, body) {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const reg = await navigator.serviceWorker.getRegistration();
+                    if (reg) { reg.showNotification(title, { body: body, icon: 'https://via.placeholder.com/128', vibrate: [200, 100, 200], requireInteraction: true }); return; }
+                } catch (e) { console.error(e); }
+            }
+            if (/Android/i.test(navigator.userAgent)) { showToast("⚠️ 安卓未连接 sw.js"); return; }
+            try { new Notification(title, { body: body }); } catch (e) {}
+        }
+
+        function requestNotifyPermission() {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") { document.getElementById('perm-btn').style.display = 'none'; showToast("通知已开启 ✅"); sendSafeNotification("日记本提醒", "权限获取成功！"); } 
+                else { alert("权限被拒绝。"); }
+            });
+        }
+        function testNotification() {
+            if (Notification.permission === "granted") { showToast("已请求发送..."); sendSafeNotification("测试通知", "如果您看到这条消息，说明功能正常！📱"); } 
+            else { alert("请先点击开启通知权限"); }
+        }
+
+        function addTodo() {
+            const input = document.getElementById('new-todo-input'); const text = input.value.trim(); if(!text) return;
+            state.todoData.unshift({ id: Date.now(), text: text, done: false, date: '', time: '', notified: false }); 
+            input.value = ''; saveTodo(); renderTodoList();
+        }
+
+        function toggleTodo(id) { 
+            const item = state.todoData.find(t => t.id === id); 
+            if(item) { item.done = !item.done; saveTodo(); renderTodoList(); } 
+        }
         function deleteTodo(id) { state.todoData = state.todoData.filter(t => t.id !== id); saveTodo(); renderTodoList(); }
         function updateTodoData(id, field, val) { const item = state.todoData.find(t => t.id === id); if(item) { item[field] = val; if(field === 'time' || field === 'date') item.notified = false; saveTodo(); renderTodoList(); } } 
         function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
-        function renderTodoList() { const list = document.getElementById('todo-list'); list.innerHTML = ''; const sortedData = [...state.todoData].sort((a, b) => { if (a.done !== b.done) return a.done ? 1 : -1; const aHasTime = a.date && a.time; const bHasTime = b.date && b.time; if (!aHasTime && bHasTime) return -1; if (aHasTime && !bHasTime) return 1; if (!aHasTime && !bHasTime) return b.id - a.id; return new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`); }); sortedData.forEach(item => { const wrapper = document.createElement('div'); wrapper.className = 'todo-item-wrapper'; wrapper.innerHTML = `<div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div><div class="todo-item-content ${item.done ? 'done' : ''}" id="todo-content-${item.id}"><div class="todo-checkbox ${item.done ? 'checked' : ''}" onclick="toggleTodo(${item.id}); event.stopPropagation();"></div><div class="todo-content-wrapper"><div class="todo-text">${item.text}</div><div class="todo-datetime"><input type="date" class="todo-picker" value="${item.date || ''}" onchange="updateTodoData(${item.id}, 'date', this.value)"><input type="time" class="todo-picker" value="${item.time || ''}" onchange="updateTodoData(${item.id}, 'time', this.value)"></div></div></div>`; const contentEl = wrapper.querySelector('.todo-item-content'); attachSwipeEvents(contentEl); list.appendChild(wrapper); }); }
+
+        function renderTodoList() {
+            const list = document.getElementById('todo-list'); list.innerHTML = '';
+            const sortedData = [...state.todoData].sort((a, b) => {
+                if (a.done !== b.done) return a.done ? 1 : -1;
+                const aHasTime = a.date && a.time; const bHasTime = b.date && b.time;
+                if (!aHasTime && bHasTime) return -1; if (aHasTime && !bHasTime) return 1; if (!aHasTime && !bHasTime) return b.id - a.id; 
+                return new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`);
+            });
+            sortedData.forEach(item => {
+                const wrapper = document.createElement('div'); wrapper.className = 'todo-item-wrapper';
+                wrapper.innerHTML = `
+                    <div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div>
+                    <div class="todo-item-content ${item.done ? 'done' : ''}" id="todo-content-${item.id}">
+                        <div class="todo-checkbox ${item.done ? 'checked' : ''}" onclick="toggleTodo(${item.id}); event.stopPropagation();"></div>
+                        <div class="todo-content-wrapper">
+                            <div class="todo-text">${item.text}</div>
+                            <div class="todo-datetime">
+                                <input type="date" class="todo-picker" value="${item.date || ''}" onchange="updateTodoData(${item.id}, 'date', this.value)">
+                                <input type="time" class="todo-picker" value="${item.time || ''}" onchange="updateTodoData(${item.id}, 'time', this.value)">
+                            </div>
+                        </div>
+                    </div>
+                `;
+                const contentEl = wrapper.querySelector('.todo-item-content'); attachSwipeEvents(contentEl); list.appendChild(wrapper);
+            });
+        }
+
         let currentOpenSwipe = null;
-        function attachSwipeEvents(el) { let startX, currentX; let isDragging = false; el.addEventListener('touchstart', (e) => { if(currentOpenSwipe && currentOpenSwipe !== el) { currentOpenSwipe.style.transform = 'translateX(0)'; currentOpenSwipe = null; } startX = e.touches[0].clientX; el.style.transition = 'none'; }, {passive: true}); el.addEventListener('touchmove', (e) => { currentX = e.touches[0].clientX; let deltaX = currentX - startX; if (deltaX > 0) deltaX = 0; if (deltaX < -80) deltaX = -80; if (deltaX < -10) isDragging = true; el.style.transform = `translateX(${deltaX}px)`; }, {passive: true}); el.addEventListener('touchend', (e) => { el.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)'; const deltaX = currentX - startX; if (deltaX < -40) { el.style.transform = 'translateX(-80px)'; currentOpenSwipe = el; } else { el.style.transform = 'translateX(0)'; if(currentOpenSwipe === el) currentOpenSwipe = null; } isDragging = false; }); }
-        function resetAllSwipes() { const openItems = document.querySelectorAll('.todo-item-content[style*="translateX(-80px)"]'); openItems.forEach(el => el.style.transform = 'translateX(0)'); currentOpenSwipe = null; }
-        function startNotificationCheck() { if(notifyInterval) clearInterval(notifyInterval); notifyInterval = setInterval(() => checkNotifications(false), 5000); }
-        function checkNotifications(isCatchUp) { if (!("Notification" in window) || Notification.permission !== "granted") return; const now = new Date(); const currentStrDate = formatDateKey(now); const currentTotalMinutes = now.getHours() * 60 + now.getMinutes(); state.todoData.forEach(item => { if(!item.done && item.date && item.time && !item.notified) { if (item.date === currentStrDate) { const [h, m] = item.time.split(':').map(Number); const targetTotalMinutes = h * 60 + m; const isTime = Math.abs(currentTotalMinutes - targetTotalMinutes) <= 1; const isMissed = isCatchUp && (currentTotalMinutes > targetTotalMinutes); if (isTime || isMissed) { let bodyText = item.text; if (isMissed) bodyText = "[错过提醒] " + bodyText; sendSafeNotification("日记本提醒", bodyText); item.notified = true; saveTodo(); } } } }); }
+        function attachSwipeEvents(el) {
+            let startX, currentX; let isDragging = false;
+            el.addEventListener('touchstart', (e) => {
+                if(currentOpenSwipe && currentOpenSwipe !== el) { currentOpenSwipe.style.transform = 'translateX(0)'; currentOpenSwipe = null; }
+                startX = e.touches[0].clientX; el.style.transition = 'none';
+            }, {passive: true});
+            el.addEventListener('touchmove', (e) => {
+                currentX = e.touches[0].clientX; let deltaX = currentX - startX;
+                if (deltaX > 0) deltaX = 0; if (deltaX < -80) deltaX = -80;
+                if (deltaX < -10) isDragging = true; el.style.transform = `translateX(${deltaX}px)`;
+            }, {passive: true});
+            el.addEventListener('touchend', (e) => {
+                el.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                const deltaX = currentX - startX;
+                if (deltaX < -40) { el.style.transform = 'translateX(-80px)'; currentOpenSwipe = el; } 
+                else { el.style.transform = 'translateX(0)'; if(currentOpenSwipe === el) currentOpenSwipe = null; }
+                isDragging = false;
+            });
+    }
+    function resetAllSwipes() { const openItems = document.querySelectorAll('.todo-item-content[style*="translateX(-80px)"]'); openItems.forEach(el => el.style.transform = 'translateX(0)'); currentOpenSwipe = null; }
 
-        function openMonthGallery() { const picker = document.getElementById('gallery-month-picker'); if(!picker.value) { alert("请选择月份"); return; } document.getElementById('month-gallery').classList.remove('hidden-right'); document.getElementById('settings-view').classList.add('hidden-right'); const gallery = document.getElementById('gallery-content'); gallery.innerHTML = ''; const [y, m] = picker.value.split('-'); const daysInMonth = new Date(y, m, 0).getDate(); let hasData = false; for(let d=1; d<=daysInMonth; d++) { const dateStr = `${y}-${m}-${String(d).padStart(2,'0')}`; if(state.diaryData[dateStr]) { hasData = true; const content = state.diaryData[dateStr]; const dateDisplay = `${parseInt(m)}/${d}`; createGalleryCard(gallery, content, dateDisplay, false, dateStr); if(content.length > 500 || (content.match(/\n/g) || []).length > 10) createGalleryCard(gallery, content, '', true, dateStr); } } if(!hasData) gallery.innerHTML = '<div style="width:100%; text-align:center; padding:50px; opacity:0.5">该月没有日记</div>'; }
-        function createGalleryCard(container, content, dateLabel, isPage2, dateKey) { const wrapper = document.createElement('div'); wrapper.className = `gallery-card ${state.bgImage ? 'has-bg' : ''}`; const scaler = document.createElement('div'); scaler.className = `thumb-scaler ${isPage2 ? 'thumb-split-2' : ''}`; if(state.bgImage) scaler.style.backgroundImage = `url(${state.bgImage})`; let html = ''; if(!isPage2) html += `<div class="thumb-date">${dateLabel}</div>`; const tempDiv = document.createElement('div'); tempDiv.innerHTML = content; tempDiv.querySelectorAll('.sticker-item').forEach(el => el.remove()); html += `<div class="thumb-text">${tempDiv.innerHTML}</div>`; scaler.innerHTML = html; wrapper.appendChild(scaler); wrapper.onclick = () => { const parts = dateKey.split('-'); const targetDate = new Date(parts[0], parts[1]-1, parts[2]); closeMonthGallery(); selectDate(targetDate); setTimeout(openDiary, 300); }; container.appendChild(wrapper); }
-        function closeMonthGallery() { document.getElementById('month-gallery').classList.add('hidden-right'); toggleUI(true); }
+    function startNotificationCheck() { if(notifyInterval) clearInterval(notifyInterval); notifyInterval = setInterval(() => checkNotifications(false), 5000); }
+    function checkNotifications(isCatchUp) {
+        if (!("Notification" in window) || Notification.permission !== "granted") return;
+        const now = new Date(); const currentStrDate = formatDateKey(now); const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+        state.todoData.forEach(item => {
+            if(!item.done && item.date && item.time && !item.notified) {
+                if (item.date === currentStrDate) {
+                    const [h, m] = item.time.split(':').map(Number); const targetTotalMinutes = h * 60 + m;
+                    const isTime = Math.abs(currentTotalMinutes - targetTotalMinutes) <= 1; const isMissed = isCatchUp && (currentTotalMinutes > targetTotalMinutes);
+                    if (isTime || isMissed) { let bodyText = item.text; if (isMissed) bodyText = "[错过提醒] " + bodyText; sendSafeNotification("日记本提醒", bodyText); item.notified = true; saveTodo(); }
+                }
+            }
+        });
+    }
 
-        function initDraggable(el, type) { let isDragging = false; let startX, startY, initialLeft, initialTop; const screenW = window.innerWidth; const screenH = window.innerHeight; el.addEventListener('touchstart', (e) => { isDragging = false; el.classList.remove('snap-transition'); const touch = e.touches[0]; startX = touch.clientX; startY = touch.clientY; const rect = el.getBoundingClientRect(); initialLeft = rect.left; initialTop = rect.top; }, {passive: false}); el.addEventListener('touchmove', (e) => { const touch = e.touches[0]; const deltaX = touch.clientX - startX; const deltaY = touch.clientY - startY; if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) isDragging = true; if (isDragging) { e.preventDefault(); let newTop = initialTop + deltaY; let newLeft = initialLeft + deltaX; if (newTop < 0) newTop = 0; if (newTop > screenH - el.offsetHeight) newTop = screenH - el.offsetHeight; if (type === 'left') { el.style.top = newTop + 'px'; } else { if (newLeft < 0) newLeft = 0; if (newLeft > screenW - el.offsetWidth) newLeft = screenW - el.offsetWidth; el.style.left = newLeft + 'px'; el.style.top = newTop + 'px'; document.getElementById('fmt-bar').classList.remove('active'); } } }, {passive: false}); el.addEventListener('touchend', (e) => { if (!isDragging) return; el.classList.add('snap-transition'); if (type === 'any') { const rect = el.getBoundingClientRect(); const centerX = rect.left + rect.width / 2; if (centerX < screenW / 2) { el.style.left = '10px'; updateFormatBarPos('right'); } else { el.style.left = (screenW - el.offsetWidth - 10) + 'px'; updateFormatBarPos('left'); } } }); }
-        function updateFormatBarPos(direction) { const bar = document.getElementById('fmt-bar'); const toggle = document.getElementById('fmt-toggle'); if (direction === 'right') { bar.style.left = '60px'; bar.style.right = 'auto'; bar.style.transformOrigin = 'top left'; } else { bar.style.right = '60px'; bar.style.left = 'auto'; bar.style.transformOrigin = 'top right'; } bar.style.top = toggle.style.top; }
-        function handleGlobalClick(e) { const tab = document.getElementById('index-tab'); if (tab.classList.contains('visible') && !e.target.closest('#index-tab') && !e.target.closest('.day')) { tab.classList.remove('visible'); tab.style.transform = ''; } const fmtBar = document.getElementById('fmt-bar'); if(fmtBar.classList.contains('active') && !e.target.closest('.format-toolbar') && !e.target.closest('.format-toolbar-toggle')) { fmtBar.classList.remove('active'); } }
-        function renderCalendar() { const year = state.currentDate.getFullYear(); const month = state.currentDate.getMonth(); document.getElementById('current-month-label').textContent = `${year}年 ${String(month + 1).padStart(2, '0')}月`; document.getElementById('month-picker').value = `${year}-${String(month + 1).padStart(2, '0')}`; const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0); const daysContainer = document.getElementById('calendar-days'); daysContainer.innerHTML = ''; for (let i = 0; i < firstDay.getDay(); i++) daysContainer.appendChild(document.createElement('div')); const today = new Date(); for (let i = 1; i <= lastDay.getDate(); i++) { const dayEl = document.createElement('div'); dayEl.className = 'day'; dayEl.textContent = i; const thisDate = new Date(year, month, i); const dateKey = formatDateKey(thisDate); if (isSameDay(thisDate, today)) dayEl.classList.add('today'); if (isSameDay(thisDate, state.selectedDate)) dayEl.classList.add('selected'); if (state.diaryData[dateKey]) dayEl.classList.add('has-entry'); dayEl.onclick = (e) => { e.stopPropagation(); selectDate(thisDate); }; daysContainer.appendChild(dayEl); } }
-        function changeMonth(val) { if(!val) return; const [y, m] = val.split('-'); state.currentDate = new Date(parseInt(y), parseInt(m) - 1, 1); renderCalendar(); }
-        function selectDate(date) { state.selectedDate = date; renderCalendar(); document.getElementById('tab-date').textContent = `${date.getMonth() + 1}/${date.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
-        function openDiary(e) { if(e) e.stopPropagation(); const dateKey = formatDateKey(state.selectedDate); document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'}); const content = state.diaryData[dateKey] || ''; const inputDiv = document.getElementById('diary-input'); if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) inputDiv.innerText = content; else inputDiv.innerHTML = content; document.querySelectorAll('.sticker-item').forEach(el => attachStickerEvents(el)); document.getElementById('diary-view').classList.remove('hidden-right'); toggleUI(false); if(state.settings.enableSticker) document.getElementById('sticker-btn').style.display = 'flex'; state.isDirty = false; }
-        function closeDiary() { saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right'); document.getElementById('fmt-bar').classList.remove('active'); document.getElementById('sticker-btn').style.display = 'none'; closeStickerDrawer(); toggleUI(true); renderCalendar(); }
-        function changeDay(offset) { saveDiaryManual(false); const newDate = new Date(state.selectedDate); newDate.setDate(newDate.getDate() + offset); state.selectedDate = newDate; const paper = document.getElementById('paper-layer'); const anim = offset > 0 ? 'anim-slide-left' : 'anim-slide-right'; paper.classList.add(anim); setTimeout(() => { openDiary(); paper.classList.remove(anim); paper.style.opacity = '0'; requestAnimationFrame(() => paper.style.opacity = '1'); }, 350); }
-        function toggleFormatToolbar(e) { e.stopPropagation(); const toggle = document.getElementById('fmt-toggle'); const rect = toggle.getBoundingClientRect(); if (rect.left < window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left'); document.getElementById('fmt-bar').classList.toggle('active'); }
-        function execCmd(command, value = null) { document.execCommand(command, false, value); document.getElementById('diary-input').focus(); }
-        function saveDiaryManual(showToastFlag = true) { const inputDiv = document.getElementById('diary-input'); if (!state.isDirty && inputDiv.innerText.trim() === "" && !inputDiv.querySelector('img')) return; const dateKey = formatDateKey(state.selectedDate); const content = inputDiv.innerHTML; if (inputDiv.innerText.trim() === "" && !content.includes('<img')) delete state.diaryData[dateKey]; else state.diaryData[dateKey] = content; localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); state.isDirty = false; if (showToastFlag) showToast(); }
-        function autoSave() { if (state.isDirty) saveDiaryManual(true); }
-        function showToast(msg) { const t=document.getElementById('save-toast'); t.innerText = msg || "☁️ 已自动保存"; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
-        function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
-        function applyFont() { const url = document.getElementById('font-url-input').value.trim(); if(!url) return; state.settings.customFont = url; loadCustomFont(url); saveSettings(); alert("正在加载..."); }
-        function resetFont() { state.settings.customFont = ""; document.getElementById('font-url-input').value = ""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原默认字体"); }
-        function loadCustomFont(url) { if(url.includes('fonts.googleapis.com')) { const link = document.createElement('link'); link.href = url; link.rel = 'stylesheet'; document.head.appendChild(link); return; } const fontName = 'MyCustomFont'; const fontFace = new FontFace(fontName, `url(${url})`); fontFace.load().then(loadedFace => { document.fonts.add(loadedFace); document.documentElement.style.setProperty('--font-main', `"${fontName}", "Nunito", sans-serif`); }).catch(e => { console.error(e); }); }
-        function exportDiaryImage() { const picker = document.getElementById('export-date-picker'); if(!picker.value) { alert("请选择日期"); return; } const dateStr = picker.value; const parts = dateStr.split('-'); const targetDate = new Date(parts[0], parts[1]-1, parts[2]); const dateKey = formatDateKey(targetDate); const content = state.diaryData[dateKey]; if(!content) { alert("这一天没有日记哦"); return; } showToast("正在生成图片..."); const container = document.getElementById('screenshot-container'); container.innerHTML = ''; const paper = document.createElement('div'); paper.className = `paper-container ${state.settings.paper}`; if(state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } paper.style.height = 'auto'; paper.style.minHeight = '800px'; paper.style.position = 'relative'; paper.style.overflow = 'visible'; paper.style.borderRadius = '0'; const header = document.createElement('div'); header.className = 'paper-header'; header.innerHTML = `<span class="date-display">${targetDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'})}</span>`; header.style.background = 'none'; paper.appendChild(header); const body = document.createElement('div'); body.className = 'paper-content'; body.style.overflow = 'visible'; body.innerHTML = content; paper.appendChild(body); container.appendChild(paper); html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: state.settings.theme === 'theme-beige' ? '#fffbf0' : null }).then(canvas => { const link = document.createElement('a'); link.download = `diary_${dateKey}.png`; link.href = canvas.toDataURL(); link.click(); container.innerHTML = ''; showToast("图片已保存！"); }).catch(err => { console.error(err); alert("生成失败，请重试"); container.innerHTML = ''; }); }
-        function startCrop(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { document.getElementById('cropper-modal').style.display = 'flex'; const image = document.getElementById('cropper-img'); image.src = e.target.result; if (cropperInstance) cropperInstance.destroy(); cropperInstance = new Cropper(image, { viewMode: 2, dragMode: 'move', aspectRatio: NaN, autoCropArea: 1 }); }; reader.readAsDataURL(file); input.value = ''; }
-        function cancelCrop() { document.getElementById('cropper-modal').style.display = 'none'; if(cropperInstance) cropperInstance.destroy(); }
-        function finishCrop() { if (!cropperInstance) return; const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 }); const dataUrl = canvas.toDataURL('image/jpeg', 0.8); state.bgImage = dataUrl; try { localStorage.setItem('myDiaryBg_v2', dataUrl); applyBgImage(); cancelCrop(); showToast("背景设置成功"); } catch (e) { alert("图片太大了"); } }
-        function applyBgImage() { const paper = document.getElementById('paper-layer'); if (state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } else { paper.style.backgroundImage = ''; paper.classList.remove('has-custom-bg'); } }
-        function clearBgImage() { state.bgImage = null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("背景已还原"); }
-        function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); toggleUI(false); document.getElementById('font-url-input').value = state.settings.customFont || ''; }
-        function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); toggleUI(true); saveSettings(); }
-        function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
-        function toggleDarkMode() { state.settings.darkMode = !state.settings.darkMode; applySettings(); }
-        function setTheme(theme) { state.settings.theme = theme; applySettings(); }
-        function setPaper(paper) { state.settings.paper = paper; applySettings(); }
-        function applySettings() { document.body.className = `${state.settings.theme} ${state.settings.paper}`; if (state.settings.darkMode) document.body.classList.add('dark-mode'); else document.body.classList.remove('dark-mode'); document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF"; document.getElementById('btn-todo-toggle').textContent = state.settings.showTodo ? "ON" : "OFF"; document.getElementById('btn-sticker-toggle').textContent = state.settings.enableSticker ? "ON" : "OFF"; document.getElementById('btn-pin-toggle').textContent = state.security.enabled ? "ON" : "OFF"; document.getElementById('btn-bio-toggle').textContent = state.security.biometrics ? "ON" : "OFF"; document.getElementById('row-bio').style.display = state.security.enabled ? 'flex' : 'none'; applyBgImage(); updateTodoTabVisibility(); }
-        function formatDateKey(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
-        function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
-        function exportData() { const blob = new Blob([JSON.stringify(state.diaryData)], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `diary_backup_${formatDateKey(new Date())}.json`; a.click(); }
-        function importData(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { state.diaryData = JSON.parse(e.target.result); localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); renderCalendar(); alert("导入成功"); } catch(err) { alert("文件格式错误"); } }; reader.readAsText(file); }
+    /* ============ 月度回顾逻辑 (新) ============ */
+    function openMonthGallery() {
+        const picker = document.getElementById('gallery-month-picker');
+        if(!picker.value) { alert("请选择月份"); return; }
+        
+        document.getElementById('month-gallery').classList.remove('hidden-right');
+        document.getElementById('settings-view').classList.add('hidden-right');
+        
+        const gallery = document.getElementById('gallery-content');
+        gallery.innerHTML = '';
+        
+        const [y, m] = picker.value.split('-');
+        const daysInMonth = new Date(y, m, 0).getDate();
+        let hasData = false;
 
-        init();
+        for(let d=1; d<=daysInMonth; d++) {
+            const dateStr = `${y}-${m}-${String(d).padStart(2,'0')}`;
+            if(state.diaryData[dateStr]) {
+                hasData = true;
+                const content = state.diaryData[dateStr];
+                const dateDisplay = `${parseInt(m)}/${d}`;
+                
+                // 第一页
+                createGalleryCard(gallery, content, dateDisplay, false, dateStr);
+
+                // 简单的"长文检测"
+                if(content.length > 500 || (content.match(/\n/g) || []).length > 10) {
+                    createGalleryCard(gallery, content, '', true, dateStr);
+                }
+            }
+        }
+        
+        if(!hasData) {
+            gallery.innerHTML = '<div style="width:100%; text-align:center; padding:50px; opacity:0.5">该月没有日记</div>';
+        }
+    }
+
+    function createGalleryCard(container, content, dateLabel, isPage2, dateKey) {
+        const wrapper = document.createElement('div');
+        wrapper.className = `gallery-card ${state.bgImage ? 'has-bg' : ''}`;
+        
+        const scaler = document.createElement('div');
+        scaler.className = `thumb-scaler ${isPage2 ? 'thumb-split-2' : ''}`;
+        if(state.bgImage) scaler.style.backgroundImage = `url(${state.bgImage})`;
+        
+        let html = '';
+        if(!isPage2) {
+            html += `<div class="thumb-date">${dateLabel}</div>`;
+        }
+        // 对于预览卡片，我们移除贴纸的 HTML（因为位置和缩放会导致预览很乱）
+        // 这里做一个简单的清理，只显示文字和普通图片
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        tempDiv.querySelectorAll('.sticker-item').forEach(el => el.remove());
+
+        html += `<div class="thumb-text">${tempDiv.innerHTML}</div>`;
+        
+        scaler.innerHTML = html;
+        wrapper.appendChild(scaler);
+        
+        // 点击缩略图跳转到当天日记
+        wrapper.onclick = () => {
+            const parts = dateKey.split('-');
+            const targetDate = new Date(parts[0], parts[1]-1, parts[2]);
+            closeMonthGallery();
+            selectDate(targetDate);
+            setTimeout(openDiary, 300);
+        };
+
+        container.appendChild(wrapper);
+    }
+
+    function closeMonthGallery() {
+        document.getElementById('month-gallery').classList.add('hidden-right');
+        toggleUI(true); // 恢复侧边栏
+    }
+
+    function initDraggable(el, type) {
+        let isDragging = false; let startX, startY, initialLeft, initialTop; const screenW = window.innerWidth; const screenH = window.innerHeight;
+        el.addEventListener('touchstart', (e) => { isDragging = false; el.classList.remove('snap-transition'); const touch = e.touches[0]; startX = touch.clientX; startY = touch.clientY; const rect = el.getBoundingClientRect(); initialLeft = rect.left; initialTop = rect.top; }, {passive: false});
+        el.addEventListener('touchmove', (e) => { const touch = e.touches[0]; const deltaX = touch.clientX - startX; const deltaY = touch.clientY - startY; if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) isDragging = true; if (isDragging) { e.preventDefault(); let newTop = initialTop + deltaY; let newLeft = initialLeft + deltaX; if (newTop < 0) newTop = 0; if (newTop > screenH - el.offsetHeight) newTop = screenH - el.offsetHeight; if (type === 'left') { el.style.top = newTop + 'px'; } else { if (newLeft < 0) newLeft = 0; if (newLeft > screenW - el.offsetWidth) newLeft = screenW - el.offsetWidth; el.style.left = newLeft + 'px'; el.style.top = newTop + 'px'; document.getElementById('fmt-bar').classList.remove('active'); } } }, {passive: false});
+        el.addEventListener('touchend', (e) => { if (!isDragging) return; el.classList.add('snap-transition'); if (type === 'any') { const rect = el.getBoundingClientRect(); const centerX = rect.left + rect.width / 2; if (centerX < screenW / 2) { el.style.left = '10px'; updateFormatBarPos('right'); } else { el.style.left = (screenW - el.offsetWidth - 10) + 'px'; updateFormatBarPos('left'); } } });
+    }
+    function updateFormatBarPos(direction) { const bar = document.getElementById('fmt-bar'); const toggle = document.getElementById('fmt-toggle'); if (direction === 'right') { bar.style.left = '60px'; bar.style.right = 'auto'; bar.style.transformOrigin = 'top left'; } else { bar.style.right = '60px'; bar.style.left = 'auto'; bar.style.transformOrigin = 'top right'; } bar.style.top = toggle.style.top; }
+    function handleGlobalClick(e) { const tab = document.getElementById('index-tab'); if (tab.classList.contains('visible') && !e.target.closest('#index-tab') && !e.target.closest('.day')) { tab.classList.remove('visible'); tab.style.transform = ''; } const fmtBar = document.getElementById('fmt-bar'); if(fmtBar.classList.contains('active') && !e.target.closest('.format-toolbar') && !e.target.closest('.format-toolbar-toggle')) { fmtBar.classList.remove('active'); } }
+    function renderCalendar() { const year = state.currentDate.getFullYear(); const month = state.currentDate.getMonth(); document.getElementById('current-month-label').textContent = `${year}年 ${String(month + 1).padStart(2, '0')}月`; document.getElementById('month-picker').value = `${year}-${String(month + 1).padStart(2, '0')}`; const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0); const daysContainer = document.getElementById('calendar-days'); daysContainer.innerHTML = ''; for (let i = 0; i < firstDay.getDay(); i++) daysContainer.appendChild(document.createElement('div')); const today = new Date(); for (let i = 1; i <= lastDay.getDate(); i++) { const dayEl = document.createElement('div'); dayEl.className = 'day'; dayEl.textContent = i; const thisDate = new Date(year, month, i); const dateKey = formatDateKey(thisDate); if (isSameDay(thisDate, today)) dayEl.classList.add('today'); if (isSameDay(thisDate, state.selectedDate)) dayEl.classList.add('selected'); if (state.diaryData[dateKey]) dayEl.classList.add('has-entry'); dayEl.onclick = (e) => { e.stopPropagation(); selectDate(thisDate); }; daysContainer.appendChild(dayEl); } }
+    function changeMonth(val) { if(!val) return; const [y, m] = val.split('-'); state.currentDate = new Date(parseInt(y), parseInt(m) - 1, 1); renderCalendar(); }
+    function selectDate(date) { state.selectedDate = date; renderCalendar(); document.getElementById('tab-date').textContent = `${date.getMonth() + 1}/${date.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
+    function openDiary(e) { 
+        if(e) e.stopPropagation(); 
+        const dateKey = formatDateKey(state.selectedDate); 
+        document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'}); 
+        const content = state.diaryData[dateKey] || ''; 
+        const inputDiv = document.getElementById('diary-input'); 
+        if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) inputDiv.innerText = content; 
+        else inputDiv.innerHTML = content; 
+        
+        // 恢复贴纸事件
+        document.querySelectorAll('.sticker-item').forEach(el => attachStickerEvents(el));
+
+        document.getElementById('diary-view').classList.remove('hidden-right'); 
+        toggleUI(false); 
+        
+        // 如果开启了贴纸功能，显示按钮
+        if(state.settings.enableSticker) document.getElementById('sticker-btn').style.display = 'flex';
+
+        state.isDirty = false; 
+    }
+    function closeDiary() { 
+        // 自动清理选中状态再保存，防止把 "selected" 类名存进去
+        document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
+        saveDiaryManual(false); 
+        document.getElementById('diary-view').classList.add('hidden-right'); 
+        document.getElementById('fmt-bar').classList.remove('active'); 
+        document.getElementById('sticker-btn').style.display = 'none'; // 隐藏贴纸按钮
+        closeStickerDrawer();
+        toggleUI(true); 
+        renderCalendar(); 
+    }
+    function changeDay(offset) { saveDiaryManual(false); const newDate = new Date(state.selectedDate); newDate.setDate(newDate.getDate() + offset); state.selectedDate = newDate; const paper = document.getElementById('paper-layer'); const anim = offset > 0 ? 'anim-slide-left' : 'anim-slide-right'; paper.classList.add(anim); setTimeout(() => { openDiary(); paper.classList.remove(anim); paper.style.opacity = '0'; requestAnimationFrame(() => paper.style.opacity = '1'); }, 350); }
+    function toggleFormatToolbar(e) { e.stopPropagation(); const toggle = document.getElementById('fmt-toggle'); const rect = toggle.getBoundingClientRect(); if (rect.left < window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left'); document.getElementById('fmt-bar').classList.toggle('active'); }
+    function execCmd(command, value = null) { document.execCommand(command, false, value); document.getElementById('diary-input').focus(); }
+    function saveDiaryManual(showToastFlag = true) { 
+        const inputDiv = document.getElementById('diary-input'); 
+        // 保存前清理 "selected" 类，避免下次打开自带选中框
+        const selected = inputDiv.querySelectorAll('.sticker-item.selected');
+        selected.forEach(el => el.classList.remove('selected'));
+        
+        if (!state.isDirty && inputDiv.innerText.trim() === "" && !inputDiv.querySelector('img')) return; 
+        
+        const dateKey = formatDateKey(state.selectedDate); 
+        const content = inputDiv.innerHTML; 
+        
+        if (inputDiv.innerText.trim() === "" && !content.includes('<img')) delete state.diaryData[dateKey]; 
+        else state.diaryData[dateKey] = content; 
+        
+        localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); 
+        state.isDirty = false; 
+        if (showToastFlag) showToast(); 
+        
+        // 如果刚才清理了选中，为了用户体验，可以恢复回来（可选，这里为了逻辑简单就不恢复了）
+    }
+    function autoSave() { if (state.isDirty) saveDiaryManual(true); }
+    function showToast(msg) { const t=document.getElementById('save-toast'); t.innerText = msg || "☁️ 已自动保存"; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+    function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
+    function applyFont() { const url = document.getElementById('font-url-input').value.trim(); if(!url) return; state.settings.customFont = url; loadCustomFont(url); saveSettings(); alert("正在加载..."); }
+    function resetFont() { state.settings.customFont = ""; document.getElementById('font-url-input').value = ""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原默认字体"); }
+    function loadCustomFont(url) { if(url.includes('fonts.googleapis.com')) { const link = document.createElement('link'); link.href = url; link.rel = 'stylesheet'; document.head.appendChild(link); return; } const fontName = 'MyCustomFont'; const fontFace = new FontFace(fontName, `url(${url})`); fontFace.load().then(loadedFace => { document.fonts.add(loadedFace); document.documentElement.style.setProperty('--font-main', `"${fontName}", "Nunito", sans-serif`); }).catch(e => { console.error(e); }); }
+    function exportDiaryImage() { const picker = document.getElementById('export-date-picker'); if(!picker.value) { alert("请选择日期"); return; } const dateStr = picker.value; const parts = dateStr.split('-'); const targetDate = new Date(parts[0], parts[1]-1, parts[2]); const dateKey = formatDateKey(targetDate); const content = state.diaryData[dateKey]; if(!content) { alert("这一天没有日记哦"); return; } showToast("正在生成图片..."); const container = document.getElementById('screenshot-container'); container.innerHTML = ''; const paper = document.createElement('div'); paper.className = `paper-container ${state.settings.paper}`; if(state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } paper.style.height = 'auto'; paper.style.minHeight = '800px'; paper.style.position = 'relative'; paper.style.overflow = 'visible'; paper.style.borderRadius = '0'; const header = document.createElement('div'); header.className = 'paper-header'; header.innerHTML = `<span class="date-display">${targetDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'})}</span>`; header.style.background = 'none'; paper.appendChild(header); const body = document.createElement('div'); body.className = 'paper-content'; body.style.overflow = 'visible'; body.innerHTML = content; paper.appendChild(body); container.appendChild(paper); html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: state.settings.theme === 'theme-beige' ? '#fffbf0' : null }).then(canvas => { const link = document.createElement('a'); link.download = `diary_${dateKey}.png`; link.href = canvas.toDataURL(); link.click(); container.innerHTML = ''; showToast("图片已保存！"); }).catch(err => { console.error(err); alert("生成失败，请重试"); container.innerHTML = ''; }); }
+    
+    function startCrop(input) {
+        const file = input.files[0]; if (!file) return; const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('cropper-modal').style.display = 'flex'; const image = document.getElementById('cropper-img'); image.src = e.target.result;
+            if (cropperInstance) cropperInstance.destroy(); cropperInstance = new Cropper(image, { viewMode: 2, dragMode: 'move', aspectRatio: NaN, autoCropArea: 1 });
+        }; reader.readAsDataURL(file); input.value = '';
+    }
+    function cancelCrop() { document.getElementById('cropper-modal').style.display = 'none'; if(cropperInstance) cropperInstance.destroy(); }
+    function finishCrop() { if (!cropperInstance) return; const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 }); const dataUrl = canvas.toDataURL('image/jpeg', 0.8); state.bgImage = dataUrl; try { localStorage.setItem('myDiaryBg_v2', dataUrl); applyBgImage(); cancelCrop(); showToast("背景设置成功"); } catch (e) { alert("图片太大了"); } }
+    function applyBgImage() { const paper = document.getElementById('paper-layer'); if (state.bgImage) { paper.style.backgroundImage = `url(${state.bgImage})`; paper.classList.add('has-custom-bg'); } else { paper.style.backgroundImage = ''; paper.classList.remove('has-custom-bg'); } }
+    function clearBgImage() { state.bgImage = null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("背景已还原"); }
+    function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); toggleUI(false); document.getElementById('font-url-input').value = state.settings.customFont || ''; }
+    function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); toggleUI(true); saveSettings(); }
+    function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
+    function toggleDarkMode() { state.settings.darkMode = !state.settings.darkMode; applySettings(); }
+    function setTheme(theme) { state.settings.theme = theme; applySettings(); }
+    function setPaper(paper) { state.settings.paper = paper; applySettings(); }
+    function applySettings() { 
+        document.body.className = `${state.settings.theme} ${state.settings.paper}`; 
+        if (state.settings.darkMode) document.body.classList.add('dark-mode'); else document.body.classList.remove('dark-mode'); 
+        document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF";
+        document.getElementById('btn-todo-toggle').textContent = state.settings.showTodo ? "ON" : "OFF";
+        document.getElementById('btn-sticker-toggle').textContent = state.settings.enableSticker ? "ON" : "OFF";
+        document.getElementById('btn-pin-toggle').textContent = state.security.enabled ? "ON" : "OFF";
+        document.getElementById('btn-bio-toggle').textContent = state.security.biometrics ? "ON" : "OFF";
+        document.getElementById('row-bio').style.display = state.security.enabled ? 'flex' : 'none';
+        applyBgImage(); 
+        updateTodoTabVisibility();
+    }
+    function formatDateKey(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
+    function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
+    function exportData() { const blob = new Blob([JSON.stringify(state.diaryData)], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `diary_backup_${formatDateKey(new Date())}.json`; a.click(); }
+    function importData(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { state.diaryData = JSON.parse(e.target.result); localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); renderCalendar(); alert("导入成功"); } catch(err) { alert("文件格式错误"); } }; reader.readAsText(file); }
+
+    init();
     </script>
 </body>
 </html>
