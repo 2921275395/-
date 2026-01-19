@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 云端同步优化版 (带内置教程)
+// script.js - 云端同步修复版 (强制显示)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -7,7 +7,7 @@ const script = document.createElement('script');
 script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
 document.head.appendChild(script);
 
-// 注入额外的 CSS 样式 (用于帮助弹窗和云端面板)
+// 注入样式
 const cloudStyle = document.createElement('style');
 cloudStyle.innerHTML = `
 .cloud-help-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
@@ -16,7 +16,7 @@ cloudStyle.innerHTML = `
 .help-step { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
 .help-step h3 { font-size: 16px; margin-bottom: 8px; color: var(--text-color); font-weight: bold; }
 .help-step p { font-size: 14px; opacity: 0.8; line-height: 1.5; margin-bottom: 8px; }
-.code-block { background: #f5f5f5; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; color: #333; word-break: break-all; margin: 10px 0; border: 1px solid #ddd; }
+.code-block { background: #f5f5f5; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; color: #333; word-break: break-all; margin: 10px 0; border: 1px solid #ddd; user-select: text; -webkit-user-select: text; }
 .help-close { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; opacity: 0.5; }
 .help-btn-circle { width: 24px; height: 24px; border-radius: 50%; border: 1px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; margin-left: 8px; cursor: pointer; opacity: 0.6; }
 .cloud-panel { background: rgba(0,0,0,0.03); border-radius: 8px; padding: 15px; margin-top: 10px; display: none; }
@@ -38,8 +38,8 @@ let state = {
         customFont: "", 
         showTodo: true, 
         enableSticker: false,
-        cloudUrl: "", // 用户自己的 Supabase URL
-        cloudKey: ""  // 用户自己的 Supabase Key
+        cloudUrl: "", 
+        cloudKey: ""
     },
     security: { enabled: false, pin: "", biometrics: false, credentialId: null },
     bgImage: null,
@@ -50,7 +50,7 @@ let supabaseClient = null;
 let globalMaxZIndex = 10;
 
 // ==========================================
-// 数据库管理器 (AppDB)
+// 数据库 (AppDB)
 // ==========================================
 const AppDB = {
     dbName: 'MyDiaryProDB',
@@ -115,7 +115,7 @@ const AppDB = {
 };
 
 // ==========================================
-// 初始化与核心逻辑
+// 初始化
 // ==========================================
 let cropperInstance = null;
 let notifyInterval = null;
@@ -148,7 +148,6 @@ async function init() {
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNotifications(true); });
     document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
     
-    // 初始化 UI
     initDraggable(document.getElementById('index-tab'), 'left');
     initDraggable(document.getElementById('todo-tab'), 'left');
     initDraggable(document.getElementById('fmt-toggle'), 'any');
@@ -159,8 +158,8 @@ async function init() {
     document.getElementById('gallery-month-picker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
     checkNotifyState();
-    createCloudHelpModal(); // 创建帮助弹窗 DOM
-    injectCloudUI();        // 注入设置界面
+    createCloudHelpModal(); // 1. 创建弹窗
+    injectCloudUI();        // 2. 注入UI (确保执行)
     
     document.body.addEventListener('click', (e) => {
         if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
@@ -179,19 +178,19 @@ function createCloudHelpModal() {
     modal.innerHTML = `
         <div class="help-content">
             <div class="help-close" onclick="closeCloudHelp()">×</div>
-            <h2 style="margin-top:0; border-bottom:2px solid #ddd; padding-bottom:10px;">☁️ 如何配置私有云？</h2>
+            <h2 style="margin-top:0; border-bottom:2px solid #ddd; padding-bottom:10px;">☁️ 云端同步设置教程</h2>
             
             <div class="help-step">
-                <h3>第一步：注册并创建项目</h3>
-                <p>1. 访问 <a href="https://supabase.com" target="_blank" style="color:#2196f3">Supabase.com</a> 免费注册账号。</p>
-                <p>2. 点击 "New Project"，起个名字（如 MyDiary），设置数据库密码，区域选 Singapore 或 Tokyo。</p>
-                <p>3. 等待几分钟，直到项目创建完成。</p>
+                <h3>第一步：注册 Supabase</h3>
+                <p>1. 访问 <a href="https://supabase.com" target="_blank" style="color:#2196f3;font-weight:bold;">supabase.com</a> 并点击 "Start your project"。</p>
+                <p>2. 注册账号，点击 "New Project"，填写 Name (如 Diary)，设置 Password (要记住)，Region 选 Singapore/Tokyo。</p>
+                <p>3. 等待项目变成绿色 "Active" 状态。</p>
             </div>
 
             <div class="help-step">
-                <h3>第二步：创建数据表 (关键!)</h3>
-                <p>1. 在 Supabase 左侧菜单点击 <strong>SQL Editor</strong>。</p>
-                <p>2. 点击 "New query"，复制下方代码粘贴进去，然后点击右下角 <strong>Run</strong>。</p>
+                <h3>第二步：创建数据表</h3>
+                <p>1. 在 Supabase 页面左侧菜单点击 <strong>SQL Editor</strong> 图标。</p>
+                <p>2. 点击 "New query"，将下方代码复制进去，然后点击右下角 <strong>Run</strong>。</p>
                 <div class="code-block" id="sql-code">create table diary_backup (
   id bigint primary key,
   updated_at timestamp with time zone,
@@ -203,72 +202,86 @@ function createCloudHelpModal() {
 
 alter table diary_backup enable row level security;
 create policy "Public Access" on diary_backup for all using (true);</div>
-                <button onclick="copySQL()" class="btn-secondary" style="font-size:12px; padding:5px 10px;">📋 复制 SQL 代码</button>
+                <button onclick="copySQL()" class="btn-secondary" style="font-size:12px; padding:5px 10px; width:100%;">📋 点击复制上方代码</button>
             </div>
 
             <div class="help-step">
-                <h3>第三步：获取连接信息</h3>
-                <p>1. 点击左下角齿轮图标 <strong>Project Settings</strong> -> <strong>API</strong>。</p>
-                <p>2. 复制 <strong>Project URL</strong> 和 <strong>anon public key</strong>。</p>
-                <p>3. 回到日记本，填入下方的输入框并保存。</p>
+                <h3>第三步：连接日记本</h3>
+                <p>1. 点击 Supabase 左下角齿轮 <strong>Project Settings</strong> -> <strong>API</strong>。</p>
+                <p>2. 找到 <strong>Project URL</strong> 和 <strong>anon public key</strong>。</p>
+                <p>3. 复制这两个值，填入日记本的输入框中，点击保存。</p>
             </div>
             
-            <button onclick="closeCloudHelp()" class="btn-primary" style="width:100%">我学会了</button>
+            <button onclick="closeCloudHelp()" class="btn-primary" style="width:100%">我明白了</button>
         </div>
     `;
     document.body.appendChild(modal);
 }
 
-// 2. 注入云端设置界面 (带展开/收起)
+// 2. 注入云端设置界面 (最稳妥的插入方式)
 function injectCloudUI() {
-    const settingsList = document.querySelector('#settings-view .settings-list');
-    if(!document.getElementById('cloud-settings-section')) {
-        const div = document.createElement('div');
-        div.id = 'cloud-settings-section';
-        div.className = 'setting-item column';
-        
-        // 头部：标题 + 问号 + 展开按钮
-        div.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                <div style="display:flex; align-items:center;">
-                    <span class="setting-label" style="margin:0">☁️ 私有云同步</span>
-                    <div class="help-btn-circle" onclick="openCloudHelp(event)">?</div>
-                </div>
-                <div class="btn-secondary" onclick="toggleCloudPanel()" style="font-size:12px; padding:4px 8px;">展开/收起</div>
-            </div>
-            
-            <!-- 隐藏的面板区域 -->
-            <div id="cloud-panel" class="cloud-panel">
-                <div style="font-size:12px;opacity:0.7;margin-bottom:10px">数据存储在你自己的 Supabase 数据库中，完全私密。</div>
-                
-                <input type="text" id="cloud-url" placeholder="Project URL (https://...)" class="todo-input" style="margin-bottom:5px; font-size:12px;">
-                <input type="password" id="cloud-key" placeholder="API Key (Anon Public)" class="todo-input" style="margin-bottom:10px; font-size:12px;">
-                
-                <div class="cloud-actions" style="display:flex;gap:10px;justify-content:space-between; margin-bottom:15px;">
-                    <button onclick="saveCloudConfig()" class="btn-primary" style="flex:1; font-size:12px;">💾 保存配置</button>
-                    <button onclick="testCloudConnection()" class="btn-secondary" style="flex:1; font-size:12px;">📡 测试连接</button>
-                </div>
+    // 尝试寻找设置列表容器
+    let settingsList = document.querySelector('.settings-list');
+    
+    // 如果找不到类名，尝试通过 ID 找
+    if (!settingsList) settingsList = document.querySelector('#settings-view > div'); 
 
-                <div id="cloud-ops" style="display:none; flex-direction:column; gap:8px; border-top:1px dashed #ccc; padding-top:15px;">
-                    <button onclick="backupToCloud()" class="btn-primary" style="background:#4caf50; font-size:13px;">⬆️ 备份全量数据</button>
-                    <button onclick="restoreFromCloud()" class="btn-primary" style="background:#2196f3; font-size:13px;">⬇️ 从云端恢复</button>
-                    <div id="cloud-status" style="font-size:11px;text-align:center;color:#666;margin-top:5px;"></div>
-                </div>
+    // 如果还是找不到，就在控制台报错并退出
+    if (!settingsList) return console.error("无法找到设置列表容器，云端功能无法注入");
+
+    // 如果已经存在，就不重复添加
+    if(document.getElementById('cloud-settings-section')) return;
+
+    const div = document.createElement('div');
+    div.id = 'cloud-settings-section';
+    div.className = 'setting-item column';
+    div.style.borderTop = "1px solid rgba(0,0,0,0.1)"; // 加个分割线让它更明显
+    div.style.marginTop = "20px";
+    
+    div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <div style="display:flex; align-items:center;">
+                <span class="setting-label" style="margin:0; font-weight:bold;">☁️ 私有云同步</span>
+                <div class="help-btn-circle" onclick="openCloudHelp(event)">?</div>
             </div>
-        `;
-        // 插入位置
-        settingsList.insertBefore(div, settingsList.children[settingsList.children.length-2]);
+            <div class="btn-secondary" onclick="toggleCloudPanel()" style="font-size:12px; padding:4px 8px;">展开/收起</div>
+        </div>
         
-        // 回填数据
-        document.getElementById('cloud-url').value = state.settings.cloudUrl || '';
-        document.getElementById('cloud-key').value = state.settings.cloudKey || '';
-        if(state.settings.cloudUrl && state.settings.cloudKey) {
-             document.getElementById('cloud-ops').style.display = 'flex';
+        <div id="cloud-panel" class="cloud-panel">
+            <div style="font-size:12px;opacity:0.7;margin-bottom:10px">配置你的专属数据库，实现多设备同步。</div>
+            
+            <input type="text" id="cloud-url" placeholder="Project URL (https://...)" class="todo-input" style="margin-bottom:5px; font-size:12px;">
+            <input type="password" id="cloud-key" placeholder="API Key (Anon Public)" class="todo-input" style="margin-bottom:10px; font-size:12px;">
+            
+            <div class="cloud-actions" style="display:flex;gap:10px;justify-content:space-between; margin-bottom:15px;">
+                <button onclick="saveCloudConfig()" class="btn-primary" style="flex:1; font-size:12px;">💾 保存配置</button>
+                <button onclick="testCloudConnection()" class="btn-secondary" style="flex:1; font-size:12px;">📡 测试连接</button>
+            </div>
+
+            <div id="cloud-ops" style="display:none; flex-direction:column; gap:8px; border-top:1px dashed #ccc; padding-top:15px;">
+                <button onclick="backupToCloud()" class="btn-primary" style="background:#4caf50; font-size:13px;">⬆️ 备份到云端</button>
+                <button onclick="restoreFromCloud()" class="btn-primary" style="background:#2196f3; font-size:13px;">⬇️ 从云端恢复</button>
+                <div id="cloud-status" style="font-size:11px;text-align:center;color:#666;margin-top:5px;"></div>
+            </div>
+        </div>
+    `;
+    
+    // 强制添加到列表的最末尾 (这样最不容易出错)
+    settingsList.appendChild(div);
+    
+    // 回填数据
+    setTimeout(() => {
+        if(document.getElementById('cloud-url')) {
+            document.getElementById('cloud-url').value = state.settings.cloudUrl || '';
+            document.getElementById('cloud-key').value = state.settings.cloudKey || '';
+            if(state.settings.cloudUrl && state.settings.cloudKey) {
+                 document.getElementById('cloud-ops').style.display = 'flex';
+            }
         }
-    }
+    }, 100);
 }
 
-/* ============ 云端辅助函数 ============ */
+// 辅助函数
 function openCloudHelp(e) { e.stopPropagation(); document.getElementById('cloud-help').classList.add('active'); }
 function closeCloudHelp() { document.getElementById('cloud-help').classList.remove('active'); }
 function toggleCloudPanel() { const p = document.getElementById('cloud-panel'); p.classList.toggle('open'); }
@@ -277,7 +290,7 @@ function copySQL() {
     navigator.clipboard.writeText(text).then(() => showToast("已复制SQL代码"));
 }
 
-/* ============ Supabase 逻辑 (保持不变) ============ */
+/* ============ Supabase 逻辑 ============ */
 function initSupabase() {
     if(window.supabase && state.settings.cloudUrl && state.settings.cloudKey) {
         try { supabaseClient = window.supabase.createClient(state.settings.cloudUrl, state.settings.cloudKey); } 
@@ -302,18 +315,18 @@ async function testCloudConnection() {
     const { data, error } = await supabaseClient.from('diary_backup').select('id').limit(1);
     if (error) {
         if(error.code === 'PGRST204' || error.message.includes('does not exist')) {
-            alert("连接成功，但表不存在！\n请点击旁边的 (?) 问号，按照教程里的第二步创建数据表。");
+            alert("连接成功！\n\n提示：云端尚未创建数据表。\n请点击旁边的 (?) 问号，查看教程第二步，一键复制代码去 Supabase 运行。");
         } else {
             alert("连接失败: " + error.message);
         }
     } else {
-        alert("✅ 连接成功！可以开始备份了。");
+        alert("✅ 连接成功！数据库就绪，可以备份了。");
     }
 }
 
 async function backupToCloud() {
     if(!supabaseClient) return;
-    if(!confirm("确定要备份到云端吗？(覆盖旧备份)")) return;
+    if(!confirm("确定要备份到云端吗？\n(云端旧数据将被覆盖)")) return;
     const status = document.getElementById('cloud-status');
     status.innerText = "正在打包上传...";
     try {
@@ -343,114 +356,20 @@ async function restoreFromCloud() {
     } catch(e) { status.innerText = "❌ 恢复失败"; alert("恢复失败: " + e.message); }
 }
 
-/* ============ 贴纸与图片处理 (无变化) ============ */
+/* ============ 其他基础功能 (保持一致) ============ */
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 function openStickerDrawer() { renderStickerDrawer(); document.getElementById('sticker-drawer').classList.add('open'); toggleUI(false); }
 function closeStickerDrawer() { document.getElementById('sticker-drawer').classList.remove('open'); isEditingDrawer = false; toggleUI(true); renderStickerDrawer(); }
 function toggleEditStickerDrawer() { isEditingDrawer = !isEditingDrawer; renderStickerDrawer(); }
-async function renderStickerDrawer() {
-    const list = document.getElementById('sticker-list');
-    const uploadBtn = list.querySelector('.sticker-add-btn');
-    list.innerHTML = ''; list.appendChild(uploadBtn);
-    const stickers = await AppDB.getAllStickers();
-    stickers.forEach(s => {
-        const div = document.createElement('div'); div.className = 'sticker-thumb';
-        const url = URL.createObjectURL(s.image);
-        let inner = `<img src="${url}">`;
-        if(isEditingDrawer) inner += `<div class="del-mark" onclick="deleteStickerFromLib(${s.id}, event)">删除</div>`;
-        div.innerHTML = inner;
-        if(!isEditingDrawer) div.onclick = () => addStickerToPage(s.image);
-        list.appendChild(div);
-    });
-}
+async function renderStickerDrawer() { const list = document.getElementById('sticker-list'); const uploadBtn = list.querySelector('.sticker-add-btn'); list.innerHTML = ''; list.appendChild(uploadBtn); const stickers = await AppDB.getAllStickers(); stickers.forEach(s => { const div = document.createElement('div'); div.className = 'sticker-thumb'; const url = URL.createObjectURL(s.image); let inner = `<img src="${url}">`; if(isEditingDrawer) inner += `<div class="del-mark" onclick="deleteStickerFromLib(${s.id}, event)">删除</div>`; div.innerHTML = inner; if(!isEditingDrawer) div.onclick = () => addStickerToPage(s.image); list.appendChild(div); }); }
 async function importStickers(input) { if(!input.files.length) return; for(let file of input.files) { const compressed = await compressImage(file, 1024, 0.8); const blob = await (await fetch(compressed)).blob(); await AppDB.addSticker(blob); } renderStickerDrawer(); input.value = ''; }
 function deleteStickerFromLib(id, e) { e.stopPropagation(); if(confirm("删除此贴纸？")) AppDB.deleteSticker(id).then(renderStickerDrawer); }
-async function addStickerToPage(blob) {
-    closeStickerDrawer();
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const base64 = e.target.result;
-        const wrapper = document.createElement('div');
-        wrapper.className = 'sticker-item selected'; wrapper.contentEditable = "false"; 
-        globalMaxZIndex++; wrapper.style.zIndex = globalMaxZIndex;
-        wrapper.style.left = '50px'; wrapper.style.top = '100px'; wrapper.style.width = '150px'; 
-        wrapper.innerHTML = `<img src="${base64}" draggable="false"><div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div><div class="sticker-ctrl ctrl-layer" onmousedown="toggleLayer(event)" ontouchstart="toggleLayer(event)">L</div><div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>`;
-        document.getElementById('diary-input').appendChild(wrapper);
-        attachStickerEvents(wrapper);
-        state.isDirty = true;
-    };
-    reader.readAsDataURL(blob);
-}
-function attachStickerEvents(el) {
-    let mode = ''; let startX, startY, startLeft, startTop; let centerX, centerY, startWidth, startHeight, startAngle = 0, initialAngle = 0; let startDist = 0, startScaleWidth = 0, startRotation = 0;
-    const activate = (e) => { e.stopPropagation(); document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); el.classList.add('selected'); const z = parseInt(window.getComputedStyle(el).zIndex); if(z !== -1) { globalMaxZIndex++; el.style.zIndex = globalMaxZIndex; } };
-    el.addEventListener('mousedown', activate);
-    el.addEventListener('touchstart', (e) => {
-        activate(e);
-        const touches = e.touches; const target = e.target;
-        if (touches.length === 2) {
-            mode = 'gesture'; e.preventDefault(); e.stopPropagation();
-            const rect = el.getBoundingClientRect(); startScaleWidth = rect.width;
-            const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform);
-            startRotation = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI));
-            startDist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
-            startAngle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX);
-        } else if (touches.length === 1) {
-            if (target.dataset.action === 'resize') {
-                mode = 'resize'; e.preventDefault(); e.stopPropagation();
-                const rect = el.getBoundingClientRect(); centerX = rect.left + rect.width / 2; centerY = rect.top + rect.height / 2;
-                startWidth = rect.width; startHeight = rect.height;
-                startAngle = Math.atan2(touches[0].clientY - centerY, touches[0].clientX - centerX);
-                const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform);
-                initialAngle = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI));
-            } else if(!target.classList.contains('sticker-ctrl')) {
-                mode = 'move'; startX = touches[0].clientX; startY = touches[0].clientY; startLeft = el.offsetLeft; startTop = el.offsetTop;
-            }
-        }
-    }, {passive: false});
-    document.addEventListener('touchmove', (e) => {
-        if(!el.classList.contains('selected')) return;
-        const touches = e.touches;
-        if (mode === 'gesture' && touches.length === 2) {
-            e.preventDefault();
-            const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
-            el.style.width = (startScaleWidth * (dist / startDist)) + 'px';
-            const angle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX);
-            el.style.transform = `rotate(${startRotation + (angle - startAngle) * (180 / Math.PI)}deg)`;
-        } else if (mode === 'move' && touches.length === 1) {
-            e.preventDefault(); el.style.left = (startLeft + (touches[0].clientX - startX)) + 'px'; el.style.top = (startTop + (touches[0].clientY - startY)) + 'px';
-        } else if (mode === 'resize' && touches.length === 1) {
-            e.preventDefault(); const touch = touches[0];
-            const currentAngle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX);
-            const dist = Math.hypot(touch.clientX - centerX, touch.clientY - centerY);
-            el.style.width = (startWidth * (dist / (Math.hypot(startWidth, startHeight) / 2))) + 'px';
-            el.style.transform = `rotate(${initialAngle + (currentAngle - startAngle) * (180 / Math.PI)}deg)`;
-        }
-    }, {passive: false});
-    document.addEventListener('touchend', () => { if(mode) state.isDirty = true; mode = ''; });
-}
+async function addStickerToPage(blob) { closeStickerDrawer(); const reader = new FileReader(); reader.onload = (e) => { const base64 = e.target.result; const wrapper = document.createElement('div'); wrapper.className = 'sticker-item selected'; wrapper.contentEditable = "false"; globalMaxZIndex++; wrapper.style.zIndex = globalMaxZIndex; wrapper.style.left = '50px'; wrapper.style.top = '100px'; wrapper.style.width = '150px'; wrapper.innerHTML = `<img src="${base64}" draggable="false"><div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div><div class="sticker-ctrl ctrl-layer" onmousedown="toggleLayer(event)" ontouchstart="toggleLayer(event)">L</div><div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>`; document.getElementById('diary-input').appendChild(wrapper); attachStickerEvents(wrapper); state.isDirty = true; }; reader.readAsDataURL(blob); }
+function attachStickerEvents(el) { let mode = ''; let startX, startY, startLeft, startTop; let centerX, centerY, startWidth, startHeight, startAngle = 0, initialAngle = 0; let startDist = 0, startScaleWidth = 0, startRotation = 0; const activate = (e) => { e.stopPropagation(); document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); el.classList.add('selected'); const z = parseInt(window.getComputedStyle(el).zIndex); if(z !== -1) { globalMaxZIndex++; el.style.zIndex = globalMaxZIndex; } }; el.addEventListener('mousedown', activate); el.addEventListener('touchstart', (e) => { activate(e); const touches = e.touches; const target = e.target; if (touches.length === 2) { mode = 'gesture'; e.preventDefault(); e.stopPropagation(); const rect = el.getBoundingClientRect(); startScaleWidth = rect.width; const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform); startRotation = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI)); startDist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); startAngle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX); } else if (touches.length === 1) { if (target.dataset.action === 'resize') { mode = 'resize'; e.preventDefault(); e.stopPropagation(); const rect = el.getBoundingClientRect(); centerX = rect.left + rect.width / 2; centerY = rect.top + rect.height / 2; startWidth = rect.width; startHeight = rect.height; startAngle = Math.atan2(touches[0].clientY - centerY, touches[0].clientX - centerX); const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform); initialAngle = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI)); } else if(!target.classList.contains('sticker-ctrl')) { mode = 'move'; startX = touches[0].clientX; startY = touches[0].clientY; startLeft = el.offsetLeft; startTop = el.offsetTop; } } }, {passive: false}); document.addEventListener('touchmove', (e) => { if(!el.classList.contains('selected')) return; const touches = e.touches; if (mode === 'gesture' && touches.length === 2) { e.preventDefault(); const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); el.style.width = (startScaleWidth * (dist / startDist)) + 'px'; const angle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX); el.style.transform = `rotate(${startRotation + (angle - startAngle) * (180 / Math.PI)}deg)`; } else if (mode === 'move' && touches.length === 1) { e.preventDefault(); el.style.left = (startLeft + (touches[0].clientX - startX)) + 'px'; el.style.top = (startTop + (touches[0].clientY - startY)) + 'px'; } else if (mode === 'resize' && touches.length === 1) { e.preventDefault(); const touch = touches[0]; const currentAngle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX); const dist = Math.hypot(touch.clientX - centerX, touch.clientY - centerY); el.style.width = (startWidth * (dist / (Math.hypot(startWidth, startHeight) / 2))) + 'px'; el.style.transform = `rotate(${initialAngle + (currentAngle - startAngle) * (180 / Math.PI)}deg)`; } }, {passive: false}); document.addEventListener('touchend', () => { if(mode) state.isDirty = true; mode = ''; }); }
 window.removeSticker = function(e) { e.stopPropagation(); e.preventDefault(); e.target.closest('.sticker-item')?.remove(); state.isDirty = true; };
 window.toggleLayer = function(e) { e.stopPropagation(); e.preventDefault(); const el = e.target.closest('.sticker-item'); const currentZ = parseInt(window.getComputedStyle(el).zIndex); if(currentZ === -1) { globalMaxZIndex++; el.style.zIndex = globalMaxZIndex; showToast("图层：文字上方"); } else { el.style.zIndex = '-1'; showToast("图层：文字下方"); } state.isDirty = true; };
 function compressImage(file, maxWidth, quality) { return new Promise((resolve) => { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); let w = img.width, h = img.height; if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth; } canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL(file.type, quality)); }; img.src = e.target.result; }; reader.readAsDataURL(file); }); }
-
-/* ============ 其他辅助功能 (搜索/锁屏/UI) ============ */
-function performSearch(query) {
-    const container = document.getElementById('search-results'); container.innerHTML = ''; if(!query.trim()) return;
-    const results = []; const tempDiv = document.createElement('div');
-    Object.keys(state.diaryData).sort().reverse().forEach(dateKey => {
-        tempDiv.innerHTML = state.diaryData[dateKey];
-        if(tempDiv.innerText.toLowerCase().includes(query.toLowerCase())) results.push({ date: dateKey, text: tempDiv.innerText });
-    });
-    if(!results.length) { container.innerHTML = '<div class="no-results">无结果</div>'; return; }
-    results.forEach(item => {
-        const el = document.createElement('div'); el.className = 'search-item';
-        const idx = item.text.toLowerCase().indexOf(query.toLowerCase());
-        const snippet = item.text.substring(Math.max(0, idx-10), Math.min(item.text.length, idx+query.length+20));
-        el.innerHTML = `<div class="search-date">${item.date}</div><div class="search-snippet">...${snippet.replace(new RegExp(`(${query})`,'gi'), '<span class="highlight-text">$1</span>')}...</div>`;
-        el.onclick = () => { document.getElementById('search-input').value = ''; container.innerHTML = ''; closeSettings(); selectDate(new Date(item.date)); setTimeout(openDiary, 300); };
-        container.appendChild(el);
-    });
-}
+function performSearch(query) { const container = document.getElementById('search-results'); container.innerHTML = ''; if(!query.trim()) return; const results = []; const tempDiv = document.createElement('div'); Object.keys(state.diaryData).sort().reverse().forEach(dateKey => { tempDiv.innerHTML = state.diaryData[dateKey]; if(tempDiv.innerText.toLowerCase().includes(query.toLowerCase())) results.push({ date: dateKey, text: tempDiv.innerText }); }); if(!results.length) { container.innerHTML = '<div class="no-results">无结果</div>'; return; } results.forEach(item => { const el = document.createElement('div'); el.className = 'search-item'; const idx = item.text.toLowerCase().indexOf(query.toLowerCase()); const snippet = item.text.substring(Math.max(0, idx-10), Math.min(item.text.length, idx+query.length+20)); el.innerHTML = `<div class="search-date">${item.date}</div><div class="search-snippet">...${snippet.replace(new RegExp(`(${query})`,'gi'), '<span class="highlight-text">$1</span>')}...</div>`; el.onclick = () => { document.getElementById('search-input').value = ''; container.innerHTML = ''; closeSettings(); selectDate(new Date(item.date)); setTimeout(openDiary, 300); }; container.appendChild(el); }); }
 function checkLockStatus() { if (state.security.enabled) { document.getElementById('lock-screen').classList.add('active'); updatePinDots(); if (state.security.biometrics && state.security.credentialId) setTimeout(tryBiometric, 500); } else { document.getElementById('lock-screen').classList.remove('active'); } }
 function enterPin(num) { if (currentPinInput.length < 4) { currentPinInput += num; updatePinDots(); if (currentPinInput.length === 4) setTimeout(verifyPin, 100); } }
 function deletePin() { currentPinInput = currentPinInput.slice(0, -1); updatePinDots(); }
