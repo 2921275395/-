@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 修复待办排序 & 恢复通知
+// script.js - 修复贴纸置顶 & 保持所有功能
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -30,6 +30,7 @@ let state = {
 
 let supabaseClient = null;
 let isEditingDrawer = false;
+let globalMaxZIndex = 100; // === 新增：全局层级计数器 ===
 
 // ==========================================
 // 数据库 (AppDB)
@@ -104,7 +105,7 @@ let notifyInterval = null;
 let currentPinInput = ""; 
 
 async function init() {
-    registerRealSW(); // 优先注册 SW
+    registerRealSW(); 
 
     await AppDB.init();
     state.diaryData = await AppDB.loadAllEntries();
@@ -162,6 +163,14 @@ async function init() {
             document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
         }
     });
+
+    // 强制禁用浏览器自动填充密码
+    const todoInp = document.getElementById('new-todo-input');
+    if(todoInp) {
+        todoInp.setAttribute('autocomplete', 'off');
+        todoInp.setAttribute('data-lpignore', 'true'); 
+        todoInp.name = 'diary_todo_input_' + Math.random().toString(36).substring(7); 
+    }
 }
 
 function focusInput(e) {
@@ -277,8 +286,11 @@ async function addStickerToPage(blob) {
         const wrapper = document.createElement('div'); 
         wrapper.className = 'sticker-item selected'; 
         wrapper.contentEditable = "false"; 
-        // 确保贴纸在上方
-        wrapper.style.zIndex = '10'; 
+        
+        // === 新增：添加时使用全局 z-index ===
+        globalMaxZIndex++;
+        wrapper.style.zIndex = globalMaxZIndex; 
+        
         wrapper.style.left = '50px'; 
         wrapper.style.top = '100px'; 
         wrapper.style.width = '150px'; 
@@ -293,6 +305,10 @@ async function addStickerToPage(blob) {
 function activateStickerElement(el) {
     document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); 
     el.classList.add('selected');
+    
+    // === 新增：点击选中时，层级置顶 ===
+    globalMaxZIndex++;
+    el.style.zIndex = globalMaxZIndex;
 }
 
 function attachStickerEvents(el) { 
@@ -302,7 +318,7 @@ function attachStickerEvents(el) {
     let startDist = 0, startScaleWidth = 0, startRotation = 0; 
 
     const handleStart = (e) => {
-        activateStickerElement(el);
+        activateStickerElement(el); // 触发置顶
         const touches = e.touches; 
         const target = e.target; 
 
@@ -444,7 +460,7 @@ function toggleTodo(id) { const t=state.todoData.find(i=>i.id===id); if(t) { t.d
 function updateTodoData(id, k, v) { const t=state.todoData.find(i=>i.id===id); if(t) { t[k]=v; if(k==='time'||k==='date') t.notified=false; saveTodo(); renderTodoList(); } }
 function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
 
-// === 修复后的渲染排序逻辑 ===
+// === 渲染排序逻辑 (保持不变) ===
 function renderTodoList() { 
     const list=document.getElementById('todo-list'); 
     list.innerHTML=''; 
@@ -527,6 +543,8 @@ function updateFormatBarPos(dir) { const b=document.getElementById('fmt-bar'),t=
 function renderCalendar() { const y=state.currentDate.getFullYear(),m=state.currentDate.getMonth(); document.getElementById('current-month-label').textContent=`${y}年 ${String(m+1).padStart(2,'0')}月`; document.getElementById('month-picker').value=`${y}-${String(m+1).padStart(2,'0')}`; const c=document.getElementById('calendar-days'); c.innerHTML=''; for(let i=0;i<new Date(y,m,1).getDay();i++) c.appendChild(document.createElement('div')); const today=new Date(); for(let i=1;i<=new Date(y,m+1,0).getDate();i++) { const d=document.createElement('div'); d.className='day'; d.textContent=i; const cur=new Date(y,m,i); const k=formatDateKey(cur); if(cur.toDateString()===today.toDateString()) d.classList.add('today'); if(cur.toDateString()===state.selectedDate.toDateString()) d.classList.add('selected'); if(state.diaryData[k]) d.classList.add('has-entry'); d.onclick=(e)=>{e.stopPropagation();selectDate(cur)}; c.appendChild(d); } }
 function changeMonth(v) { if(v) { const [y,m]=v.split('-'); state.currentDate=new Date(y,m-1,1); renderCalendar(); } }
 function selectDate(d) { state.selectedDate=d; renderCalendar(); document.getElementById('tab-date').textContent=`${d.getMonth()+1}/${d.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
+
+// === 更新：打开日记时，检测已有贴纸的最高层级 ===
 function openDiary(e) { 
     if(e)e.stopPropagation(); 
     const k=formatDateKey(state.selectedDate); 
@@ -543,6 +561,10 @@ function openDiary(e) {
     
     const stickers = tempDiv.querySelectorAll('.sticker-item');
     stickers.forEach(s => {
+        // 更新全局层级计数器，防止新贴纸被旧的遮挡
+        const z = parseInt(s.style.zIndex || 0);
+        if(z > globalMaxZIndex) globalMaxZIndex = z;
+        
         scrollArea.appendChild(s);
         attachStickerEvents(s);
     });
@@ -556,6 +578,7 @@ function openDiary(e) {
     if(state.settings.enableSticker) document.getElementById('sticker-btn').style.display='flex'; 
     state.isDirty=false; 
 }
+
 function closeDiary() { document.querySelectorAll('.sticker-item.selected').forEach(el=>el.classList.remove('selected')); saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right'); document.getElementById('fmt-bar').classList.remove('active'); document.getElementById('sticker-btn').style.display='none'; closeStickerDrawer(); toggleUI(true); updateTodoTabVisibility(); document.getElementById('index-tab').style.display = 'flex'; renderCalendar(); }
 function changeDay(o) { saveDiaryManual(false); state.selectedDate.setDate(state.selectedDate.getDate()+o); const p=document.getElementById('paper-layer'); const a=o>0?'anim-slide-left':'anim-slide-right'; p.classList.add(a); setTimeout(()=>{openDiary();p.classList.remove(a);p.style.opacity='0';requestAnimationFrame(()=>p.style.opacity='1')},350); }
 function toggleFormatToolbar(e) { e.stopPropagation(); const t=document.getElementById('fmt-toggle'); if(t.getBoundingClientRect().left<window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left'); document.getElementById('fmt-bar').classList.toggle('active'); }
