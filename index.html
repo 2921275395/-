@@ -108,8 +108,9 @@
         }
         .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
         .paper-content {
-            flex: 1; padding: 10px 25px; overflow-y: auto; 
+            flex: 1; padding: 10px 25px; overflow-y: auto; overflow-x: hidden;
             font-size: 1.15rem; line-height: 32px; border: none; background: transparent; color: var(--text-color); font-family: inherit; white-space: pre-wrap; word-break: break-word;
+            position: relative; z-index: 1; /* 保证文字层级 */
         }
         .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.5; }
         .page-nav { display: flex; justify-content: space-between; padding: 15px 25px; background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 10; }
@@ -152,7 +153,6 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.02);
         }
         body.dark-mode .todo-item-content { border: 1px solid #333; }
-        /* 修改：移除了 opacity: 0.8 以防止透明度导致删除背景色透出 */
         .todo-item-content.done { background-color: #f0f0f0; }
         body.dark-mode .todo-item-content.done { background-color: #222; }
         .todo-item-content.done .todo-text, .todo-item-content.done .todo-picker { text-decoration: line-through; color: #999; }
@@ -261,6 +261,60 @@
         .pin-btn:active { background: var(--primary-color); color: #fff; }
         .pin-btn.bio-btn { border: none; box-shadow: none; background: transparent; color: var(--primary-color); transform: scale(1.2); }
         .pin-btn.del-btn { border: none; box-shadow: none; background: transparent; font-size: 1rem; }
+
+        /* ================= 贴纸功能样式 (新) ================= */
+        .sticker-float-btn {
+            position: fixed; right: 20px; bottom: 100px; width: 50px; height: 50px;
+            background: rgba(255,255,255,0.6); backdrop-filter: blur(5px);
+            border: 1px solid var(--border-color); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); cursor: grab; z-index: 140;
+            color: var(--icon-color); touch-action: none;
+            transition: opacity 0.3s, transform 0.2s;
+        }
+        .sticker-float-btn:active { transform: scale(0.9); }
+        body.dark-mode .sticker-float-btn { background: rgba(50,50,50,0.6); border-color: #444; }
+
+        .sticker-drawer {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 280px;
+            background: var(--bg-color); border-radius: 24px 24px 0 0;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.1); z-index: 400;
+            transform: translateY(110%); transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            display: flex; flex-direction: column; border-top: 1px solid var(--line-color);
+        }
+        .sticker-drawer.open { transform: translateY(0); }
+        .drawer-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line-color); }
+        .drawer-content { flex: 1; overflow-y: auto; padding: 15px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; align-content: start; }
+        .sticker-thumb { 
+            aspect-ratio: 1; border-radius: 12px; background: rgba(0,0,0,0.05); 
+            display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative;
+        }
+        .sticker-thumb img { max-width: 90%; max-height: 90%; object-fit: contain; }
+        .sticker-add-btn { border: 2px dashed var(--line-color); color: var(--icon-color); font-size: 2rem; }
+        .sticker-thumb .del-mark { position: absolute; top: 0; right: 0; background: rgba(0,0,0,0.5); color: #fff; font-size: 12px; padding: 2px 5px; border-radius: 0 0 0 5px; display: none; }
+        .sticker-thumb:hover .del-mark { display: block; }
+
+        /* 放在页面上的贴纸 */
+        .sticker-item {
+            position: absolute; display: inline-block; cursor: move; 
+            user-select: none; -webkit-user-select: none; touch-action: none;
+            z-index: 2; /* 默认在文字上方 */
+        }
+        .sticker-item img { 
+            width: 100%; height: 100%; pointer-events: none; display: block;
+        }
+        /* 贴纸选中状态 */
+        .sticker-item.selected { outline: 1px dashed var(--primary-color); }
+        .sticker-ctrl {
+            position: absolute; width: 24px; height: 24px; background: #fff; border: 1px solid var(--primary-color);
+            border-radius: 50%; color: var(--primary-color); display: none;
+            align-items: center; justify-content: center; font-size: 14px; z-index: 10;
+        }
+        .sticker-item.selected .sticker-ctrl { display: flex; }
+        .ctrl-del { top: -12px; right: -12px; color: #ff6b6b; border-color: #ff6b6b; }
+        .ctrl-resize { bottom: -12px; right: -12px; cursor: nwse-resize; }
+        .ctrl-layer { top: -12px; left: -12px; font-size: 12px; font-weight: bold; }
+
     </style>
 </head>
 <body class="theme-beige paper-lines" onclick="handleGlobalClick(event)">
@@ -300,6 +354,24 @@
         <div class="crop-actions">
             <button class="crop-btn" onclick="cancelCrop()">取消</button>
             <button class="crop-btn confirm" onclick="finishCrop()">应用背景</button>
+        </div>
+    </div>
+
+    <!-- 贴纸抽屉 -->
+    <div id="sticker-drawer" class="sticker-drawer">
+        <div class="drawer-header">
+            <span style="font-weight:bold;">贴纸库 (IndexedDB)</span>
+            <div>
+                <button class="btn" style="margin-right:10px; font-size:0.8rem" onclick="toggleEditStickerDrawer()">管理</button>
+                <button class="icon-btn" onclick="closeStickerDrawer()">✕</button>
+            </div>
+        </div>
+        <div class="drawer-content" id="sticker-list">
+            <!-- 贴纸列表 -->
+            <label class="sticker-thumb sticker-add-btn">
+                <span class="material-icons-round">add</span>
+                <input type="file" id="sticker-upload" accept="image/*" multiple onchange="importStickers(this)">
+            </label>
         </div>
     </div>
 
@@ -378,6 +450,12 @@
                 <button class="fmt-btn" onclick="execCmd('fontSize', 3)"><span class="material-icons-round" style="font-size:1rem">text_decrease</span></button>
                 <button class="fmt-btn" onclick="execCmd('fontSize', 5)"><span class="material-icons-round" style="font-size:1.4rem">text_increase</span></button>
             </div>
+            
+            <!-- 贴纸悬浮球 -->
+            <div id="sticker-btn" class="sticker-float-btn" onclick="openStickerDrawer()" style="display:none">
+                <span class="material-icons-round">sentiment_satisfied_alt</span>
+            </div>
+
             <div id="diary-input" class="paper-content" contenteditable="true" placeholder="记录此刻的心情... (选中文本可调整格式)"></div>
             <div class="page-nav">
                 <button class="icon-btn" onclick="changeDay(-1)">←</button>
@@ -417,21 +495,10 @@
         </div>
 
         <div class="setting-group">
-            <div class="setting-title">安全与隐私</div>
-            <div class="setting-row">
-                <span>密码保护 (PIN)</span>
-                <button class="btn" onclick="togglePinLock()" id="btn-pin-toggle">OFF</button>
-            </div>
-            <div class="setting-row" id="row-bio" style="display:none">
-                <span>生物识别解锁 (指纹/面容)</span>
-                <button class="btn" onclick="toggleBiometrics()" id="btn-bio-toggle">OFF</button>
-            </div>
-        </div>
-
-        <div class="setting-group">
             <div class="setting-title">个性化</div>
             <div class="setting-row"><span>夜间模式</span><button class="btn" onclick="toggleDarkMode()" id="btn-dark">OFF</button></div>
             <div class="setting-row"><span>待办清单入口</span><button class="btn" onclick="toggleTodoSetting()" id="btn-todo-toggle">ON</button></div>
+            <div class="setting-row"><span>贴纸功能</span><button class="btn" onclick="toggleStickerSetting()" id="btn-sticker-toggle">OFF</button></div>
             
             <div class="setting-row">
                 <span>纸张颜色</span>
@@ -464,6 +531,19 @@
             </div>
             <div class="setting-row"><span>还原默认背景</span><button class="btn" onclick="clearBgImage()">还原</button></div>
         </div>
+        
+        <div class="setting-group">
+            <div class="setting-title">安全与隐私</div>
+            <div class="setting-row">
+                <span>密码保护 (PIN)</span>
+                <button class="btn" onclick="togglePinLock()" id="btn-pin-toggle">OFF</button>
+            </div>
+            <div class="setting-row" id="row-bio" style="display:none">
+                <span>生物识别解锁 (指纹/面容)</span>
+                <button class="btn" onclick="toggleBiometrics()" id="btn-bio-toggle">OFF</button>
+            </div>
+        </div>
+
         <div class="setting-group">
             <div class="setting-title">数据</div>
             <div class="setting-row" style="display:block">
@@ -490,15 +570,61 @@
             selectedDate: new Date(),
             diaryData: JSON.parse(localStorage.getItem('myDiaryData_v2') || '{}'),
             todoData: JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]'),
-            settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":"","showTodo":true}'),
+            settings: JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{"theme":"theme-beige","paper":"paper-lines","darkMode":false,"customFont":"","showTodo":true,"enableSticker":false}'),
             security: JSON.parse(localStorage.getItem('myDiarySecurity_v2') || '{"enabled":false, "pin":"", "biometrics":false, "credentialId": null}'),
             bgImage: localStorage.getItem('myDiaryBg_v2') || null,
             isDirty: false
         };
 
+        // IndexedDB 管理器 (贴纸库)
+        const StickerDB = {
+            dbName: 'DiaryStickerDB',
+            dbVersion: 1,
+            db: null,
+            init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.dbVersion);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('stickers')) {
+                            db.createObjectStore('stickers', { keyPath: 'id', autoIncrement: true });
+                        }
+                    };
+                    request.onsuccess = (e) => { this.db = e.target.result; resolve(); };
+                    request.onerror = (e) => reject(e);
+                });
+            },
+            addSticker(blob) {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['stickers'], 'readwrite');
+                    const store = transaction.objectStore('stickers');
+                    const request = store.add({ image: blob, created: Date.now() });
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject();
+                });
+            },
+            getAllStickers() {
+                return new Promise((resolve) => {
+                    const transaction = this.db.transaction(['stickers'], 'readonly');
+                    const store = transaction.objectStore('stickers');
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result || []);
+                });
+            },
+            deleteSticker(id) {
+                return new Promise((resolve) => {
+                    const transaction = this.db.transaction(['stickers'], 'readwrite');
+                    const store = transaction.objectStore('stickers');
+                    store.delete(id);
+                    transaction.oncomplete = () => resolve();
+                });
+            }
+        };
+
         let cropperInstance = null;
         let notifyInterval = null;
         let currentPinInput = ""; 
+        let isEditingDrawer = false;
 
         function init() {
             checkLockStatus();
@@ -506,6 +632,8 @@
             if(state.settings.customFont) loadCustomFont(state.settings.customFont);
             renderCalendar();
             renderTodoList();
+            StickerDB.init().then(() => renderStickerDrawer()); // 初始化 DB
+            
             setInterval(autoSave, 60000);
             registerRealSW();
             startNotificationCheck();
@@ -519,10 +647,9 @@
             initDraggable(document.getElementById('index-tab'), 'left');
             initDraggable(document.getElementById('todo-tab'), 'left');
             initDraggable(document.getElementById('fmt-toggle'), 'any');
+            initDraggable(document.getElementById('sticker-btn'), 'any'); // 贴纸球拖动
             
             document.getElementById('export-date-picker').valueAsDate = new Date();
-            
-            // 初始化月度浏览的月份选择器为当前月
             const now = new Date();
             document.getElementById('gallery-month-picker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
@@ -530,6 +657,220 @@
             
             document.body.addEventListener('click', (e) => {
                 if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
+                // 点击贴纸以外区域取消选中
+                if(!e.target.closest('.sticker-item')) {
+                    document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
+                }
+            });
+        }
+
+        /* ============ 贴纸功能逻辑 ============ */
+        function toggleStickerSetting() {
+            state.settings.enableSticker = !state.settings.enableSticker;
+            saveSettings();
+            applySettings();
+        }
+
+        function openStickerDrawer() {
+            renderStickerDrawer();
+            document.getElementById('sticker-drawer').classList.add('open');
+            toggleUI(false);
+        }
+
+        function closeStickerDrawer() {
+            document.getElementById('sticker-drawer').classList.remove('open');
+            isEditingDrawer = false;
+        }
+
+        function toggleEditStickerDrawer() {
+            isEditingDrawer = !isEditingDrawer;
+            renderStickerDrawer();
+        }
+
+        async function renderStickerDrawer() {
+            const list = document.getElementById('sticker-list');
+            // 保留上传按钮
+            const uploadBtn = list.querySelector('.sticker-add-btn');
+            list.innerHTML = '';
+            list.appendChild(uploadBtn);
+
+            const stickers = await StickerDB.getAllStickers();
+            stickers.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'sticker-thumb';
+                const url = URL.createObjectURL(s.image);
+                
+                let inner = `<img src="${url}">`;
+                if(isEditingDrawer) {
+                    inner += `<div class="del-mark" onclick="deleteStickerFromLib(${s.id}, event)">删除</div>`;
+                }
+                div.innerHTML = inner;
+                
+                if(!isEditingDrawer) {
+                    div.onclick = () => addStickerToPage(s.image);
+                }
+                list.appendChild(div);
+            });
+        }
+
+        async function importStickers(input) {
+            if(!input.files.length) return;
+            for(let file of input.files) {
+                // 简单压缩
+                const compressed = await compressImage(file, 300, 0.7); // 压到300px宽
+                const blob = await (await fetch(compressed)).blob();
+                await StickerDB.addSticker(blob);
+            }
+            renderStickerDrawer();
+            input.value = '';
+        }
+
+        function deleteStickerFromLib(id, e) {
+            e.stopPropagation();
+            if(confirm("确定从库中删除此贴纸？")) {
+                StickerDB.deleteSticker(id).then(renderStickerDrawer);
+            }
+        }
+
+        // 核心：添加贴纸到页面
+        async function addStickerToPage(blob) {
+            closeStickerDrawer();
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const base64 = e.target.result;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'sticker-item selected';
+                wrapper.contentEditable = "false"; // 防止被当做文字编辑
+                wrapper.style.left = '50px';
+                wrapper.style.top = '100px';
+                wrapper.style.width = '100px';
+                wrapper.style.height = 'auto';
+                
+                wrapper.innerHTML = `
+                    <img src="${base64}" draggable="false">
+                    <div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div>
+                    <div class="sticker-ctrl ctrl-layer" onmousedown="toggleLayer(event)" ontouchstart="toggleLayer(event)">L</div>
+                    <div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>
+                `;
+                
+                document.getElementById('diary-input').appendChild(wrapper);
+                attachStickerEvents(wrapper);
+                state.isDirty = true;
+            };
+            reader.readAsDataURL(blob);
+        }
+
+        // 贴纸交互逻辑 (拖拽、旋转、缩放)
+        function attachStickerEvents(el) {
+            let startX, startY, startLeft, startTop;
+            let startWidth, startHeight, startAngle = 0, initialAngle = 0;
+            let mode = ''; // 'move' or 'resize'
+            let centerX, centerY;
+
+            // 点击选中
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected'));
+                el.classList.add('selected');
+            });
+
+            // 触摸开始
+            el.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                const target = e.target;
+                
+                if (target.dataset.action === 'resize') {
+                    mode = 'resize';
+                    e.preventDefault(); // 防止滚动
+                    e.stopPropagation();
+                    const rect = el.getBoundingClientRect();
+                    centerX = rect.left + rect.width / 2;
+                    centerY = rect.top + rect.height / 2;
+                    startWidth = rect.width;
+                    startHeight = rect.height;
+                    startAngle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX);
+                    // 获取当前旋转角度
+                    const style = window.getComputedStyle(el);
+                    const matrix = new WebKitCSSMatrix(style.transform);
+                    initialAngle = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI));
+                } else if(!target.classList.contains('sticker-ctrl')) {
+                    mode = 'move';
+                    // e.preventDefault(); // 不要阻止默认，否则没法获得焦点删除
+                    startX = touch.clientX;
+                    startY = touch.clientY;
+                    startLeft = el.offsetLeft;
+                    startTop = el.offsetTop;
+                }
+            }, {passive: false});
+
+            // 触摸移动
+            document.addEventListener('touchmove', (e) => {
+                if(!el.classList.contains('selected')) return;
+                const touch = e.touches[0];
+
+                if (mode === 'move') {
+                    e.preventDefault();
+                    const dx = touch.clientX - startX;
+                    const dy = touch.clientY - startY;
+                    el.style.left = (startLeft + dx) + 'px';
+                    el.style.top = (startTop + dy) + 'px';
+                } else if (mode === 'resize') {
+                    e.preventDefault();
+                    const currentAngle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX);
+                    const rotation = initialAngle + (currentAngle - startAngle) * (180 / Math.PI);
+                    
+                    // 计算距离作为缩放依据
+                    const dist = Math.hypot(touch.clientX - centerX, touch.clientY - centerY);
+                    const scale = dist / (Math.hypot(startWidth, startHeight) / 2); // 粗略估算
+
+                    el.style.width = (startWidth * scale) + 'px';
+                    // 高度自适应
+                    el.style.transform = `rotate(${rotation}deg)`;
+                }
+            }, {passive: false});
+
+            document.addEventListener('touchend', () => { 
+                if(mode) state.isDirty = true;
+                mode = ''; 
+            });
+        }
+        
+        // 全局辅助函数：移除贴纸
+        window.removeSticker = function(e) {
+            e.stopPropagation(); e.preventDefault();
+            const el = e.target.closest('.sticker-item');
+            if(el) el.remove();
+            state.isDirty = true;
+        };
+
+        // 全局辅助函数：切换层级
+        window.toggleLayer = function(e) {
+            e.stopPropagation(); e.preventDefault();
+            const el = e.target.closest('.sticker-item');
+            // z-index 2: 上层, 0: 下层(文字背景)
+            const current = window.getComputedStyle(el).zIndex;
+            el.style.zIndex = (current == '2' || current == 'auto') ? '0' : '2';
+            state.isDirty = true;
+        };
+        
+        // 图片压缩工具
+        function compressImage(file, maxWidth, quality) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width, h = img.height;
+                        if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth; }
+                        canvas.width = w; canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL(file.type, quality));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
             });
         }
 
@@ -682,6 +1023,14 @@
                     tab.classList.add('hidden-ui');
                 }
             });
+            
+            // 贴纸球显隐
+            const stickerBtn = document.getElementById('sticker-btn');
+            if(show && state.settings.enableSticker) {
+                stickerBtn.style.display = 'flex';
+            } else {
+                stickerBtn.style.display = 'none';
+            }
         }
         
         function updateTodoTabVisibility() {
@@ -839,9 +1188,7 @@
                 // 第一页
                 createGalleryCard(gallery, content, dateDisplay, false, dateStr);
 
-                // 简单的"长文检测"：如果字符数过多，生成第二页
-                // 注意：由于是缩放显示，精确的高度计算较难，这里使用字符长度估算作为分割依据
-                // 假设大于300字符可能需要第二页显示
+                // 简单的"长文检测"
                 if(content.length > 500 || (content.match(/\n/g) || []).length > 10) {
                     createGalleryCard(gallery, content, '', true, dateStr);
                 }
@@ -865,7 +1212,13 @@
         if(!isPage2) {
             html += `<div class="thumb-date">${dateLabel}</div>`;
         }
-        html += `<div class="thumb-text">${content}</div>`;
+        // 对于预览卡片，我们移除贴纸的 HTML（因为位置和缩放会导致预览很乱）
+        // 这里做一个简单的清理，只显示文字和普通图片
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        tempDiv.querySelectorAll('.sticker-item').forEach(el => el.remove());
+
+        html += `<div class="thumb-text">${tempDiv.innerHTML}</div>`;
         
         scaler.innerHTML = html;
         wrapper.appendChild(scaler);
@@ -898,12 +1251,39 @@
     function renderCalendar() { const year = state.currentDate.getFullYear(); const month = state.currentDate.getMonth(); document.getElementById('current-month-label').textContent = `${year}年 ${String(month + 1).padStart(2, '0')}月`; document.getElementById('month-picker').value = `${year}-${String(month + 1).padStart(2, '0')}`; const firstDay = new Date(year, month, 1); const lastDay = new Date(year, month + 1, 0); const daysContainer = document.getElementById('calendar-days'); daysContainer.innerHTML = ''; for (let i = 0; i < firstDay.getDay(); i++) daysContainer.appendChild(document.createElement('div')); const today = new Date(); for (let i = 1; i <= lastDay.getDate(); i++) { const dayEl = document.createElement('div'); dayEl.className = 'day'; dayEl.textContent = i; const thisDate = new Date(year, month, i); const dateKey = formatDateKey(thisDate); if (isSameDay(thisDate, today)) dayEl.classList.add('today'); if (isSameDay(thisDate, state.selectedDate)) dayEl.classList.add('selected'); if (state.diaryData[dateKey]) dayEl.classList.add('has-entry'); dayEl.onclick = (e) => { e.stopPropagation(); selectDate(thisDate); }; daysContainer.appendChild(dayEl); } }
     function changeMonth(val) { if(!val) return; const [y, m] = val.split('-'); state.currentDate = new Date(parseInt(y), parseInt(m) - 1, 1); renderCalendar(); }
     function selectDate(date) { state.selectedDate = date; renderCalendar(); document.getElementById('tab-date').textContent = `${date.getMonth() + 1}/${date.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
-    function openDiary(e) { if(e) e.stopPropagation(); const dateKey = formatDateKey(state.selectedDate); document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'}); const content = state.diaryData[dateKey] || ''; const inputDiv = document.getElementById('diary-input'); if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) inputDiv.innerText = content; else inputDiv.innerHTML = content; document.getElementById('diary-view').classList.remove('hidden-right'); toggleUI(false); state.isDirty = false; }
-    function closeDiary() { saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right'); document.getElementById('fmt-bar').classList.remove('active'); toggleUI(true); renderCalendar(); }
+    function openDiary(e) { 
+        if(e) e.stopPropagation(); 
+        const dateKey = formatDateKey(state.selectedDate); 
+        document.getElementById('diary-date-display').textContent = state.selectedDate.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'long'}); 
+        const content = state.diaryData[dateKey] || ''; 
+        const inputDiv = document.getElementById('diary-input'); 
+        if (content.indexOf('<') === -1 && content.indexOf('\n') !== -1) inputDiv.innerText = content; 
+        else inputDiv.innerHTML = content; 
+        
+        // 恢复贴纸事件
+        document.querySelectorAll('.sticker-item').forEach(el => attachStickerEvents(el));
+
+        document.getElementById('diary-view').classList.remove('hidden-right'); 
+        toggleUI(false); 
+        
+        // 如果开启了贴纸功能，显示按钮
+        if(state.settings.enableSticker) document.getElementById('sticker-btn').style.display = 'flex';
+
+        state.isDirty = false; 
+    }
+    function closeDiary() { 
+        saveDiaryManual(false); 
+        document.getElementById('diary-view').classList.add('hidden-right'); 
+        document.getElementById('fmt-bar').classList.remove('active'); 
+        document.getElementById('sticker-btn').style.display = 'none'; // 隐藏贴纸按钮
+        closeStickerDrawer();
+        toggleUI(true); 
+        renderCalendar(); 
+    }
     function changeDay(offset) { saveDiaryManual(false); const newDate = new Date(state.selectedDate); newDate.setDate(newDate.getDate() + offset); state.selectedDate = newDate; const paper = document.getElementById('paper-layer'); const anim = offset > 0 ? 'anim-slide-left' : 'anim-slide-right'; paper.classList.add(anim); setTimeout(() => { openDiary(); paper.classList.remove(anim); paper.style.opacity = '0'; requestAnimationFrame(() => paper.style.opacity = '1'); }, 350); }
     function toggleFormatToolbar(e) { e.stopPropagation(); const toggle = document.getElementById('fmt-toggle'); const rect = toggle.getBoundingClientRect(); if (rect.left < window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left'); document.getElementById('fmt-bar').classList.toggle('active'); }
     function execCmd(command, value = null) { document.execCommand(command, false, value); document.getElementById('diary-input').focus(); }
-    function saveDiaryManual(showToastFlag = true) { const inputDiv = document.getElementById('diary-input'); if (!state.isDirty && inputDiv.innerText.trim() === "") return; const dateKey = formatDateKey(state.selectedDate); const content = inputDiv.innerHTML; if (inputDiv.innerText.trim() === "" && !content.includes('<img')) delete state.diaryData[dateKey]; else state.diaryData[dateKey] = content; localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); state.isDirty = false; if (showToastFlag) showToast(); }
+    function saveDiaryManual(showToastFlag = true) { const inputDiv = document.getElementById('diary-input'); if (!state.isDirty && inputDiv.innerText.trim() === "" && !inputDiv.querySelector('img')) return; const dateKey = formatDateKey(state.selectedDate); const content = inputDiv.innerHTML; if (inputDiv.innerText.trim() === "" && !content.includes('<img')) delete state.diaryData[dateKey]; else state.diaryData[dateKey] = content; localStorage.setItem('myDiaryData_v2', JSON.stringify(state.diaryData)); state.isDirty = false; if (showToastFlag) showToast(); }
     function autoSave() { if (state.isDirty) saveDiaryManual(true); }
     function showToast(msg) { const t=document.getElementById('save-toast'); t.innerText = msg || "☁️ 已自动保存"; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
     function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
@@ -934,6 +1314,7 @@
         if (state.settings.darkMode) document.body.classList.add('dark-mode'); else document.body.classList.remove('dark-mode'); 
         document.getElementById('btn-dark').textContent = state.settings.darkMode ? "ON" : "OFF";
         document.getElementById('btn-todo-toggle').textContent = state.settings.showTodo ? "ON" : "OFF";
+        document.getElementById('btn-sticker-toggle').textContent = state.settings.enableSticker ? "ON" : "OFF";
         document.getElementById('btn-pin-toggle').textContent = state.security.enabled ? "ON" : "OFF";
         document.getElementById('btn-bio-toggle').textContent = state.security.biometrics ? "ON" : "OFF";
         document.getElementById('row-bio').style.display = state.security.enabled ? 'flex' : 'none';
