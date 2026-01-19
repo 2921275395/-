@@ -1,24 +1,41 @@
 // ==========================================
-// script.js - 终极修复版 (高清背景 + 智能缩略图)
+// script.js - 云端独立版 (各自存储，互不干扰)
 // ==========================================
+
+// 动态加载 Supabase SDK
+const script = document.createElement('script');
+script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+document.head.appendChild(script);
 
 // 全局状态
 let state = {
     currentDate: new Date(),
     selectedDate: new Date(),
-    diaryData: {}, // 内存缓存，从DB加载
+    diaryData: {}, 
     todoData: [],
-    settings: { theme: "theme-beige", paper: "paper-lines", darkMode: false, customFont: "", showTodo: true, enableSticker: false },
+    // 设置里新增 cloud 配置
+    settings: { 
+        theme: "theme-beige", 
+        paper: "paper-lines", 
+        darkMode: false, 
+        customFont: "", 
+        showTodo: true, 
+        enableSticker: false,
+        cloudUrl: "", // 用户自己的 Supabase URL
+        cloudKey: ""  // 用户自己的 Supabase Key
+    },
     security: { enabled: false, pin: "", biometrics: false, credentialId: null },
     bgImage: null,
     isDirty: false
 };
 
-// 全局 Z-index 计数器
+// 全局 Supabase 客户端实例
+let supabaseClient = null;
+
 let globalMaxZIndex = 10;
 
 // ==========================================
-// 数据库管理器 (AppDB) - 保持 IndexedDB 存储
+// 数据库管理器 (本地 IndexedDB)
 // ==========================================
 const AppDB = {
     dbName: 'MyDiaryProDB',
@@ -64,6 +81,20 @@ const AppDB = {
             tx.onerror = (e) => reject(e);
         });
     },
+    // 批量保存（用于从云端恢复时）
+    async bulkSaveEntries(dataObj) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(['entries'], 'readwrite');
+            const store = tx.objectStore('entries');
+            // 先清空旧数据（可选，这里选择覆盖模式）
+            // store.clear(); 
+            Object.keys(dataObj).forEach(dateKey => {
+                store.put({ date: dateKey, content: dataObj[dateKey] });
+            });
+            tx.oncomplete = () => resolve();
+            tx.onerror = (e) => reject(e);
+        });
+    },
 
     async addSticker(blob) {
         return new Promise((resolve) => {
@@ -98,7 +129,6 @@ let isEditingDrawer = false;
 
 async function init() {
     await AppDB.init();
-    migrateOldData();
     state.diaryData = await AppDB.loadAllEntries();
 
     try {
@@ -110,6 +140,7 @@ async function init() {
 
     checkLockStatus();
     applySettings();
+    initSupabase(); // 初始化云端连接
     if(state.settings.customFont) loadCustomFont(state.settings.customFont);
     renderCalendar();
     renderTodoList();
@@ -137,6 +168,7 @@ async function init() {
     document.getElementById('gallery-month-picker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
     checkNotifyState();
+    injectCloudUI(); // 注入云端UI
     
     document.body.addEventListener('click', (e) => {
         if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
@@ -146,19 +178,169 @@ async function init() {
     });
 }
 
-function migrateOldData() {
-    const oldData = localStorage.getItem('myDiaryData_v2');
-    if (oldData) {
-        try {
-            const parsed = JSON.parse(oldData);
-            Object.keys(parsed).forEach(async (dateKey) => { await AppDB.saveEntry(dateKey, parsed[dateKey]); });
-            localStorage.setItem('myDiaryData_v2_backup', oldData);
-            localStorage.removeItem('myDiaryData_v2');
-        } catch (e) {}
+// 动态注入云端设置界面
+function injectCloudUI() {
+    const settingsList = document.querySelector('#settings-view .settings-list');
+    if(!document.getElementById('cloud-settings-section')) {
+        const div = document.createElement('div');
+        div.id = 'cloud-settings-section';
+        div.className = 'setting-item column';
+        div.innerHTML = `
+            <div class="setting-label">☁️ 私有云同步 (Supabase)</div>
+            <div class="setting-desc" style="font-size:12px;opacity:0.7;margin-bottom:10px">填入你自己的 Key，数据将存储在你的私人数据库中。</div>
+            <input type="text" id="cloud-url" placeholder="Project URL (https://...)" class="todo-input" style="margin-bottom:5px">
+            <input type="password" id="cloud-key" placeholder="API Key (Anon Public)" class="todo-input" style="margin-bottom:10px">
+            <div class="cloud-actions" style="display:flex;gap:10px;justify-content:space-between">
+                <button onclick="saveCloudConfig()" class="btn-primary" style="flex:1">💾 保存配置</button>
+                <button onclick="testCloudConnection()" class="btn-secondary" style="flex:1">📡 测试连接</button>
+            </div>
+            <div id="cloud-ops" style="display:none; flex-direction:column; gap:10px; margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
+                <button onclick="backupToCloud()" class="btn-primary" style="background:#4caf50">⬆️ 备份全量数据到云端</button>
+                <button onclick="restoreFromCloud()" class="btn-primary" style="background:#2196f3">⬇️ 从云端恢复 (覆盖本地)</button>
+                <div id="cloud-status" style="font-size:12px;text-align:center;color:#666"></div>
+            </div>
+        `;
+        // 插入到倒数第二个位置（在导出数据之前）
+        settingsList.insertBefore(div, settingsList.children[settingsList.children.length-2]);
+        
+        document.getElementById('cloud-url').value = state.settings.cloudUrl || '';
+        document.getElementById('cloud-key').value = state.settings.cloudKey || '';
+        if(state.settings.cloudUrl && state.settings.cloudKey) {
+             document.getElementById('cloud-ops').style.display = 'flex';
+        }
     }
 }
 
-/* ============ 贴纸功能 ============ */
+// 初始化 Supabase
+function initSupabase() {
+    if(window.supabase && state.settings.cloudUrl && state.settings.cloudKey) {
+        try {
+            supabaseClient = window.supabase.createClient(state.settings.cloudUrl, state.settings.cloudKey);
+            console.log("Supabase Client Init");
+        } catch(e) { console.error("Supabase Init Fail", e); }
+    }
+}
+
+function saveCloudConfig() {
+    const url = document.getElementById('cloud-url').value.trim();
+    const key = document.getElementById('cloud-key').value.trim();
+    state.settings.cloudUrl = url;
+    state.settings.cloudKey = key;
+    saveSettings();
+    initSupabase();
+    if(url && key) document.getElementById('cloud-ops').style.display = 'flex';
+    showToast("配置已保存");
+}
+
+async function testCloudConnection() {
+    if(!supabaseClient) return alert("请先保存配置");
+    showToast("正在连接...");
+    // 尝试读取一行数据来测试
+    const { data, error } = await supabaseClient.from('diary_backup').select('id').limit(1);
+    
+    if (error) {
+        // 如果是 404，说明表不存在，提示用户建表
+        if(error.code === 'PGRST204' || error.message.includes('does not exist')) {
+            alert("连接成功！但你的数据库缺少 'diary_backup' 表。\n\n请去 Supabase SQL Editor 运行建表代码 (我会发给你)。");
+        } else {
+            alert("连接失败: " + error.message);
+        }
+    } else {
+        alert("连接成功！数据库就绪。");
+    }
+}
+
+async function backupToCloud() {
+    if(!supabaseClient) return;
+    if(!confirm("确定要将所有本地日记备份到云端吗？\n(这会覆盖云端旧备份)")) return;
+    
+    const status = document.getElementById('cloud-status');
+    status.innerText = "正在打包数据...";
+    
+    try {
+        // 准备数据包
+        const backupData = {
+            updated_at: new Date().toISOString(),
+            diary_data: state.diaryData, // 包含所有日记内容的巨大JSON对象
+            todo_data: state.todoData,
+            settings: state.settings, // 同步设置
+            device_info: navigator.userAgent
+        };
+        
+        // 我们使用一个固定的 ID = 1，每次 update 覆盖，达到“个人云存档”的效果
+        // 先检查是否存在
+        const { data: exist } = await supabaseClient.from('diary_backup').select('id').eq('id', 1).single();
+        
+        let err;
+        if(exist) {
+            status.innerText = "正在上传 (覆盖)...";
+            const { error } = await supabaseClient.from('diary_backup').update(backupData).eq('id', 1);
+            err = error;
+        } else {
+            status.innerText = "正在上传 (新建)...";
+            const { error } = await supabaseClient.from('diary_backup').insert([{ id: 1, ...backupData }]);
+            err = error;
+        }
+        
+        if(err) throw err;
+        status.innerText = "✅ 备份成功 " + new Date().toLocaleTimeString();
+        showToast("备份成功");
+        
+    } catch(e) {
+        console.error(e);
+        status.innerText = "❌ 失败: " + e.message;
+        alert("备份失败，可能是图片太多导致数据包过大(超限)。\n" + e.message);
+    }
+}
+
+async function restoreFromCloud() {
+    if(!supabaseClient) return;
+    if(!confirm("⚠️ 警告：这将下载云端备份并【覆盖】当前手机上的所有日记！\n确定继续吗？")) return;
+    
+    const status = document.getElementById('cloud-status');
+    status.innerText = "正在下载...";
+    
+    try {
+        const { data, error } = await supabaseClient.from('diary_backup').select('*').eq('id', 1).single();
+        if(error) throw error;
+        if(!data) return alert("云端没有备份数据");
+        
+        status.innerText = "正在恢复数据...";
+        
+        // 恢复内存状态
+        if(data.diary_data) {
+            state.diaryData = data.diary_data;
+            // 写入 IndexedDB
+            await AppDB.bulkSaveEntries(state.diaryData);
+        }
+        if(data.todo_data) {
+            state.todoData = data.todo_data;
+            saveTodo();
+        }
+        // 可选：恢复设置，但保留当前的 cloudKey 防止掉线
+        if(data.settings) {
+            const currentCloud = { url: state.settings.cloudUrl, key: state.settings.cloudKey };
+            state.settings = { ...data.settings, cloudUrl: currentCloud.url, cloudKey: currentCloud.key };
+            saveSettings();
+        }
+        
+        status.innerText = "✅ 恢复完成";
+        showToast("恢复成功");
+        setTimeout(() => {
+             renderCalendar();
+             renderTodoList();
+             applySettings();
+             closeSettings();
+        }, 500);
+        
+    } catch(e) {
+        status.innerText = "❌ 恢复失败";
+        alert("恢复失败: " + e.message);
+    }
+}
+
+
+/* ============ 贴纸功能 (保持不变) ============ */
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 function openStickerDrawer() { renderStickerDrawer(); document.getElementById('sticker-drawer').classList.add('open'); toggleUI(false); }
 function closeStickerDrawer() { document.getElementById('sticker-drawer').classList.remove('open'); isEditingDrawer = false; toggleUI(true); renderStickerDrawer(); }
@@ -353,7 +535,7 @@ function startNotificationCheck() { if(notifyInterval) clearInterval(notifyInter
     state.todoData.forEach(t=>{ if(!t.done && t.date===d && t.time && !t.notified) { const [th,tm]=t.time.split(':').map(Number); if(Math.abs(m-(th*60+tm))<=1) { new Notification("日记本提醒",{body:t.text}); t.notified=true; saveTodo(); } } });
 },5000); }
 
-/* ============ 画廊 (修复：贴纸透明防遮挡) ============ */
+/* ============ 画廊 ============ */
 function openMonthGallery() { 
     const v=document.getElementById('gallery-month-picker').value; if(!v) return alert("请选月份");
     document.getElementById('month-gallery').classList.remove('hidden-right'); document.getElementById('settings-view').classList.add('hidden-right');
@@ -368,25 +550,21 @@ function openMonthGallery() {
 function createGalleryCard(container, content, dateLabel, dateKey) {
     const w = document.createElement('div'); 
     w.className = `gallery-card ${state.bgImage?'has-bg':''}`;
-    
-    // 构建卡片内容容器
     const thumbScaler = document.createElement('div');
     thumbScaler.className = 'thumb-scaler';
     if(state.bgImage) thumbScaler.style.backgroundImage = `url(${state.bgImage})`;
-    
     const dateDiv = document.createElement('div');
     dateDiv.className = 'thumb-date';
     dateDiv.innerText = dateLabel;
-    
     const textDiv = document.createElement('div');
     textDiv.className = 'thumb-text';
     textDiv.innerHTML = content;
     
-    // 关键修复：遍历所有缩略图里的贴纸，强制设为半透明，防止遮挡文字
+    // 缩略图贴纸半透明
     textDiv.querySelectorAll('.sticker-item').forEach(s => {
-        s.style.opacity = '0.2'; // 20% 不透明度 (很淡的水印)
-        s.style.pointerEvents = 'none'; // 禁止交互
-        s.style.zIndex = '0'; // 放在最底层
+        s.style.opacity = '0.2'; 
+        s.style.pointerEvents = 'none'; 
+        s.style.zIndex = '0';
     });
 
     thumbScaler.appendChild(dateDiv);
@@ -485,7 +663,6 @@ function startCrop(i) { const f=i.files[0]; if(f) { const r=new FileReader(); r.
 function cancelCrop() { document.getElementById('cropper-modal').style.display='none'; if(cropperInstance)cropperInstance.destroy(); }
 function finishCrop() { 
     if(cropperInstance) { 
-        // 修复：极大提升裁剪分辨率到 2560px (2K)，确保背景清晰
         state.bgImage=cropperInstance.getCroppedCanvas({
             maxWidth:2560, maxHeight:2560, fillColor:'#fff'
         }).toDataURL('image/jpeg', 0.9); 
@@ -495,7 +672,7 @@ function finishCrop() {
 function applyBgImage() { const p=document.getElementById('paper-layer'); if(state.bgImage){p.style.backgroundImage=`url(${state.bgImage})`;p.classList.add('has-custom-bg')}else{p.style.backgroundImage='';p.classList.remove('has-custom-bg')} }
 function clearBgImage() { state.bgImage=null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("已还原"); }
 
-function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); toggleUI(false); document.getElementById('font-url-input').value=state.settings.customFont||''; }
+function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); toggleUI(false); document.getElementById('font-url-input').value=state.settings.customFont||''; injectCloudUI(); }
 function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); toggleUI(true); saveSettings(); }
 function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
 function toggleDarkMode() { state.settings.darkMode=!state.settings.darkMode; applySettings(); }
