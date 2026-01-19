@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极分离版 (贴纸文字分层)
+// script.js - 终极版 (修复提醒 + 高清小体积导出)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -125,9 +125,12 @@ async function init() {
     
     setInterval(autoSave, 60000); 
     registerRealSW();
-    startNotificationCheck();
+    startNotificationCheck(); // 启动通知检查
     
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNotifications(true); });
+    // 修复：确保函数名正确，且在多个生命周期检查通知
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkReminders(); });
+    window.addEventListener('focus', () => checkReminders());
+
     document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
     
     initDraggable(document.getElementById('index-tab'), 'left');
@@ -162,16 +165,35 @@ async function init() {
             document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
         }
     });
+
+    // === 事件穿透拦截器 (解决贴纸在文字下方无法点击的问题) ===
+    const diaryInput = document.getElementById('diary-input');
+    const handleInputPenetration = (e) => {
+        diaryInput.style.visibility = 'hidden';
+        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        const elemBelow = document.elementFromPoint(clientX, clientY);
+        diaryInput.style.visibility = 'visible';
+
+        const sticker = elemBelow ? elemBelow.closest('.sticker-item') : null;
+        if (sticker) {
+            e.preventDefault(); e.stopPropagation();
+            activateStickerElement(sticker);
+            const newEvent = new e.constructor(e.type, e);
+            sticker.dispatchEvent(newEvent);
+        }
+    };
+    diaryInput.addEventListener('mousedown', handleInputPenetration);
+    diaryInput.addEventListener('touchstart', handleInputPenetration, {passive: false});
 }
 
 function focusInput(e) {
-    // 如果点击的是滚动背景或input，聚焦。如果点击的是贴纸，不聚焦
     if(e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input') {
         document.getElementById('diary-input').focus();
     }
 }
 
-// 辅助函数 (UI相关)
+// 辅助函数
 function openCloudHelp(e) { e.stopPropagation(); document.getElementById('cloud-help').classList.add('active'); }
 function closeCloudHelp() { document.getElementById('cloud-help').classList.remove('active'); }
 function toggleCloudPanel() { const p = document.getElementById('cloud-panel'); p.classList.toggle('open'); }
@@ -270,7 +292,6 @@ async function renderStickerDrawer() { const list = document.getElementById('sti
 async function importStickers(input) { if(!input.files.length) return; for(let file of input.files) { const compressed = await compressImage(file, 1024, 0.8); const blob = await (await fetch(compressed)).blob(); await AppDB.addSticker(blob); } renderStickerDrawer(); input.value = ''; }
 function deleteStickerFromLib(id, e) { e.stopPropagation(); if(confirm("删除此贴纸？")) AppDB.deleteSticker(id).then(renderStickerDrawer); }
 
-// 修改：添加贴纸到父容器（#diary-scroll-area）而不是输入框
 async function addStickerToPage(blob) { 
     closeStickerDrawer(); 
     const reader = new FileReader(); 
@@ -279,13 +300,11 @@ async function addStickerToPage(blob) {
         const wrapper = document.createElement('div'); 
         wrapper.className = 'sticker-item selected'; 
         wrapper.contentEditable = "false"; 
-        wrapper.style.zIndex = '10'; // 默认在上方
+        wrapper.style.zIndex = '10'; 
         wrapper.style.left = '50px'; 
         wrapper.style.top = '100px'; 
         wrapper.style.width = '150px'; 
         wrapper.innerHTML = `<img src="${base64}" draggable="false"><div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div><div class="sticker-ctrl ctrl-layer" onmousedown="toggleLayer(event)" ontouchstart="toggleLayer(event)">L</div><div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>`; 
-        
-        // 添加到滚动容器
         document.getElementById('diary-scroll-area').appendChild(wrapper); 
         attachStickerEvents(wrapper); 
         state.isDirty = true; 
@@ -293,23 +312,86 @@ async function addStickerToPage(blob) {
     reader.readAsDataURL(blob); 
 }
 
-function attachStickerEvents(el) { let mode = ''; let startX, startY, startLeft, startTop; let centerX, centerY, startWidth, startHeight, startAngle = 0, initialAngle = 0; let startDist = 0, startScaleWidth = 0, startRotation = 0; const activate = (e) => { e.stopPropagation(); document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); el.classList.add('selected'); }; el.addEventListener('mousedown', activate); el.addEventListener('touchstart', (e) => { activate(e); const touches = e.touches; const target = e.target; if (touches.length === 2) { mode = 'gesture'; e.preventDefault(); e.stopPropagation(); const rect = el.getBoundingClientRect(); startScaleWidth = rect.width; const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform); startRotation = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI)); startDist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); startAngle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX); } else if (touches.length === 1) { if (target.dataset.action === 'resize') { mode = 'resize'; e.preventDefault(); e.stopPropagation(); const rect = el.getBoundingClientRect(); centerX = rect.left + rect.width / 2; centerY = rect.top + rect.height / 2; startWidth = rect.width; startHeight = rect.height; startAngle = Math.atan2(touches[0].clientY - centerY, touches[0].clientX - centerX); const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform); initialAngle = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI)); } else if(!target.classList.contains('sticker-ctrl')) { mode = 'move'; startX = touches[0].clientX; startY = touches[0].clientY; startLeft = el.offsetLeft; startTop = el.offsetTop; } } }, {passive: false}); document.addEventListener('touchmove', (e) => { if(!el.classList.contains('selected')) return; const touches = e.touches; if (mode === 'gesture' && touches.length === 2) { e.preventDefault(); const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); el.style.width = (startScaleWidth * (dist / startDist)) + 'px'; const angle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX); el.style.transform = `rotate(${startRotation + (angle - startAngle) * (180 / Math.PI)}deg)`; } else if (mode === 'move' && touches.length === 1) { e.preventDefault(); el.style.left = (startLeft + (touches[0].clientX - startX)) + 'px'; el.style.top = (startTop + (touches[0].clientY - startY)) + 'px'; } else if (mode === 'resize' && touches.length === 1) { e.preventDefault(); const touch = touches[0]; const currentAngle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX); const dist = Math.hypot(touch.clientX - centerX, touch.clientY - centerY); el.style.width = (startWidth * (dist / (Math.hypot(startWidth, startHeight) / 2))) + 'px'; el.style.transform = `rotate(${initialAngle + (currentAngle - startAngle) * (180 / Math.PI)}deg)`; } }, {passive: false}); document.addEventListener('touchend', () => { if(mode) state.isDirty = true; mode = ''; }); }
+function activateStickerElement(el) {
+    document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); 
+    el.classList.add('selected');
+}
+
+function attachStickerEvents(el) { 
+    let mode = ''; 
+    let startX, startY, startLeft, startTop; 
+    let centerX, centerY, startWidth, startHeight, startAngle = 0, initialAngle = 0; 
+    let startDist = 0, startScaleWidth = 0, startRotation = 0; 
+
+    const handleStart = (e) => {
+        activateStickerElement(el);
+        const touches = e.touches; 
+        const target = e.target; 
+        if (touches && touches.length === 2) { 
+            mode = 'gesture'; e.preventDefault(); 
+            const rect = el.getBoundingClientRect(); startScaleWidth = rect.width; 
+            const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform); 
+            startRotation = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI)); 
+            startDist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); 
+            startAngle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX); 
+        } else if (!touches || touches.length === 1) { 
+            const clientX = touches ? touches[0].clientX : e.clientX;
+            const clientY = touches ? touches[0].clientY : e.clientY;
+            if (target.dataset.action === 'resize') { 
+                mode = 'resize'; e.preventDefault(); e.stopPropagation(); 
+                const rect = el.getBoundingClientRect(); centerX = rect.left + rect.width / 2; centerY = rect.top + rect.height / 2; 
+                startWidth = rect.width; startHeight = rect.height; 
+                startAngle = Math.atan2(clientY - centerY, clientX - centerX); 
+                const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform); 
+                initialAngle = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI)); 
+            } else if(!target.classList.contains('sticker-ctrl')) { 
+                mode = 'move'; startX = clientX; startY = clientY; startLeft = el.offsetLeft; startTop = el.offsetTop; 
+            } 
+        } 
+    };
+    el.addEventListener('mousedown', handleStart); 
+    el.addEventListener('touchstart', handleStart, {passive: false}); 
+
+    const handleMove = (e) => { 
+        if(!el.classList.contains('selected')) return; 
+        const touches = e.touches; 
+        if (mode === 'gesture' && touches && touches.length === 2) { 
+            e.preventDefault(); 
+            const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); 
+            el.style.width = (startScaleWidth * (dist / startDist)) + 'px'; 
+            const angle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX); 
+            el.style.transform = `rotate(${startRotation + (angle - startAngle) * (180 / Math.PI)}deg)`; 
+        } else if (mode === 'move' && (!touches || touches.length === 1)) { 
+            e.preventDefault(); 
+            const clientX = touches ? touches[0].clientX : e.clientX;
+            const clientY = touches ? touches[0].clientY : e.clientY;
+            el.style.left = (startLeft + (clientX - startX)) + 'px'; 
+            el.style.top = (startTop + (clientY - startY)) + 'px'; 
+        } else if (mode === 'resize' && (!touches || touches.length === 1)) { 
+            e.preventDefault(); 
+            const clientX = touches ? touches[0].clientX : e.clientX;
+            const clientY = touches ? touches[0].clientY : e.clientY;
+            const currentAngle = Math.atan2(clientY - centerY, clientX - centerX); 
+            const dist = Math.hypot(clientX - centerX, clientY - centerY); 
+            el.style.width = (startWidth * (dist / (Math.hypot(startWidth, startHeight) / 2))) + 'px'; 
+            el.style.transform = `rotate(${initialAngle + (currentAngle - startAngle) * (180 / Math.PI)}deg)`; 
+        } 
+    };
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('touchmove', handleMove, {passive: false});
+
+    const handleEnd = () => { if(mode) state.isDirty = true; mode = ''; };
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchend', handleEnd);
+}
 
 window.removeSticker = function(e) { e.stopPropagation(); e.preventDefault(); e.target.closest('.sticker-item')?.remove(); state.isDirty = true; };
-
-// 修改：层级切换逻辑 (1 vs 10, 因为文字层是 5)
 window.toggleLayer = function(e) { 
     e.stopPropagation(); e.preventDefault(); 
     const el = e.target.closest('.sticker-item'); 
     const currentZ = parseInt(window.getComputedStyle(el).zIndex); 
-    
-    if(currentZ <= 5) { 
-        el.style.zIndex = '10'; 
-        showToast("图层：文字上方"); 
-    } else { 
-        el.style.zIndex = '1'; 
-        showToast("图层：文字下方"); 
-    } 
+    if(currentZ <= 5) { el.style.zIndex = '10'; showToast("图层：文字上方"); } 
+    else { el.style.zIndex = '1'; showToast("图层：文字下方"); } 
     state.isDirty = true; 
 };
 
@@ -343,7 +425,30 @@ function renderTodoList() { const list=document.getElementById('todo-list'); lis
 let currentOpenSwipe = null;
 function attachSwipeEvents(el) { let sX; el.addEventListener('touchstart',e=>{if(currentOpenSwipe&&currentOpenSwipe!==el){currentOpenSwipe.style.transform='translateX(0)';currentOpenSwipe=null}sX=e.touches[0].clientX;el.style.transition='none'},{passive:true}); el.addEventListener('touchmove',e=>{let d=e.touches[0].clientX-sX; if(d>0)d=0; if(d<-80)d=-80; el.style.transform=`translateX(${d}px)`},{passive:true}); el.addEventListener('touchend',e=>{el.style.transition='transform 0.2s'; if(e.changedTouches[0].clientX-sX<-40){el.style.transform='translateX(-80px)';currentOpenSwipe=el}else{el.style.transform='translateX(0)'}});}
 function resetAllSwipes() { if(currentOpenSwipe) { currentOpenSwipe.style.transform='translateX(0)'; currentOpenSwipe=null; } }
-function startNotificationCheck() { if(notifyInterval) clearInterval(notifyInterval); notifyInterval=setInterval(()=>{ if(Notification.permission!=="granted") return; const now=new Date(); const m=now.getHours()*60+now.getMinutes(); const d=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; state.todoData.forEach(t=>{ if(!t.done && t.date===d && t.time && !t.notified) { const [th,tm]=t.time.split(':').map(Number); if(Math.abs(m-(th*60+tm))<=1) { new Notification("日记本提醒",{body:t.text}); t.notified=true; saveTodo(); } } }); },5000); }
+
+// 修复：提取为独立函数，供多处调用
+function checkReminders() {
+    if(Notification.permission!=="granted") return; 
+    const now=new Date(); 
+    const m=now.getHours()*60+now.getMinutes(); 
+    const d=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; 
+    state.todoData.forEach(t=>{ 
+        if(!t.done && t.date===d && t.time && !t.notified) { 
+            const [th,tm]=t.time.split(':').map(Number); 
+            if(Math.abs(m-(th*60+tm))<=1) { 
+                new Notification("日记本提醒",{body:t.text}); 
+                t.notified=true; 
+                saveTodo(); 
+            } 
+        } 
+    });
+}
+
+function startNotificationCheck() { 
+    if(notifyInterval) clearInterval(notifyInterval); 
+    notifyInterval=setInterval(checkReminders, 5000); 
+}
+
 function openMonthGallery() { const v=document.getElementById('gallery-month-picker').value; if(!v) return alert("请选月份"); document.getElementById('month-gallery').classList.remove('hidden-right'); document.getElementById('settings-view').classList.add('hidden-right'); const c=document.getElementById('gallery-content'); c.innerHTML=''; const [y,m]=v.split('-'); const days=new Date(y,m,0).getDate(); let has=false; for(let d=1; d<=days; d++) { const k=`${y}-${m}-${String(d).padStart(2,'0')}`; if(state.diaryData[k]) { has=true; createGalleryCard(c, state.diaryData[k], `${parseInt(m)}/${d}`, k); } } if(!has) c.innerHTML='<div style="opacity:0.5;text-align:center;padding:20px;width:100%">暂无日记</div>'; }
 function createGalleryCard(container, content, dateLabel, dateKey) { const w = document.createElement('div'); w.className = `gallery-card ${state.bgImage?'has-bg':''}`; const thumbScaler = document.createElement('div'); thumbScaler.className = 'thumb-scaler'; if(state.bgImage) thumbScaler.style.backgroundImage = `url(${state.bgImage})`; const dateDiv = document.createElement('div'); dateDiv.className = 'thumb-date'; dateDiv.innerText = dateLabel; const textDiv = document.createElement('div'); textDiv.className = 'thumb-text'; textDiv.innerHTML = content; textDiv.querySelectorAll('.sticker-item').forEach(s => { s.style.opacity = '0.2'; s.style.pointerEvents = 'none'; s.style.zIndex = '0'; }); thumbScaler.appendChild(dateDiv); thumbScaler.appendChild(textDiv); w.appendChild(thumbScaler); w.onclick = () => { closeMonthGallery(); selectDate(new Date(dateKey)); setTimeout(openDiary,300); }; container.appendChild(w); }
 function closeMonthGallery() { document.getElementById('month-gallery').classList.add('hidden-right'); toggleUI(true); }
@@ -352,8 +457,6 @@ function updateFormatBarPos(dir) { const b=document.getElementById('fmt-bar'),t=
 function renderCalendar() { const y=state.currentDate.getFullYear(),m=state.currentDate.getMonth(); document.getElementById('current-month-label').textContent=`${y}年 ${String(m+1).padStart(2,'0')}月`; document.getElementById('month-picker').value=`${y}-${String(m+1).padStart(2,'0')}`; const c=document.getElementById('calendar-days'); c.innerHTML=''; for(let i=0;i<new Date(y,m,1).getDay();i++) c.appendChild(document.createElement('div')); const today=new Date(); for(let i=1;i<=new Date(y,m+1,0).getDate();i++) { const d=document.createElement('div'); d.className='day'; d.textContent=i; const cur=new Date(y,m,i); const k=formatDateKey(cur); if(cur.toDateString()===today.toDateString()) d.classList.add('today'); if(cur.toDateString()===state.selectedDate.toDateString()) d.classList.add('selected'); if(state.diaryData[k]) d.classList.add('has-entry'); d.onclick=(e)=>{e.stopPropagation();selectDate(cur)}; c.appendChild(d); } }
 function changeMonth(v) { if(v) { const [y,m]=v.split('-'); state.currentDate=new Date(y,m-1,1); renderCalendar(); } }
 function selectDate(d) { state.selectedDate=d; renderCalendar(); document.getElementById('tab-date').textContent=`${d.getMonth()+1}/${d.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
-
-// 修改：打开日记时分离贴纸和文本
 function openDiary(e) { 
     if(e)e.stopPropagation(); 
     const k=formatDateKey(state.selectedDate); 
@@ -362,28 +465,19 @@ function openDiary(e) {
     const div = document.getElementById('diary-input'); 
     const scrollArea = document.getElementById('diary-scroll-area');
     
-    // 清除现有的贴纸
     scrollArea.querySelectorAll('.sticker-item').forEach(el => el.remove());
     
-    // 获取保存的内容
     const content = state.diaryData[k] || ''; 
-    
-    // 创建临时容器解析HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = content;
     
-    // 提取贴纸
     const stickers = tempDiv.querySelectorAll('.sticker-item');
     stickers.forEach(s => {
         scrollArea.appendChild(s);
         attachStickerEvents(s);
     });
     
-    // 剩下的就是文本
-    div.innerHTML = tempDiv.innerHTML; // 注意：tempDiv里的贴纸已经被移走了吗？
-    // querySelectorAll 返回的是静态 NodeList 还是动态？如果是被移走了，tempDiv.innerHTML 应该就没有贴纸了。
-    // 但是 appendChild 会移动节点。
-    // 所以上面循环 appendChild 后，tempDiv 里就没有 sticker-item 了。
+    div.innerHTML = tempDiv.innerHTML; 
     
     document.getElementById('diary-view').classList.remove('hidden-right'); 
     toggleUI(false); 
@@ -392,50 +486,82 @@ function openDiary(e) {
     if(state.settings.enableSticker) document.getElementById('sticker-btn').style.display='flex'; 
     state.isDirty=false; 
 }
-
 function closeDiary() { document.querySelectorAll('.sticker-item.selected').forEach(el=>el.classList.remove('selected')); saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right'); document.getElementById('fmt-bar').classList.remove('active'); document.getElementById('sticker-btn').style.display='none'; closeStickerDrawer(); toggleUI(true); updateTodoTabVisibility(); document.getElementById('index-tab').style.display = 'flex'; renderCalendar(); }
 function changeDay(o) { saveDiaryManual(false); state.selectedDate.setDate(state.selectedDate.getDate()+o); const p=document.getElementById('paper-layer'); const a=o>0?'anim-slide-left':'anim-slide-right'; p.classList.add(a); setTimeout(()=>{openDiary();p.classList.remove(a);p.style.opacity='0';requestAnimationFrame(()=>p.style.opacity='1')},350); }
 function toggleFormatToolbar(e) { e.stopPropagation(); const t=document.getElementById('fmt-toggle'); if(t.getBoundingClientRect().left<window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left'); document.getElementById('fmt-bar').classList.toggle('active'); }
 function execCmd(c,v=null) { document.execCommand(c,false,v); document.getElementById('diary-input').focus(); }
-
-// 修改：保存时合并文本和贴纸
 async function saveDiaryManual(toast=true) { 
     const div = document.getElementById('diary-input'); 
     const scrollArea = document.getElementById('diary-scroll-area');
-    
-    // 取消选中状态
     scrollArea.querySelectorAll('.selected').forEach(e=>e.classList.remove('selected')); 
-    
     const k = formatDateKey(state.selectedDate); 
-    
-    // 获取文本HTML
     const textHtml = div.innerHTML;
-    
-    // 获取所有贴纸的HTML
     let stickersHtml = '';
-    scrollArea.querySelectorAll('.sticker-item').forEach(s => {
-        stickersHtml += s.outerHTML;
-    });
-    
-    // 合并
+    scrollArea.querySelectorAll('.sticker-item').forEach(s => { stickersHtml += s.outerHTML; });
     const combinedHtml = textHtml + stickersHtml;
-    
     if(!state.isDirty && div.innerText.trim()==="" && stickersHtml==="") return; 
-    
     if(div.innerText.trim()==="" && stickersHtml==="") delete state.diaryData[k]; 
     else state.diaryData[k] = combinedHtml; 
-    
     state.isDirty=false; 
     try { await AppDB.saveEntry(k, state.diaryData[k] || null); if(toast) showToast(); } catch(e) { alert("保存失败: " + e.message); } 
 }
-
 function autoSave() { if(state.isDirty) saveDiaryManual(true); }
 function showToast(m) { const t=document.getElementById('save-toast'); t.innerText=m||"☁️ 已自动保存"; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
 function hideToast() { document.getElementById('save-toast').classList.remove('show'); }
 function applyFont() { const u=document.getElementById('font-url-input').value.trim(); if(u) { state.settings.customFont=u; loadCustomFont(u); saveSettings(); alert("加载中..."); } }
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
-function exportDiaryImage() { const d=document.getElementById('export-date-picker').value; if(!d) return alert("选日期"); const k=d; const c=state.diaryData[k]; if(!c) return alert("空日记"); showToast("正在生成高清图片..."); const con=document.getElementById('screenshot-container'); con.innerHTML=''; const p=document.createElement('div'); p.className=`paper-container ${state.settings.paper}`; if(state.bgImage){p.style.backgroundImage=`url(${state.bgImage})`;p.classList.add('has-custom-bg')} p.style.height='auto'; p.style.minHeight='800px'; p.style.position='relative'; p.style.borderRadius='0'; p.innerHTML=`<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible">${c}</div>`; con.appendChild(p); html2canvas(p,{scale:4, useCORS:true, backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null}).then(cvs=>{ const a=document.createElement('a'); a.download=`diary_${k}.png`; a.href=cvs.toDataURL(); a.click(); con.innerHTML=''; showToast("已保存"); }); }
+
+// 修复：优化导出逻辑 - 高清 (Scale 3) + JPEG (0.85) + 保持布局宽度
+function exportDiaryImage() { 
+    const d=document.getElementById('export-date-picker').value; 
+    if(!d) return alert("选日期"); 
+    const k=d; 
+    const contentHtml=state.diaryData[k]; 
+    if(!contentHtml) return alert("空日记"); 
+    showToast("正在生成高清图片..."); 
+    
+    const con=document.getElementById('screenshot-container'); 
+    con.innerHTML=''; 
+    
+    // 创建导出容器
+    const p=document.createElement('div'); 
+    p.className=`paper-container ${state.settings.paper}`; 
+    
+    // 强制宽度与当前编辑区一致，保证贴纸绝对定位准确
+    const currentWidth = document.getElementById('paper-layer').offsetWidth;
+    p.style.width = currentWidth + 'px'; 
+
+    if(state.bgImage){
+        p.style.backgroundImage=`url(${state.bgImage})`;
+        p.classList.add('has-custom-bg');
+    } 
+    p.style.height='auto'; 
+    p.style.minHeight='800px'; 
+    p.style.position='relative'; 
+    p.style.borderRadius='0'; 
+    
+    p.innerHTML=`<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; position:relative;">${contentHtml}</div>`; 
+    con.appendChild(p); 
+    
+    // 使用 Scale 3 (约3倍高清) + JPEG 压缩
+    html2canvas(p,{
+        scale: 3, 
+        useCORS: true, 
+        backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null
+    }).then(canvas => { 
+        // 转换为 Blob (JPEG 0.85质量)
+        canvas.toBlob((blob) => {
+            const a=document.createElement('a'); 
+            a.download=`diary_${k}.jpg`; 
+            a.href=URL.createObjectURL(blob); 
+            a.click(); 
+            con.innerHTML=''; 
+            showToast("已保存 (JPEG)"); 
+        }, 'image/jpeg', 0.85);
+    }); 
+}
+
 function startCrop(i) { const f=i.files[0]; if(f) { const r=new FileReader(); r.onload=e=>{ document.getElementById('cropper-modal').style.display='flex'; document.getElementById('cropper-img').src=e.target.result; if(cropperInstance)cropperInstance.destroy(); cropperInstance=new Cropper(document.getElementById('cropper-img'),{viewMode:2,dragMode:'move',autoCropArea:1}); }; r.readAsDataURL(f); i.value=''; } }
 function cancelCrop() { document.getElementById('cropper-modal').style.display='none'; if(cropperInstance)cropperInstance.destroy(); }
 function finishCrop() { if(cropperInstance) { state.bgImage=cropperInstance.getCroppedCanvas({ maxWidth:2560, maxHeight:2560, fillColor:'#fff' }).toDataURL('image/jpeg', 0.9); localStorage.setItem('myDiaryBg_v2',state.bgImage); applyBgImage(); cancelCrop(); showToast("高清背景已设置"); } }
