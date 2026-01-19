@@ -43,10 +43,32 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main);
     display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), visibility 0.4s;
     background-color: var(--bg-color);
 }
+/* 修改后 (请复制这个覆盖原来的)： */
 .hidden-right { 
     transform: translateX(100%); 
     pointer-events: none; 
-    visibility: hidden; /* 关键修复：确保彻底隐藏，不挡住下层 */
+    /* 删掉了 visibility: hidden */
+    opacity: 0; /* 用透明度代替，兼容性更好 */
+}
+
+/* 强制主页永远可见 */
+#home-view {
+    z-index: 1; /* 保证在底层 */
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+}
+
+/* 锁屏层优化：防止透明玻璃挡路 */
+#lock-screen {
+    /* 其他保持不变... */
+    transition: opacity 0.3s, transform 0.3s; /* 增加 transform 动画 */
+}
+#lock-screen.closing {
+    opacity: 0 !important;
+    transform: scale(1.1);
+    pointer-events: none !important;
+}
 }
 
 #home-view header { padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; }
