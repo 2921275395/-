@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 修复通知 & 移除底层贴纸功能
+// script.js - 修复待办排序 & 恢复通知
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -29,7 +29,6 @@ let state = {
 };
 
 let supabaseClient = null;
-let globalMaxZIndex = 10;
 let isEditingDrawer = false;
 
 // ==========================================
@@ -105,8 +104,7 @@ let notifyInterval = null;
 let currentPinInput = ""; 
 
 async function init() {
-    // 优先注册 Service Worker 以保证通知功能
-    registerRealSW();
+    registerRealSW(); // 优先注册 SW
 
     await AppDB.init();
     state.diaryData = await AppDB.loadAllEntries();
@@ -127,7 +125,7 @@ async function init() {
     renderStickerDrawer(); 
     
     setInterval(autoSave, 60000); 
-    startNotificationCheck(); // 启动通知检查
+    startNotificationCheck();
     
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNotifications(true); });
     document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
@@ -279,12 +277,11 @@ async function addStickerToPage(blob) {
         const wrapper = document.createElement('div'); 
         wrapper.className = 'sticker-item selected'; 
         wrapper.contentEditable = "false"; 
-        // 确保贴纸在上方，z-index 为 10，文字层是 5
+        // 确保贴纸在上方
         wrapper.style.zIndex = '10'; 
         wrapper.style.left = '50px'; 
         wrapper.style.top = '100px'; 
         wrapper.style.width = '150px'; 
-        // 移除了图层切换按钮 "L"
         wrapper.innerHTML = `<img src="${base64}" draggable="false"><div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div><div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>`; 
         document.getElementById('diary-scroll-area').appendChild(wrapper); 
         attachStickerEvents(wrapper); 
@@ -304,7 +301,6 @@ function attachStickerEvents(el) {
     let centerX, centerY, startWidth, startHeight, startAngle = 0, initialAngle = 0; 
     let startDist = 0, startScaleWidth = 0, startRotation = 0; 
 
-    // 简化后的交互逻辑，不再需要处理穿透
     const handleStart = (e) => {
         activateStickerElement(el);
         const touches = e.touches; 
@@ -344,7 +340,6 @@ function attachStickerEvents(el) {
                 startY = clientY; 
                 startLeft = el.offsetLeft; 
                 startTop = el.offsetTop; 
-                // e.stopPropagation(); // 阻止文字层获取焦点
             } 
         } 
     };
@@ -412,7 +407,7 @@ function openTodo() { document.getElementById('todo-view').classList.remove('hid
 function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); toggleUI(true); }
 function toggleTodoSetting() { state.settings.showTodo = !state.settings.showTodo; saveSettings(); applySettings(); }
 
-// 修复：确保SW注册逻辑更健壮
+// 注册 Service Worker
 function registerRealSW() { 
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js')
@@ -424,11 +419,10 @@ function registerRealSW() {
 function checkNotifyState() { if("Notification" in window && Notification.permission !== "granted") document.getElementById('perm-btn').style.display = 'block'; else document.getElementById('perm-btn').style.display = 'none'; }
 function requestNotifyPermission() { Notification.requestPermission().then(p => { if(p==="granted") { document.getElementById('perm-btn').style.display='none'; showToast("通知已开启"); } }); }
 
-// 修复：测试通知按钮逻辑
+// 测试通知
 function testNotification() { 
     if(Notification.permission==="granted") {
         try {
-            // 尝试同时使用 Service Worker 推送和本地推送
             if('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.ready.then(reg => {
                     reg.showNotification("测试通知", {body:"功能正常 (SW)"});
@@ -449,12 +443,54 @@ function deleteTodo(id) { state.todoData = state.todoData.filter(t=>t.id!==id); 
 function toggleTodo(id) { const t=state.todoData.find(i=>i.id===id); if(t) { t.done=!t.done; saveTodo(); renderTodoList(); } }
 function updateTodoData(id, k, v) { const t=state.todoData.find(i=>i.id===id); if(t) { t[k]=v; if(k==='time'||k==='date') t.notified=false; saveTodo(); renderTodoList(); } }
 function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
-function renderTodoList() { const list=document.getElementById('todo-list'); list.innerHTML=''; state.todoData.sort((a,b)=>a.done===b.done?0:a.done?1:-1).forEach(item => { const d = document.createElement('div'); d.className='todo-item-wrapper'; d.innerHTML=`<div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div><div class="todo-item-content ${item.done?'done':''}"><div class="todo-checkbox ${item.done?'checked':''}" onclick="toggleTodo(${item.id});event.stopPropagation()"></div><div class="todo-content-wrapper"><div class="todo-text">${item.text}</div><div class="todo-datetime"><input type="date" class="todo-picker" value="${item.date||''}" onchange="updateTodoData(${item.id},'date',this.value)"><input type="time" class="todo-picker" value="${item.time||''}" onchange="updateTodoData(${item.id},'time',this.value)"></div></div></div>`; attachSwipeEvents(d.querySelector('.todo-item-content')); list.appendChild(d); }); }
+
+// === 修复后的渲染排序逻辑 ===
+function renderTodoList() { 
+    const list=document.getElementById('todo-list'); 
+    list.innerHTML=''; 
+    
+    // 排序逻辑：
+    // 1. 已完成的在最后 (done=true)
+    // 2. 未设置日期的在最前 (!date)
+    // 3. 有日期的按时间先后 (date asc)
+    // 4. 同日期按时间 (time asc)
+    state.todoData.sort((a,b) => {
+        // 1. 完成状态差异
+        if (a.done !== b.done) return a.done ? 1 : -1;
+        
+        // 如果都完成了，按ID倒序（新的已完成在前）
+        if (a.done) return b.id - a.id;
+
+        // 2. 处理未设置日期 (置顶)
+        const noDateA = !a.date;
+        const noDateB = !b.date;
+        if (noDateA && !noDateB) return -1; // A无日期 -> 靠前
+        if (!noDateA && noDateB) return 1;  // B无日期 -> 靠前
+        if (noDateA && noDateB) return b.id - a.id; // 都无日期 -> 按创建时间倒序
+
+        // 3. 都有日期 -> 按日期排序
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+
+        // 4. 日期相同 -> 按时间排序
+        const timeA = a.time || '00:00';
+        const timeB = b.time || '00:00';
+        return timeA.localeCompare(timeB);
+    });
+
+    state.todoData.forEach(item => { 
+        const d = document.createElement('div'); 
+        d.className='todo-item-wrapper'; 
+        d.innerHTML=`<div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div><div class="todo-item-content ${item.done?'done':''}"><div class="todo-checkbox ${item.done?'checked':''}" onclick="toggleTodo(${item.id});event.stopPropagation()"></div><div class="todo-content-wrapper"><div class="todo-text">${item.text}</div><div class="todo-datetime"><input type="date" class="todo-picker" value="${item.date||''}" onchange="updateTodoData(${item.id},'date',this.value)"><input type="time" class="todo-picker" value="${item.time||''}" onchange="updateTodoData(${item.id},'time',this.value)"></div></div></div>`; 
+        attachSwipeEvents(d.querySelector('.todo-item-content')); 
+        list.appendChild(d); 
+    }); 
+}
+
 let currentOpenSwipe = null;
 function attachSwipeEvents(el) { let sX; el.addEventListener('touchstart',e=>{if(currentOpenSwipe&&currentOpenSwipe!==el){currentOpenSwipe.style.transform='translateX(0)';currentOpenSwipe=null}sX=e.touches[0].clientX;el.style.transition='none'},{passive:true}); el.addEventListener('touchmove',e=>{let d=e.touches[0].clientX-sX; if(d>0)d=0; if(d<-80)d=-80; el.style.transform=`translateX(${d}px)`},{passive:true}); el.addEventListener('touchend',e=>{el.style.transition='transform 0.2s'; if(e.changedTouches[0].clientX-sX<-40){el.style.transform='translateX(-80px)';currentOpenSwipe=el}else{el.style.transform='translateX(0)'}});}
 function resetAllSwipes() { if(currentOpenSwipe) { currentOpenSwipe.style.transform='translateX(0)'; currentOpenSwipe=null; } }
 
-// 修复：通知检查逻辑
+// 通知的轮询检查
 function startNotificationCheck() { 
     if(notifyInterval) clearInterval(notifyInterval); 
     notifyInterval = setInterval(()=>{ 
