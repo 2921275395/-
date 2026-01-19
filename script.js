@@ -1,6 +1,11 @@
 // ==========================================
-// script.js - 纯逻辑版
+// script.js - 优化重构版 (无注入代码)
 // ==========================================
+
+// 动态加载 Supabase SDK (保留)
+const script = document.createElement('script');
+script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+document.head.appendChild(script);
 
 // 全局状态
 let state = {
@@ -25,13 +30,9 @@ let state = {
 
 let supabaseClient = null;
 let globalMaxZIndex = 10;
-let cropperInstance = null;
-let notifyInterval = null;
-let currentPinInput = ""; 
-let isEditingDrawer = false;
 
 // ==========================================
-// 数据库管理器
+// 数据库 (AppDB)
 // ==========================================
 const AppDB = {
     dbName: 'MyDiaryProDB',
@@ -68,7 +69,6 @@ const AppDB = {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(['entries'], 'readwrite');
             const s = tx.objectStore('entries');
-            // store.clear(); // 如果需要清空旧数据可解开
             Object.keys(dataObj).forEach(k => s.put({ date: k, content: dataObj[k] }));
             tx.oncomplete = () => resolve(); tx.onerror = (e) => reject(e);
         });
@@ -99,6 +99,11 @@ const AppDB = {
 // ==========================================
 // 初始化
 // ==========================================
+let cropperInstance = null;
+let notifyInterval = null;
+let currentPinInput = ""; 
+let isEditingDrawer = false;
+
 async function init() {
     await AppDB.init();
     state.diaryData = await AppDB.loadAllEntries();
@@ -110,76 +115,60 @@ async function init() {
         state.bgImage = localStorage.getItem('myDiaryBg_v2') || null;
     } catch (e) { console.error("Settings Load Error", e); }
 
-    // 初始化界面状态
     checkLockStatus();
     applySettings();
     initSupabase(); 
     if(state.settings.customFont) loadCustomFont(state.settings.customFont);
-    
-    // 渲染数据
     renderCalendar();
     renderTodoList();
     renderStickerDrawer(); 
     
-    // 启动服务
     setInterval(autoSave, 60000); 
     registerRealSW();
     startNotificationCheck();
-    checkNotifyState();
-
-    // 绑定事件
+    
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNotifications(true); });
     document.getElementById('diary-input').addEventListener('input', () => state.isDirty = true);
     
-    // 可拖拽元素
+    // 初始化拖拽
     initDraggable(document.getElementById('index-tab'), 'left');
     initDraggable(document.getElementById('todo-tab'), 'left');
     initDraggable(document.getElementById('fmt-toggle'), 'any');
     initDraggable(document.getElementById('sticker-btn'), 'any'); 
-
-    // 初始化日期控件
-    document.getElementById('export-date-picker').valueAsDate = new Date(); // 这里的ID可能在HTML里没有对应input，需要确认是否有导出弹窗HTML，如果没有可忽略
+    
+    // 初始化日期选择器
+    document.getElementById('export-date-picker').valueAsDate = new Date();
     const now = new Date();
     document.getElementById('gallery-month-picker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+    checkNotifyState();
     
-    // 全局点击处理 (重置状态)
+    // 修复上滑关闭通知功能
+    const toast = document.getElementById('save-toast');
+    let startY = 0;
+    toast.addEventListener('touchstart', e => startY = e.touches[0].clientY, {passive: true});
+    toast.addEventListener('touchmove', e => { 
+        if (startY - e.touches[0].clientY > 10) hideToast(); 
+    }, {passive: true});
+    
+    // 回填云端设置
+    if(document.getElementById('cloud-url')) {
+        document.getElementById('cloud-url').value = state.settings.cloudUrl || '';
+        document.getElementById('cloud-key').value = state.settings.cloudKey || '';
+        if(state.settings.cloudUrl && state.settings.cloudKey) {
+             document.getElementById('cloud-ops').style.display = 'flex';
+        }
+    }
+
     document.body.addEventListener('click', (e) => {
         if(!e.target.closest('.todo-item-wrapper')) resetAllSwipes();
         if(!e.target.closest('.sticker-item')) {
             document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
         }
     });
-
-    // 回填云端配置到输入框
-    if(state.settings.cloudUrl) document.getElementById('cloud-url').value = state.settings.cloudUrl;
-    if(state.settings.cloudKey) document.getElementById('cloud-key').value = state.settings.cloudKey;
-    if(state.settings.cloudUrl && state.settings.cloudKey) document.getElementById('cloud-ops').style.display = 'flex';
-
-    // 修复上滑关闭 Toast 功能
-    initToastSwipe();
 }
 
-function initToastSwipe() {
-    const toast = document.getElementById('save-toast');
-    let startY = 0;
-    // 记录触摸开始的Y坐标
-    toast.addEventListener('touchstart', e => {
-        startY = e.touches[0].clientY;
-    }, {passive: true});
-    
-    // 触摸移动时判断
-    toast.addEventListener('touchmove', e => {
-        const currentY = e.touches[0].clientY;
-        // 如果向上滑动超过10px (startY > currentY)
-        if (startY - currentY > 10) {
-            hideToast();
-        }
-    }, {passive: true});
-}
-
-// ==========================================
-// 云端同步逻辑
-// ==========================================
+// 辅助函数 (UI相关)
 function openCloudHelp(e) { e.stopPropagation(); document.getElementById('cloud-help').classList.add('active'); }
 function closeCloudHelp() { document.getElementById('cloud-help').classList.remove('active'); }
 function toggleCloudPanel() { const p = document.getElementById('cloud-panel'); p.classList.toggle('open'); }
@@ -187,7 +176,11 @@ function copySQL() {
     const text = document.getElementById('sql-code').innerText;
     navigator.clipboard.writeText(text).then(() => showToast("已复制SQL代码"));
 }
+function handleGlobalClick(e) {
+    // 处理一些全局点击关闭逻辑（如有需要）
+}
 
+/* ============ Supabase 逻辑 ============ */
 function initSupabase() {
     if(window.supabase && state.settings.cloudUrl && state.settings.cloudKey) {
         try { supabaseClient = window.supabase.createClient(state.settings.cloudUrl, state.settings.cloudKey); } 
@@ -202,10 +195,8 @@ function saveCloudConfig() {
     state.settings.cloudKey = key;
     saveSettings();
     initSupabase();
-    if(url && key) {
-        document.getElementById('cloud-ops').style.display = 'flex';
-        showToast("配置已保存");
-    }
+    if(url && key) document.getElementById('cloud-ops').style.display = 'flex';
+    showToast("配置已保存");
 }
 
 async function testCloudConnection() {
@@ -214,18 +205,18 @@ async function testCloudConnection() {
     const { data, error } = await supabaseClient.from('diary_backup').select('id').limit(1);
     if (error) {
         if(error.code === 'PGRST204' || error.message.includes('does not exist')) {
-            alert("连接成功，但表不存在！\n请点击 (?) 查看教程第二步。");
+            alert("连接成功！\n但云端尚未创建表，请查看教程第二步。");
         } else {
             alert("连接失败: " + error.message);
         }
     } else {
-        alert("✅ 连接成功！");
+        alert("✅ 连接成功！数据库就绪。");
     }
 }
 
 async function backupToCloud() {
     if(!supabaseClient) return;
-    if(!confirm("确定要备份到云端吗？(覆盖旧备份)")) return;
+    if(!confirm("确定要备份到云端吗？\n(云端旧数据将被覆盖)")) return;
     const status = document.getElementById('cloud-status');
     status.innerText = "正在打包上传...";
     try {
@@ -241,7 +232,7 @@ async function backupToCloud() {
 
 async function restoreFromCloud() {
     if(!supabaseClient) return;
-    if(!confirm("⚠️ 警告：下载将【覆盖】当前数据！\n确定吗？")) return;
+    if(!confirm("⚠️ 警告：这将下载云端备份并【覆盖】当前数据！\n确定吗？")) return;
     const status = document.getElementById('cloud-status');
     status.innerText = "正在下载...";
     try {
@@ -255,9 +246,7 @@ async function restoreFromCloud() {
     } catch(e) { status.innerText = "❌ 恢复失败"; alert("恢复失败: " + e.message); }
 }
 
-// ==========================================
-// 核心功能 (保持不变)
-// ==========================================
+/* ============ 核心功能 (保持不变) ============ */
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 function openStickerDrawer() { renderStickerDrawer(); document.getElementById('sticker-drawer').classList.add('open'); toggleUI(false); }
 function closeStickerDrawer() { document.getElementById('sticker-drawer').classList.remove('open'); isEditingDrawer = false; toggleUI(true); renderStickerDrawer(); }
@@ -270,11 +259,7 @@ function attachStickerEvents(el) { let mode = ''; let startX, startY, startLeft,
 window.removeSticker = function(e) { e.stopPropagation(); e.preventDefault(); e.target.closest('.sticker-item')?.remove(); state.isDirty = true; };
 window.toggleLayer = function(e) { e.stopPropagation(); e.preventDefault(); const el = e.target.closest('.sticker-item'); const currentZ = parseInt(window.getComputedStyle(el).zIndex); if(currentZ === -1) { globalMaxZIndex++; el.style.zIndex = globalMaxZIndex; showToast("图层：文字上方"); } else { el.style.zIndex = '-1'; showToast("图层：文字下方"); } state.isDirty = true; };
 function compressImage(file, maxWidth, quality) { return new Promise((resolve) => { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); let w = img.width, h = img.height; if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth; } canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL(file.type, quality)); }; img.src = e.target.result; }; reader.readAsDataURL(file); }); }
-
-// 搜索
 function performSearch(query) { const container = document.getElementById('search-results'); container.innerHTML = ''; if(!query.trim()) return; const results = []; const tempDiv = document.createElement('div'); Object.keys(state.diaryData).sort().reverse().forEach(dateKey => { tempDiv.innerHTML = state.diaryData[dateKey]; if(tempDiv.innerText.toLowerCase().includes(query.toLowerCase())) results.push({ date: dateKey, text: tempDiv.innerText }); }); if(!results.length) { container.innerHTML = '<div class="no-results">无结果</div>'; return; } results.forEach(item => { const el = document.createElement('div'); el.className = 'search-item'; const idx = item.text.toLowerCase().indexOf(query.toLowerCase()); const snippet = item.text.substring(Math.max(0, idx-10), Math.min(item.text.length, idx+query.length+20)); el.innerHTML = `<div class="search-date">${item.date}</div><div class="search-snippet">...${snippet.replace(new RegExp(`(${query})`,'gi'), '<span class="highlight-text">$1</span>')}...</div>`; el.onclick = () => { document.getElementById('search-input').value = ''; container.innerHTML = ''; closeSettings(); selectDate(new Date(item.date)); setTimeout(openDiary, 300); }; container.appendChild(el); }); }
-
-// 锁屏
 function checkLockStatus() { if (state.security.enabled) { document.getElementById('lock-screen').classList.add('active'); updatePinDots(); if (state.security.biometrics && state.security.credentialId) setTimeout(tryBiometric, 500); } else { document.getElementById('lock-screen').classList.remove('active'); } }
 function enterPin(num) { if (currentPinInput.length < 4) { currentPinInput += num; updatePinDots(); if (currentPinInput.length === 4) setTimeout(verifyPin, 100); } }
 function deletePin() { currentPinInput = currentPinInput.slice(0, -1); updatePinDots(); }
@@ -285,8 +270,6 @@ async function registerBiometric() { if (!window.PublicKeyCredential) { alert("�
 function togglePinLock() { if(state.security.enabled) { if(prompt("输入PIN关闭")==state.security.pin) { state.security.enabled=false; state.security.biometrics=false; saveSecurity(); applySettings(); } } else { const p=prompt("设置4位PIN"); if(p&&p.length==4) { state.security.enabled=true; state.security.pin=p; saveSecurity(); applySettings(); } } }
 async function toggleBiometrics() { if(!state.security.enabled) return alert("先开启PIN"); if(!state.security.biometrics) { if(await registerBiometric()) { state.security.biometrics=true; saveSecurity(); applySettings(); } } else { state.security.biometrics=false; saveSecurity(); applySettings(); } }
 function saveSecurity() { localStorage.setItem('myDiarySecurity_v2', JSON.stringify(state.security)); }
-
-// UI 切换
 function toggleUI(show) { document.querySelectorAll('.side-tab').forEach(tab => { if(show) { if(tab.id!=='todo-tab' || state.settings.showTodo) tab.classList.remove('hidden-ui'); } else tab.classList.add('hidden-ui'); }); document.getElementById('sticker-btn').style.display = (show && state.settings.enableSticker) ? 'flex' : 'none'; }
 function updateTodoTabVisibility() { document.getElementById('todo-tab').style.display = state.settings.showTodo ? 'flex' : 'none'; if(state.settings.showTodo) document.getElementById('todo-tab').classList.remove('hidden-ui'); }
 function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); toggleUI(false); }
@@ -296,8 +279,6 @@ function registerRealSW() { if ('serviceWorker' in navigator) navigator.serviceW
 function checkNotifyState() { if("Notification" in window && Notification.permission !== "granted") document.getElementById('perm-btn').style.display = 'block'; else document.getElementById('perm-btn').style.display = 'none'; }
 function requestNotifyPermission() { Notification.requestPermission().then(p => { if(p==="granted") { document.getElementById('perm-btn').style.display='none'; showToast("通知已开启"); } }); }
 function testNotification() { if(Notification.permission==="granted") new Notification("测试通知", {body:"功能正常"}); else alert("无权限"); }
-
-// 待办事项
 function addTodo() { const t=document.getElementById('new-todo-input').value.trim(); if(!t) return; state.todoData.unshift({id:Date.now(), text:t, done:false, date:'', time:'', notified:false}); document.getElementById('new-todo-input').value=''; saveTodo(); renderTodoList(); }
 function deleteTodo(id) { state.todoData = state.todoData.filter(t=>t.id!==id); saveTodo(); renderTodoList(); }
 function toggleTodo(id) { const t=state.todoData.find(i=>i.id===id); if(t) { t.done=!t.done; saveTodo(); renderTodoList(); } }
@@ -308,8 +289,6 @@ let currentOpenSwipe = null;
 function attachSwipeEvents(el) { let sX; el.addEventListener('touchstart',e=>{if(currentOpenSwipe&&currentOpenSwipe!==el){currentOpenSwipe.style.transform='translateX(0)';currentOpenSwipe=null}sX=e.touches[0].clientX;el.style.transition='none'},{passive:true}); el.addEventListener('touchmove',e=>{let d=e.touches[0].clientX-sX; if(d>0)d=0; if(d<-80)d=-80; el.style.transform=`translateX(${d}px)`},{passive:true}); el.addEventListener('touchend',e=>{el.style.transition='transform 0.2s'; if(e.changedTouches[0].clientX-sX<-40){el.style.transform='translateX(-80px)';currentOpenSwipe=el}else{el.style.transform='translateX(0)'}});}
 function resetAllSwipes() { if(currentOpenSwipe) { currentOpenSwipe.style.transform='translateX(0)'; currentOpenSwipe=null; } }
 function startNotificationCheck() { if(notifyInterval) clearInterval(notifyInterval); notifyInterval=setInterval(()=>{ if(Notification.permission!=="granted") return; const now=new Date(); const m=now.getHours()*60+now.getMinutes(); const d=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; state.todoData.forEach(t=>{ if(!t.done && t.date===d && t.time && !t.notified) { const [th,tm]=t.time.split(':').map(Number); if(Math.abs(m-(th*60+tm))<=1) { new Notification("日记本提醒",{body:t.text}); t.notified=true; saveTodo(); } } }); },5000); }
-
-// 画廊 & 拖拽 & 基础功能
 function openMonthGallery() { const v=document.getElementById('gallery-month-picker').value; if(!v) return alert("请选月份"); document.getElementById('month-gallery').classList.remove('hidden-right'); document.getElementById('settings-view').classList.add('hidden-right'); const c=document.getElementById('gallery-content'); c.innerHTML=''; const [y,m]=v.split('-'); const days=new Date(y,m,0).getDate(); let has=false; for(let d=1; d<=days; d++) { const k=`${y}-${m}-${String(d).padStart(2,'0')}`; if(state.diaryData[k]) { has=true; createGalleryCard(c, state.diaryData[k], `${parseInt(m)}/${d}`, k); } } if(!has) c.innerHTML='<div style="opacity:0.5;text-align:center;padding:20px;width:100%">暂无日记</div>'; }
 function createGalleryCard(container, content, dateLabel, dateKey) { const w = document.createElement('div'); w.className = `gallery-card ${state.bgImage?'has-bg':''}`; const thumbScaler = document.createElement('div'); thumbScaler.className = 'thumb-scaler'; if(state.bgImage) thumbScaler.style.backgroundImage = `url(${state.bgImage})`; const dateDiv = document.createElement('div'); dateDiv.className = 'thumb-date'; dateDiv.innerText = dateLabel; const textDiv = document.createElement('div'); textDiv.className = 'thumb-text'; textDiv.innerHTML = content; textDiv.querySelectorAll('.sticker-item').forEach(s => { s.style.opacity = '0.2'; s.style.pointerEvents = 'none'; s.style.zIndex = '0'; }); thumbScaler.appendChild(dateDiv); thumbScaler.appendChild(textDiv); w.appendChild(thumbScaler); w.onclick = () => { closeMonthGallery(); selectDate(new Date(dateKey)); setTimeout(openDiary,300); }; container.appendChild(w); }
 function closeMonthGallery() { document.getElementById('month-gallery').classList.add('hidden-right'); toggleUI(true); }
