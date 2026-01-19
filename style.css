@@ -92,16 +92,29 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main);
 .paper-container.has-custom-bg { background-repeat: no-repeat; background-position: center; background-size: cover; }
 .paper-header {
     padding: 25px 20px; display: flex; justify-content: space-between; align-items: center;
-    background: linear-gradient(to bottom, var(--paper-color) 80%, transparent); z-index: 5;
+    background: linear-gradient(to bottom, var(--paper-color) 80%, transparent); z-index: 20; /* 提升头部层级 */
 }
 .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
+
+/* 新增：滚动区域包装器 */
+#diary-scroll-area {
+    flex: 1; position: relative; overflow-y: auto; overflow-x: hidden;
+    padding-bottom: 50px;
+}
+
+/* 修改：内容区域现在是完全透明的，覆盖在贴纸上方 */
 .paper-content {
-    flex: 1; padding: 10px 25px; overflow-y: auto; overflow-x: hidden;
-    font-size: 1.15rem; line-height: 32px; border: none; background: transparent; color: var(--text-color); font-family: inherit; white-space: pre-wrap; word-break: break-word;
-    position: relative; z-index: 1;
+    min-height: 100%; width: 100%; padding: 10px 25px; 
+    font-size: 1.15rem; line-height: 32px; border: none; 
+    background: transparent; /* 透明 */
+    color: var(--text-color); font-family: inherit; white-space: pre-wrap; word-break: break-word;
+    position: relative; 
+    z-index: 5; /* 文字层级固定为5 */
+    pointer-events: auto; /* 允许输入 */
 }
 .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.5; }
-.page-nav { display: flex; justify-content: space-between; padding: 15px 25px; background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 10; }
+
+.page-nav { display: flex; justify-content: space-between; padding: 15px 25px; background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 20; }
 .format-toolbar-toggle {
     position: fixed; right: 0; top: 150px; width: 40px; height: 40px;
     background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -247,7 +260,8 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 .sticker-item {
     position: absolute; display: inline-block; cursor: grab; 
     user-select: none; -webkit-user-select: none; touch-action: none;
-    z-index: 2; line-height: 0; transform-origin: center center;
+    z-index: 10; /* 默认: 文字上方 */
+    line-height: 0; transform-origin: center center;
 }
 .sticker-item img { display: block; width: 100%; height: 100%; pointer-events: none; }
 .sticker-item.selected { outline: 1.5px dashed var(--primary-color); }
