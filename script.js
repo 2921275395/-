@@ -1,8 +1,8 @@
 // ==========================================
-// script.js - 优化重构版 (无注入代码)
+// script.js - 优化重构版 (修复侧边栏与贴纸保护)
 // ==========================================
 
-// 动态加载 Supabase SDK (保留)
+// 动态加载 Supabase SDK
 const script = document.createElement('script');
 script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
 document.head.appendChild(script);
@@ -30,6 +30,8 @@ let state = {
 
 let supabaseClient = null;
 let globalMaxZIndex = 10;
+let stickerObserver = null;
+let isAuthorisedStickerDelete = false; // 标记是否是通过叉号删除
 
 // ==========================================
 // 数据库 (AppDB)
@@ -166,6 +168,9 @@ async function init() {
             document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
         }
     });
+
+    // 启动贴纸守护进程 (防止 Backspace 误删)
+    initStickerGuardian();
 }
 
 // 辅助函数 (UI相关)
@@ -176,8 +181,66 @@ function copySQL() {
     const text = document.getElementById('sql-code').innerText;
     navigator.clipboard.writeText(text).then(() => showToast("已复制SQL代码"));
 }
+// 新增：全局点击处理 (用于隐藏侧边栏)
 function handleGlobalClick(e) {
-    // 处理一些全局点击关闭逻辑（如有需要）
+    const tab = document.getElementById('index-tab');
+    // 如果日期侧边栏是显示状态
+    if(tab.classList.contains('visible')) {
+        // 如果点击的不是侧边栏本身，也不是日历中的日期（因为点击日期会触发显示，避免冲突）
+        if (!e.target.closest('#index-tab') && !e.target.closest('.day')) {
+            tab.classList.remove('visible');
+        }
+    }
+}
+// 新增：清理缓存
+function clearCache() {
+    if(confirm("⚠️ 警告\n\n此操作将重置应用设置（主题、密码、字体等）。\n日记数据应当安全（存在数据库中），但仍建议先备份。\n\n确定要重置吗？")) {
+        localStorage.clear();
+        alert("缓存已清理，应用将重启。");
+        location.reload();
+    }
+}
+
+/* ============ 贴纸守护进程 (防误删) ============ */
+function initStickerGuardian() {
+    const target = document.getElementById('diary-input');
+    
+    stickerObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            // 如果是已授权的删除 (点了X号)，忽略
+            if (isAuthorisedStickerDelete) return;
+
+            // 检查是否有节点被移除
+            if (mutation.removedNodes.length > 0) {
+                mutation.removedNodes.forEach((node) => {
+                    // 如果被移除的是贴纸
+                    if (node.nodeType === 1 && node.classList.contains('sticker-item')) {
+                        console.log("拦截到未授权的贴纸删除，正在恢复...");
+                        
+                        // 暂时停止观察，以免无限循环
+                        stickerObserver.disconnect();
+                        
+                        // 恢复节点
+                        if (mutation.nextSibling) {
+                            mutation.target.insertBefore(node, mutation.nextSibling);
+                        } else {
+                            mutation.target.appendChild(node);
+                        }
+                        
+                        // 重新绑定事件 (有些浏览器移除后会丢失监听)
+                        attachStickerEvents(node);
+                        
+                        // 重新开始观察
+                        stickerObserver.observe(target, { childList: true, subtree: true });
+                        
+                        showToast("请点击贴纸右上角的 ✕ 删除");
+                    }
+                });
+            }
+        });
+    });
+
+    stickerObserver.observe(target, { childList: true, subtree: true });
 }
 
 /* ============ Supabase 逻辑 ============ */
@@ -246,7 +309,7 @@ async function restoreFromCloud() {
     } catch(e) { status.innerText = "❌ 恢复失败"; alert("恢复失败: " + e.message); }
 }
 
-/* ============ 核心功能 (保持不变) ============ */
+/* ============ 核心功能 ============ */
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 function openStickerDrawer() { renderStickerDrawer(); document.getElementById('sticker-drawer').classList.add('open'); toggleUI(false); }
 function closeStickerDrawer() { document.getElementById('sticker-drawer').classList.remove('open'); isEditingDrawer = false; toggleUI(true); renderStickerDrawer(); }
@@ -256,7 +319,22 @@ async function importStickers(input) { if(!input.files.length) return; for(let f
 function deleteStickerFromLib(id, e) { e.stopPropagation(); if(confirm("删除此贴纸？")) AppDB.deleteSticker(id).then(renderStickerDrawer); }
 async function addStickerToPage(blob) { closeStickerDrawer(); const reader = new FileReader(); reader.onload = (e) => { const base64 = e.target.result; const wrapper = document.createElement('div'); wrapper.className = 'sticker-item selected'; wrapper.contentEditable = "false"; globalMaxZIndex++; wrapper.style.zIndex = globalMaxZIndex; wrapper.style.left = '50px'; wrapper.style.top = '100px'; wrapper.style.width = '150px'; wrapper.innerHTML = `<img src="${base64}" draggable="false"><div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div><div class="sticker-ctrl ctrl-layer" onmousedown="toggleLayer(event)" ontouchstart="toggleLayer(event)">L</div><div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>`; document.getElementById('diary-input').appendChild(wrapper); attachStickerEvents(wrapper); state.isDirty = true; }; reader.readAsDataURL(blob); }
 function attachStickerEvents(el) { let mode = ''; let startX, startY, startLeft, startTop; let centerX, centerY, startWidth, startHeight, startAngle = 0, initialAngle = 0; let startDist = 0, startScaleWidth = 0, startRotation = 0; const activate = (e) => { e.stopPropagation(); document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); el.classList.add('selected'); const z = parseInt(window.getComputedStyle(el).zIndex); if(z !== -1) { globalMaxZIndex++; el.style.zIndex = globalMaxZIndex; } }; el.addEventListener('mousedown', activate); el.addEventListener('touchstart', (e) => { activate(e); const touches = e.touches; const target = e.target; if (touches.length === 2) { mode = 'gesture'; e.preventDefault(); e.stopPropagation(); const rect = el.getBoundingClientRect(); startScaleWidth = rect.width; const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform); startRotation = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI)); startDist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); startAngle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX); } else if (touches.length === 1) { if (target.dataset.action === 'resize') { mode = 'resize'; e.preventDefault(); e.stopPropagation(); const rect = el.getBoundingClientRect(); centerX = rect.left + rect.width / 2; centerY = rect.top + rect.height / 2; startWidth = rect.width; startHeight = rect.height; startAngle = Math.atan2(touches[0].clientY - centerY, touches[0].clientX - centerX); const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform); initialAngle = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI)); } else if(!target.classList.contains('sticker-ctrl')) { mode = 'move'; startX = touches[0].clientX; startY = touches[0].clientY; startLeft = el.offsetLeft; startTop = el.offsetTop; } } }, {passive: false}); document.addEventListener('touchmove', (e) => { if(!el.classList.contains('selected')) return; const touches = e.touches; if (mode === 'gesture' && touches.length === 2) { e.preventDefault(); const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); el.style.width = (startScaleWidth * (dist / startDist)) + 'px'; const angle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX); el.style.transform = `rotate(${startRotation + (angle - startAngle) * (180 / Math.PI)}deg)`; } else if (mode === 'move' && touches.length === 1) { e.preventDefault(); el.style.left = (startLeft + (touches[0].clientX - startX)) + 'px'; el.style.top = (startTop + (touches[0].clientY - startY)) + 'px'; } else if (mode === 'resize' && touches.length === 1) { e.preventDefault(); const touch = touches[0]; const currentAngle = Math.atan2(touch.clientY - centerY, touch.clientX - centerX); const dist = Math.hypot(touch.clientX - centerX, touch.clientY - centerY); el.style.width = (startWidth * (dist / (Math.hypot(startWidth, startHeight) / 2))) + 'px'; el.style.transform = `rotate(${initialAngle + (currentAngle - startAngle) * (180 / Math.PI)}deg)`; } }, {passive: false}); document.addEventListener('touchend', () => { if(mode) state.isDirty = true; mode = ''; }); }
-window.removeSticker = function(e) { e.stopPropagation(); e.preventDefault(); e.target.closest('.sticker-item')?.remove(); state.isDirty = true; };
+
+// 修改后的删除贴纸函数：设置授权标志
+window.removeSticker = function(e) { 
+    e.stopPropagation(); 
+    e.preventDefault(); 
+    
+    // 标记这次删除是合法的
+    isAuthorisedStickerDelete = true;
+    
+    e.target.closest('.sticker-item')?.remove(); 
+    state.isDirty = true;
+    
+    // 重置标志 (setTimeout 确保 MutationObserver 执行完后再重置)
+    setTimeout(() => { isAuthorisedStickerDelete = false; }, 0);
+};
+
 window.toggleLayer = function(e) { e.stopPropagation(); e.preventDefault(); const el = e.target.closest('.sticker-item'); const currentZ = parseInt(window.getComputedStyle(el).zIndex); if(currentZ === -1) { globalMaxZIndex++; el.style.zIndex = globalMaxZIndex; showToast("图层：文字上方"); } else { el.style.zIndex = '-1'; showToast("图层：文字下方"); } state.isDirty = true; };
 function compressImage(file, maxWidth, quality) { return new Promise((resolve) => { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); let w = img.width, h = img.height; if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth; } canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL(file.type, quality)); }; img.src = e.target.result; }; reader.readAsDataURL(file); }); }
 function performSearch(query) { const container = document.getElementById('search-results'); container.innerHTML = ''; if(!query.trim()) return; const results = []; const tempDiv = document.createElement('div'); Object.keys(state.diaryData).sort().reverse().forEach(dateKey => { tempDiv.innerHTML = state.diaryData[dateKey]; if(tempDiv.innerText.toLowerCase().includes(query.toLowerCase())) results.push({ date: dateKey, text: tempDiv.innerText }); }); if(!results.length) { container.innerHTML = '<div class="no-results">无结果</div>'; return; } results.forEach(item => { const el = document.createElement('div'); el.className = 'search-item'; const idx = item.text.toLowerCase().indexOf(query.toLowerCase()); const snippet = item.text.substring(Math.max(0, idx-10), Math.min(item.text.length, idx+query.length+20)); el.innerHTML = `<div class="search-date">${item.date}</div><div class="search-snippet">...${snippet.replace(new RegExp(`(${query})`,'gi'), '<span class="highlight-text">$1</span>')}...</div>`; el.onclick = () => { document.getElementById('search-input').value = ''; container.innerHTML = ''; closeSettings(); selectDate(new Date(item.date)); setTimeout(openDiary, 300); }; container.appendChild(el); }); }
