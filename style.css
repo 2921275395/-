@@ -309,3 +309,31 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 }
 .cloud-panel.open { display: block; animation: fadeIn 0.3s; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+/* ==============================================
+   新增功能样式：请复制到 style.css 的最底部
+   ============================================== */
+
+/* 1. 锁屏/平移模式样式 */
+/* 当点击锁屏按钮开启 pan-mode 后，允许左右滑动 */
+#diary-scroll-area.pan-mode {
+    overflow-x: auto !important; /* 强制允许横向滚动 */
+    cursor: grab; /* 鼠标变成抓手 */
+}
+
+/* 2. 贴纸层级切换按钮样式 */
+/* 这是左上角的图层小图标 */
+.sticker-ctrl.ctrl-layer {
+    top: -12px; 
+    left: -12px;
+    cursor: pointer;
+    display: flex;       /* 确保图标居中 */
+    align-items: center;
+    justify-content: center;
+}
+
+/* 3. 确保文字层级固定 */
+/* 这样贴纸设为 z-index: 2 时就会跑到文字下面 */
+.paper-content {
+    z-index: 5 !important; 
+    position: relative;
+}
