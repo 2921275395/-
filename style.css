@@ -25,6 +25,7 @@ body.paper-lines { --paper-pattern: linear-gradient(transparent 95%, var(--line-
 body.paper-grid { --paper-pattern: linear-gradient(var(--line-color) 1px, transparent 1px), linear-gradient(90deg, var(--line-color) 1px, transparent 1px); --paper-size: 20px 20px; }
 body.paper-blank { --paper-pattern: none; --paper-size: auto; }
 
+/* 关键：确保 padding 包含在宽度计算内 */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
 body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); overflow: hidden; transition: background 0.4s ease, color 0.4s ease; }
 
@@ -37,11 +38,12 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main);
 .save-btn { background-color: var(--highlight) !important; color: #fff !important; border: none !important; box-shadow: 0 4px 15px rgba(238, 184, 195, 0.4); }
 .save-btn svg { fill: #fff; width: 22px; height: 22px; }
 
-/* 视图容器 */
+/* 视图容器 - 修复宽度溢出问题 */
 .view {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    /* 强制宽度为视口宽度，防止溢出 */
-    width: 100vw; max-width: 100%; overflow-x: hidden;
+    position: absolute; top: 0; left: 0; 
+    width: 100%; /* 改为 100%，不要用 100vw，防止包含滚动条宽度 */
+    height: 100%;
+    overflow-x: hidden; /* 禁止水平滚动 */
     display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), visibility 0.4s;
     background-color: var(--bg-color);
 }
@@ -90,7 +92,7 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main);
     display: flex; flex-direction: column; position: relative;
     transition: transform 0.3s; border: 1px solid var(--border-color);
     z-index: 0; transform-style: preserve-3d;
-    overflow-x: hidden; /* 防止内容溢出 */
+    overflow-x: hidden; 
 }
 .paper-container.has-custom-bg { background-repeat: no-repeat; background-position: center; background-size: cover; }
 .paper-header {
@@ -99,20 +101,22 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main);
 }
 .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
 
-/* 新增：滚动区域包装器 */
 #diary-scroll-area {
     flex: 1; position: relative; overflow-y: auto; overflow-x: hidden;
     padding-bottom: 50px; width: 100%;
 }
 
-/* 修改：修复右侧显示不全的问题 */
+/* 修改：调整内边距，确保文字在屏幕内安全显示 */
 .paper-content {
     min-height: 100%; 
-    width: auto; /* 改为自动宽度，适应父容器 */
-    padding: 10px 32px; /* 增加左右内边距，防止贴近屏幕边缘 */
+    width: 100%; /* 确保撑满容器宽度 */
+    /* 上下10px，左右24px (减小侧边距以防溢出，或增大以防遮挡，这里用24px比较适中) */
+    padding: 10px 24px; 
     font-size: 1.15rem; line-height: 32px; border: none; 
     background: transparent; 
-    color: var(--text-color); font-family: inherit; white-space: pre-wrap; word-break: break-word;
+    color: var(--text-color); font-family: inherit; 
+    /* 强制换行，防止长单词撑开屏幕 */
+    white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word;
     position: relative; 
     z-index: 5; 
     pointer-events: auto; 
@@ -121,7 +125,6 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main);
 
 .page-nav { display: flex; justify-content: space-between; padding: 15px 25px; background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 20; }
 .format-toolbar-toggle {
-    /* 稍微往左挪一点，避免遮挡文字 */
     position: fixed; right: 10px; top: 150px; width: 40px; height: 40px;
     background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center;
     cursor: grab; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 150; color: var(--text-color); border: 1px solid var(--line-color); touch-action: none;
