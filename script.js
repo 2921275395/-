@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 修复贴纸置顶 & 保持所有功能
+// script.js - 修复高清背景 & 导出体积控制
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -24,20 +24,20 @@ let state = {
         cloudKey: ""
     },
     security: { enabled: false, pin: "", biometrics: false, credentialId: null },
-    bgImage: null,
+    bgImage: null, // 现在存储的是 Blob URL
     isDirty: false
 };
 
 let supabaseClient = null;
 let isEditingDrawer = false;
-let globalMaxZIndex = 100; // === 新增：全局层级计数器 ===
+let globalMaxZIndex = 100; 
 
 // ==========================================
-// 数据库 (AppDB)
+// 数据库 (AppDB) - 升级支持大文件存储
 // ==========================================
 const AppDB = {
     dbName: 'MyDiaryProDB',
-    dbVersion: 1,
+    dbVersion: 2, // 升级版本号以创建新表
     db: null,
     async init() {
         return new Promise((resolve, reject) => {
@@ -46,6 +46,8 @@ const AppDB = {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains('entries')) db.createObjectStore('entries', { keyPath: 'date' });
                 if (!db.objectStoreNames.contains('stickers')) db.createObjectStore('stickers', { keyPath: 'id', autoIncrement: true });
+                // 新增：assets 表，专门存高清背景图
+                if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets', { keyPath: 'id' });
             };
             request.onsuccess = (e) => { this.db = e.target.result; resolve(); };
             request.onerror = (e) => reject(e);
@@ -94,6 +96,30 @@ const AppDB = {
             tx.objectStore('stickers').delete(id);
             tx.oncomplete = () => resolve();
         });
+    },
+    // === 新增：背景图存取方法 ===
+    async saveAsset(id, blob) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(['assets'], 'readwrite');
+            tx.objectStore('assets').put({ id: id, blob: blob });
+            tx.oncomplete = () => resolve();
+            tx.onerror = (e) => reject(e);
+        });
+    },
+    async getAsset(id) {
+        return new Promise((resolve) => {
+            const tx = this.db.transaction(['assets'], 'readonly');
+            const req = tx.objectStore('assets').get(id);
+            req.onsuccess = () => resolve(req.result ? req.result.blob : null);
+            req.onerror = () => resolve(null);
+        });
+    },
+    async deleteAsset(id) {
+         return new Promise((resolve) => {
+            const tx = this.db.transaction(['assets'], 'readwrite');
+            tx.objectStore('assets').delete(id);
+            tx.oncomplete = () => resolve();
+        });
     }
 };
 
@@ -114,8 +140,15 @@ async function init() {
         state.todoData = JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]');
         state.settings = Object.assign(state.settings, JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{}'));
         state.security = Object.assign(state.security, JSON.parse(localStorage.getItem('myDiarySecurity_v2') || '{}'));
+        // 尝试从旧的 LocalStorage 加载背景（兼容旧数据）
         state.bgImage = localStorage.getItem('myDiaryBg_v2') || null;
     } catch (e) { console.error("Settings Load Error", e); }
+
+    // === 新增：尝试从 IndexedDB 加载高清背景 ===
+    const hdBg = await AppDB.getAsset('bgImage');
+    if (hdBg) {
+        state.bgImage = URL.createObjectURL(hdBg);
+    }
 
     checkLockStatus();
     applySettings();
@@ -164,7 +197,6 @@ async function init() {
         }
     });
 
-    // 强制禁用浏览器自动填充密码
     const todoInp = document.getElementById('new-todo-input');
     if(todoInp) {
         todoInp.setAttribute('autocomplete', 'off');
@@ -287,7 +319,6 @@ async function addStickerToPage(blob) {
         wrapper.className = 'sticker-item selected'; 
         wrapper.contentEditable = "false"; 
         
-        // === 新增：添加时使用全局 z-index ===
         globalMaxZIndex++;
         wrapper.style.zIndex = globalMaxZIndex; 
         
@@ -306,7 +337,6 @@ function activateStickerElement(el) {
     document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); 
     el.classList.add('selected');
     
-    // === 新增：点击选中时，层级置顶 ===
     globalMaxZIndex++;
     el.style.zIndex = globalMaxZIndex;
 }
@@ -318,7 +348,7 @@ function attachStickerEvents(el) {
     let startDist = 0, startScaleWidth = 0, startRotation = 0; 
 
     const handleStart = (e) => {
-        activateStickerElement(el); // 触发置顶
+        activateStickerElement(el); 
         const touches = e.touches; 
         const target = e.target; 
 
@@ -460,34 +490,20 @@ function toggleTodo(id) { const t=state.todoData.find(i=>i.id===id); if(t) { t.d
 function updateTodoData(id, k, v) { const t=state.todoData.find(i=>i.id===id); if(t) { t[k]=v; if(k==='time'||k==='date') t.notified=false; saveTodo(); renderTodoList(); } }
 function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
 
-// === 渲染排序逻辑 (保持不变) ===
+// === 渲染排序逻辑 ===
 function renderTodoList() { 
     const list=document.getElementById('todo-list'); 
     list.innerHTML=''; 
     
-    // 排序逻辑：
-    // 1. 已完成的在最后 (done=true)
-    // 2. 未设置日期的在最前 (!date)
-    // 3. 有日期的按时间先后 (date asc)
-    // 4. 同日期按时间 (time asc)
     state.todoData.sort((a,b) => {
-        // 1. 完成状态差异
         if (a.done !== b.done) return a.done ? 1 : -1;
-        
-        // 如果都完成了，按ID倒序（新的已完成在前）
         if (a.done) return b.id - a.id;
-
-        // 2. 处理未设置日期 (置顶)
         const noDateA = !a.date;
         const noDateB = !b.date;
-        if (noDateA && !noDateB) return -1; // A无日期 -> 靠前
-        if (!noDateA && noDateB) return 1;  // B无日期 -> 靠前
-        if (noDateA && noDateB) return b.id - a.id; // 都无日期 -> 按创建时间倒序
-
-        // 3. 都有日期 -> 按日期排序
+        if (noDateA && !noDateB) return -1; 
+        if (!noDateA && noDateB) return 1;  
+        if (noDateA && noDateB) return b.id - a.id; 
         if (a.date !== b.date) return a.date.localeCompare(b.date);
-
-        // 4. 日期相同 -> 按时间排序
         const timeA = a.time || '00:00';
         const timeB = b.time || '00:00';
         return timeA.localeCompare(timeB);
@@ -518,7 +534,6 @@ function startNotificationCheck() {
         state.todoData.forEach(t => { 
             if(!t.done && t.date===d && t.time && !t.notified) { 
                 const [th,tm] = t.time.split(':').map(Number); 
-                // 允许1分钟内的误差
                 if(Math.abs(m - (th*60 + tm)) <= 1) { 
                     try {
                         if('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -544,7 +559,6 @@ function renderCalendar() { const y=state.currentDate.getFullYear(),m=state.curr
 function changeMonth(v) { if(v) { const [y,m]=v.split('-'); state.currentDate=new Date(y,m-1,1); renderCalendar(); } }
 function selectDate(d) { state.selectedDate=d; renderCalendar(); document.getElementById('tab-date').textContent=`${d.getMonth()+1}/${d.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
 
-// === 更新：打开日记时，检测已有贴纸的最高层级 ===
 function openDiary(e) { 
     if(e)e.stopPropagation(); 
     const k=formatDateKey(state.selectedDate); 
@@ -561,7 +575,6 @@ function openDiary(e) {
     
     const stickers = tempDiv.querySelectorAll('.sticker-item');
     stickers.forEach(s => {
-        // 更新全局层级计数器，防止新贴纸被旧的遮挡
         const z = parseInt(s.style.zIndex || 0);
         if(z > globalMaxZIndex) globalMaxZIndex = z;
         
@@ -604,12 +617,98 @@ function hideToast() { document.getElementById('save-toast').classList.remove('s
 function applyFont() { const u=document.getElementById('font-url-input').value.trim(); if(u) { state.settings.customFont=u; loadCustomFont(u); saveSettings(); alert("加载中..."); } }
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
-function exportDiaryImage() { const d=document.getElementById('export-date-picker').value; if(!d) return alert("选日期"); const k=d; const c=state.diaryData[k]; if(!c) return alert("空日记"); showToast("正在生成高清图片..."); const con=document.getElementById('screenshot-container'); con.innerHTML=''; const p=document.createElement('div'); p.className=`paper-container ${state.settings.paper}`; if(state.bgImage){p.style.backgroundImage=`url(${state.bgImage})`;p.classList.add('has-custom-bg')} p.style.height='auto'; p.style.minHeight='800px'; p.style.position='relative'; p.style.borderRadius='0'; p.innerHTML=`<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible">${c}</div>`; con.appendChild(p); html2canvas(p,{scale:4, useCORS:true, backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null}).then(cvs=>{ const a=document.createElement('a'); a.download=`diary_${k}.png`; a.href=cvs.toDataURL(); a.click(); con.innerHTML=''; showToast("已保存"); }); }
+
+// === 更新：导出图片（高清但控制在5MB以内） ===
+function exportDiaryImage() { 
+    const d=document.getElementById('export-date-picker').value; 
+    if(!d) return alert("选日期"); 
+    const k=d; 
+    const c=state.diaryData[k]; 
+    if(!c) return alert("空日记"); 
+    
+    showToast("正在生成高清图片..."); 
+    
+    const con=document.getElementById('screenshot-container'); 
+    con.innerHTML=''; 
+    const p=document.createElement('div'); 
+    p.className=`paper-container ${state.settings.paper}`; 
+    
+    // 使用高清 Blob URL
+    if(state.bgImage){
+        p.style.backgroundImage=`url(${state.bgImage})`;
+        p.classList.add('has-custom-bg')
+    } 
+    
+    p.style.height='auto'; 
+    p.style.minHeight='800px'; 
+    p.style.position='relative'; 
+    p.style.borderRadius='0'; 
+    p.innerHTML=`<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible">${c}</div>`; 
+    con.appendChild(p); 
+    
+    // 关键优化：scale: 3 (高清但不过分), useCORS: true
+    html2canvas(p,{
+        scale: 3, 
+        useCORS: true, 
+        backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null
+    }).then(cvs=>{ 
+        // 智能压缩逻辑：从 0.95 质量开始，如果文件大于 5MB，降低质量
+        let quality = 0.95;
+        let dataUrl = cvs.toDataURL('image/jpeg', quality);
+        
+        // 简单循环检查大小 (粗略计算 Base64 长度: 1MB ~= 1.37*10^6 字符)
+        const limit = 5 * 1024 * 1024 * 1.37;
+        while (dataUrl.length > limit && quality > 0.5) {
+            quality -= 0.1;
+            dataUrl = cvs.toDataURL('image/jpeg', quality);
+        }
+
+        const a=document.createElement('a'); 
+        a.download=`diary_${k}.jpg`; 
+        a.href=dataUrl; 
+        a.click(); 
+        con.innerHTML=''; 
+        showToast("已保存 (高清)"); 
+    }); 
+}
+
 function startCrop(i) { const f=i.files[0]; if(f) { const r=new FileReader(); r.onload=e=>{ document.getElementById('cropper-modal').style.display='flex'; document.getElementById('cropper-img').src=e.target.result; if(cropperInstance)cropperInstance.destroy(); cropperInstance=new Cropper(document.getElementById('cropper-img'),{viewMode:2,dragMode:'move',autoCropArea:1}); }; r.readAsDataURL(f); i.value=''; } }
 function cancelCrop() { document.getElementById('cropper-modal').style.display='none'; if(cropperInstance)cropperInstance.destroy(); }
-function finishCrop() { if(cropperInstance) { state.bgImage=cropperInstance.getCroppedCanvas({ maxWidth:2560, maxHeight:2560, fillColor:'#fff' }).toDataURL('image/jpeg', 0.9); localStorage.setItem('myDiaryBg_v2',state.bgImage); applyBgImage(); cancelCrop(); showToast("高清背景已设置"); } }
+
+// === 更新：背景图保存逻辑（存入 DB 而非 LocalStorage） ===
+function finishCrop() { 
+    if(cropperInstance) { 
+        // 1. 获取 Blob 而非 DataURL（支持高清大图）
+        // 2. 限制最大 3840 (4K)，防止过大导致崩溃，但足够高清
+        cropperInstance.getCroppedCanvas({ 
+            maxWidth: 3840, 
+            maxHeight: 3840, 
+            imageSmoothingQuality: 'high'
+        }).toBlob((blob) => {
+            // 存入 IndexedDB
+            AppDB.saveAsset('bgImage', blob).then(() => {
+                // 清理旧的 LocalStorage 缓存
+                localStorage.removeItem('myDiaryBg_v2');
+                // 更新内存状态
+                state.bgImage = URL.createObjectURL(blob);
+                applyBgImage();
+                cancelCrop();
+                showToast("高清背景已设置");
+            });
+        }, 'image/jpeg', 0.95); 
+    } 
+}
+
 function applyBgImage() { const p=document.getElementById('paper-layer'); if(state.bgImage){p.style.backgroundImage=`url(${state.bgImage})`;p.classList.add('has-custom-bg')}else{p.style.backgroundImage='';p.classList.remove('has-custom-bg')} }
-function clearBgImage() { state.bgImage=null; localStorage.removeItem('myDiaryBg_v2'); applyBgImage(); showToast("已还原"); }
+
+function clearBgImage() { 
+    state.bgImage=null; 
+    localStorage.removeItem('myDiaryBg_v2'); 
+    AppDB.deleteAsset('bgImage'); // 同时删除 DB 中的图片
+    applyBgImage(); 
+    showToast("已还原"); 
+}
+
 function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); toggleUI(false); document.getElementById('font-url-input').value=state.settings.customFont||''; }
 function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); toggleUI(true); saveSettings(); }
 function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
