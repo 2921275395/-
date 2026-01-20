@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 智能导出体积控制 (1MB-5MB)
+// script.js - 锁屏平移 & 贴纸图层管理
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -32,8 +32,12 @@ let supabaseClient = null;
 let isEditingDrawer = false;
 let globalMaxZIndex = 100; 
 
+// === 新增：平移状态 ===
+let isPanMode = false; // 是否处于可拖动/调整布局模式
+let currentPaperX = 0; // 纸张当前的 X 轴偏移量
+
 // ==========================================
-// 数据库 (AppDB)
+// 数据库 (AppDB) - 保持不变
 // ==========================================
 const AppDB = {
     dbName: 'MyDiaryProDB',
@@ -165,6 +169,12 @@ async function init() {
     initDraggable(document.getElementById('fmt-toggle'), 'any');
     initDraggable(document.getElementById('sticker-btn'), 'any'); 
     
+    // === 新增：初始化锁屏/移动按钮 ===
+    // 我们需要在界面里动态插入这个按钮，或者你可以在HTML里加
+    // 这里我假设HTML里没有，动态插入到 sticker-btn 下方
+    createPanButton();
+    initPaperPanEvents();
+
     document.getElementById('export-date-picker').valueAsDate = new Date();
     const now = new Date();
     document.getElementById('gallery-month-picker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -201,8 +211,74 @@ async function init() {
     }
 }
 
+// === 新增：创建锁屏/平移按钮 ===
+function createPanButton() {
+    if(document.getElementById('btn-pan-toggle')) return;
+    const btn = document.createElement('div');
+    btn.id = 'btn-pan-toggle';
+    btn.className = 'float-btn';
+    btn.innerHTML = '🔒'; // 初始状态：锁定（不可动）
+    btn.style.bottom = '160px'; // 放在贴纸按钮上方
+    btn.onclick = togglePanMode;
+    document.body.appendChild(btn);
+}
+
+// === 新增：切换平移模式逻辑 ===
+function togglePanMode() {
+    isPanMode = !isPanMode;
+    const btn = document.getElementById('btn-pan-toggle');
+    const scrollArea = document.getElementById('diary-scroll-area');
+    
+    if (isPanMode) {
+        // 解锁状态：允许移动，允许穿透点击底层贴纸
+        btn.innerHTML = '🔓'; 
+        btn.classList.add('active');
+        scrollArea.classList.add('pan-active');
+        showToast("移动模式：左右拖动纸张，点击底层贴纸");
+    } else {
+        // 锁定状态：固定位置（保持当前的偏移），恢复文字输入
+        btn.innerHTML = '🔒';
+        btn.classList.remove('active');
+        scrollArea.classList.remove('pan-active');
+        showToast("锁定模式：可编辑文字");
+    }
+}
+
+// === 新增：纸张拖动逻辑 ===
+function initPaperPanEvents() {
+    const el = document.getElementById('diary-scroll-area');
+    let startX = 0;
+    let startTranslateX = 0;
+    let isDragging = false;
+
+    el.addEventListener('touchstart', (e) => {
+        if (!isPanMode) return;
+        // 如果点击的是贴纸，不触发背景拖动
+        if (e.target.closest('.sticker-item')) return;
+        
+        isDragging = true;
+        startX = e.touches[0].clientX;
+        startTranslateX = currentPaperX;
+    }, {passive: false});
+
+    el.addEventListener('touchmove', (e) => {
+        if (!isDragging || !isPanMode) return;
+        e.preventDefault(); // 防止触发原生滚动
+        const diff = e.touches[0].clientX - startX;
+        currentPaperX = startTranslateX + diff;
+        
+        // 应用位移
+        document.getElementById('paper-layer').style.transform = `translateX(${currentPaperX}px)`;
+    }, {passive: false});
+
+    el.addEventListener('touchend', () => {
+        isDragging = false;
+    });
+}
+
 function focusInput(e) {
-    if(e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input') {
+    // 只有在非移动模式下，点击背景才聚焦输入框
+    if(!isPanMode && (e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input')) {
         document.getElementById('diary-input').focus();
     }
 }
@@ -231,7 +307,7 @@ function clearCache() {
     }
 }
 
-/* ============ Supabase 逻辑 ============ */
+/* ============ Supabase 逻辑 (保持不变) ============ */
 function initSupabase() {
     if(window.supabase && state.settings.cloudUrl && state.settings.cloudKey) {
         try { supabaseClient = window.supabase.createClient(state.settings.cloudUrl, state.settings.cloudKey); } 
@@ -306,6 +382,7 @@ async function renderStickerDrawer() { const list = document.getElementById('sti
 async function importStickers(input) { if(!input.files.length) return; for(let file of input.files) { const compressed = await compressImage(file, 1024, 0.8); const blob = await (await fetch(compressed)).blob(); await AppDB.addSticker(blob); } renderStickerDrawer(); input.value = ''; }
 function deleteStickerFromLib(id, e) { e.stopPropagation(); if(confirm("删除此贴纸？")) AppDB.deleteSticker(id).then(renderStickerDrawer); }
 
+// === 更新：添加贴纸时增加图层按钮 ===
 async function addStickerToPage(blob) { 
     closeStickerDrawer(); 
     const reader = new FileReader(); 
@@ -321,7 +398,15 @@ async function addStickerToPage(blob) {
         wrapper.style.left = '50px'; 
         wrapper.style.top = '100px'; 
         wrapper.style.width = '150px'; 
-        wrapper.innerHTML = `<img src="${base64}" draggable="false"><div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div><div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>`; 
+        
+        // 增加图层切换按钮 (ctrl-layer)
+        wrapper.innerHTML = `
+            <img src="${base64}" draggable="false">
+            <div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div>
+            <div class="sticker-ctrl ctrl-layer" onmousedown="toggleStickerLayer(event)" ontouchstart="toggleStickerLayer(event)">⬇️</div>
+            <div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>
+        `; 
+        
         document.getElementById('diary-scroll-area').appendChild(wrapper); 
         attachStickerEvents(wrapper); 
         state.isDirty = true; 
@@ -329,12 +414,39 @@ async function addStickerToPage(blob) {
     reader.readAsDataURL(blob); 
 }
 
+// === 新增：切换贴纸图层 (上/下) ===
+window.toggleStickerLayer = function(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    const el = e.target.closest('.sticker-item');
+    const btn = e.target;
+    
+    // 切换类名
+    el.classList.toggle('layer-bottom');
+    
+    if (el.classList.contains('layer-bottom')) {
+        // 沉底：z-index 设为 5 (背景 0, 文字 10)
+        el.style.zIndex = '5';
+        btn.innerText = '⬆️'; // 变成“向上”箭头
+    } else {
+        // 置顶：z-index 设为当前最大值
+        globalMaxZIndex++;
+        el.style.zIndex = globalMaxZIndex;
+        btn.innerText = '⬇️'; // 变成“向下”箭头
+    }
+    state.isDirty = true;
+};
+
 function activateStickerElement(el) {
     document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); 
     el.classList.add('selected');
     
-    globalMaxZIndex++;
-    el.style.zIndex = globalMaxZIndex;
+    // 只有非沉底的贴纸，点击时才自动置顶
+    // 如果是沉底贴纸，保持沉底 z-index
+    if (!el.classList.contains('layer-bottom')) {
+        globalMaxZIndex++;
+        el.style.zIndex = globalMaxZIndex;
+    }
 }
 
 function attachStickerEvents(el) { 
@@ -443,7 +555,13 @@ async function registerBiometric() { if (!window.PublicKeyCredential) { alert("�
 function togglePinLock() { if(state.security.enabled) { if(prompt("输入PIN关闭")==state.security.pin) { state.security.enabled=false; state.security.biometrics=false; saveSecurity(); applySettings(); } } else { const p=prompt("设置4位PIN"); if(p&&p.length==4) { state.security.enabled=true; state.security.pin=p; saveSecurity(); applySettings(); } } }
 async function toggleBiometrics() { if(!state.security.enabled) return alert("先开启PIN"); if(!state.security.biometrics) { if(await registerBiometric()) { state.security.biometrics=true; saveSecurity(); applySettings(); } } else { state.security.biometrics=false; saveSecurity(); applySettings(); } }
 function saveSecurity() { localStorage.setItem('myDiarySecurity_v2', JSON.stringify(state.security)); }
-function toggleUI(show) { document.querySelectorAll('.side-tab').forEach(tab => { if(show) { if(tab.id!=='todo-tab' || state.settings.showTodo) tab.classList.remove('hidden-ui'); } else tab.classList.add('hidden-ui'); }); document.getElementById('sticker-btn').style.display = (show && state.settings.enableSticker) ? 'flex' : 'none'; }
+function toggleUI(show) { document.querySelectorAll('.side-tab').forEach(tab => { if(show) { if(tab.id!=='todo-tab' || state.settings.showTodo) tab.classList.remove('hidden-ui'); } else tab.classList.add('hidden-ui'); }); document.getElementById('sticker-btn').style.display = (show && state.settings.enableSticker) ? 'flex' : 'none'; 
+    if(show && state.settings.enableSticker && document.getElementById('btn-pan-toggle')) {
+        document.getElementById('btn-pan-toggle').style.display = 'flex';
+    } else if(document.getElementById('btn-pan-toggle')) {
+        document.getElementById('btn-pan-toggle').style.display = 'none';
+    }
+}
 function updateTodoTabVisibility() { document.getElementById('todo-tab').style.display = state.settings.showTodo ? 'flex' : 'none'; if(state.settings.showTodo) document.getElementById('todo-tab').classList.remove('hidden-ui'); }
 function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); toggleUI(false); }
 function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); toggleUI(true); }
@@ -557,6 +675,17 @@ function selectDate(d) { state.selectedDate=d; renderCalendar(); document.getEle
 
 function openDiary(e) { 
     if(e)e.stopPropagation(); 
+    
+    // 打开日记时重置平移状态
+    isPanMode = false;
+    currentPaperX = 0;
+    document.getElementById('paper-layer').style.transform = `translateX(0)`;
+    if(document.getElementById('btn-pan-toggle')) {
+        document.getElementById('btn-pan-toggle').innerHTML = '🔒';
+        document.getElementById('btn-pan-toggle').classList.remove('active');
+    }
+    document.getElementById('diary-scroll-area').classList.remove('pan-active');
+
     const k=formatDateKey(state.selectedDate); 
     document.getElementById('diary-date-display').textContent=state.selectedDate.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'}); 
     
@@ -574,6 +703,13 @@ function openDiary(e) {
         const z = parseInt(s.style.zIndex || 0);
         if(z > globalMaxZIndex) globalMaxZIndex = z;
         
+        // 恢复图层按钮的箭头状态
+        const layerBtn = s.querySelector('.ctrl-layer');
+        if(layerBtn) {
+            if(s.classList.contains('layer-bottom')) layerBtn.innerText = '⬆️';
+            else layerBtn.innerText = '⬇️';
+        }
+
         scrollArea.appendChild(s);
         attachStickerEvents(s);
     });
@@ -584,11 +720,26 @@ function openDiary(e) {
     toggleUI(false); 
     document.getElementById('todo-tab').style.display = 'none'; 
     document.getElementById('index-tab').style.display = 'none'; 
-    if(state.settings.enableSticker) document.getElementById('sticker-btn').style.display='flex'; 
+    if(state.settings.enableSticker) {
+        document.getElementById('sticker-btn').style.display='flex'; 
+        if(document.getElementById('btn-pan-toggle')) document.getElementById('btn-pan-toggle').style.display = 'flex';
+    }
     state.isDirty=false; 
 }
 
-function closeDiary() { document.querySelectorAll('.sticker-item.selected').forEach(el=>el.classList.remove('selected')); saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right'); document.getElementById('fmt-bar').classList.remove('active'); document.getElementById('sticker-btn').style.display='none'; closeStickerDrawer(); toggleUI(true); updateTodoTabVisibility(); document.getElementById('index-tab').style.display = 'flex'; renderCalendar(); }
+function closeDiary() { 
+    document.querySelectorAll('.sticker-item.selected').forEach(el=>el.classList.remove('selected')); 
+    saveDiaryManual(false); 
+    document.getElementById('diary-view').classList.add('hidden-right'); 
+    document.getElementById('fmt-bar').classList.remove('active'); 
+    document.getElementById('sticker-btn').style.display='none'; 
+    if(document.getElementById('btn-pan-toggle')) document.getElementById('btn-pan-toggle').style.display='none';
+    closeStickerDrawer(); 
+    toggleUI(true); 
+    updateTodoTabVisibility(); 
+    document.getElementById('index-tab').style.display = 'flex'; 
+    renderCalendar(); 
+}
 function changeDay(o) { saveDiaryManual(false); state.selectedDate.setDate(state.selectedDate.getDate()+o); const p=document.getElementById('paper-layer'); const a=o>0?'anim-slide-left':'anim-slide-right'; p.classList.add(a); setTimeout(()=>{openDiary();p.classList.remove(a);p.style.opacity='0';requestAnimationFrame(()=>p.style.opacity='1')},350); }
 function toggleFormatToolbar(e) { e.stopPropagation(); const t=document.getElementById('fmt-toggle'); if(t.getBoundingClientRect().left<window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left'); document.getElementById('fmt-bar').classList.toggle('active'); }
 function execCmd(c,v=null) { document.execCommand(c,false,v); document.getElementById('diary-input').focus(); }
@@ -614,7 +765,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心修改：导出图片（智能体积控制 1MB-5MB） ===
+// === 更新：导出图片（需暂时复位 X 轴平移） ===
 function exportDiaryImage() { 
     const d=document.getElementById('export-date-picker').value; 
     if(!d) return alert("选日期"); 
@@ -623,6 +774,10 @@ function exportDiaryImage() {
     if(!c) return alert("空日记"); 
     
     showToast("正在生成..."); 
+
+    // 临时保存当前的平移状态并复位，保证截图完整
+    const savedTransform = document.getElementById('paper-layer').style.transform;
+    document.getElementById('paper-layer').style.transform = 'translateX(0)';
     
     const con=document.getElementById('screenshot-container'); 
     con.innerHTML=''; 
@@ -638,27 +793,26 @@ function exportDiaryImage() {
     p.style.minHeight='800px'; 
     p.style.position='relative'; 
     p.style.borderRadius='0'; 
+    
+    // 注意：这里导出的内容已经包含了 z-index (class 和 style)，html2canvas 会正确渲染图层
     p.innerHTML=`<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible">${c}</div>`; 
     con.appendChild(p); 
     
-    // 保持 scale: 3 (高清)
     html2canvas(p,{
         scale: 3, 
         useCORS: true, 
         backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null
     }).then(cvs=>{ 
-        // 1. 尝试 100% 质量导出
+        // 恢复平移状态
+        document.getElementById('paper-layer').style.transform = savedTransform;
+
         let quality = 1.0;
         let dataUrl = cvs.toDataURL('image/jpeg', quality);
         
-        // 计算字节大小 (估算: Base64长度 * 0.75)
         let sizeInBytes = Math.round(dataUrl.length * 0.75);
-        const maxBytes = 5 * 1024 * 1024; // 5MB limit
+        const maxBytes = 5 * 1024 * 1024; 
         
-        // 2. 只有当体积 > 5MB 时才进行压缩
-        // 如果初始体积就 < 1MB，循环不会执行，直接高质量导出
         if (sizeInBytes > maxBytes) {
-            // 循环降低质量，直到 < 5MB，最低保护线 0.3
             while (sizeInBytes > maxBytes && quality > 0.3) {
                 quality -= 0.05; 
                 dataUrl = cvs.toDataURL('image/jpeg', quality);
