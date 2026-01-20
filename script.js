@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 修复高清背景 & 导出体积控制
+// script.js - 智能导出体积控制 (1MB-5MB)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -24,7 +24,7 @@ let state = {
         cloudKey: ""
     },
     security: { enabled: false, pin: "", biometrics: false, credentialId: null },
-    bgImage: null, // 现在存储的是 Blob URL
+    bgImage: null, 
     isDirty: false
 };
 
@@ -33,11 +33,11 @@ let isEditingDrawer = false;
 let globalMaxZIndex = 100; 
 
 // ==========================================
-// 数据库 (AppDB) - 升级支持大文件存储
+// 数据库 (AppDB)
 // ==========================================
 const AppDB = {
     dbName: 'MyDiaryProDB',
-    dbVersion: 2, // 升级版本号以创建新表
+    dbVersion: 2, 
     db: null,
     async init() {
         return new Promise((resolve, reject) => {
@@ -46,7 +46,6 @@ const AppDB = {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains('entries')) db.createObjectStore('entries', { keyPath: 'date' });
                 if (!db.objectStoreNames.contains('stickers')) db.createObjectStore('stickers', { keyPath: 'id', autoIncrement: true });
-                // 新增：assets 表，专门存高清背景图
                 if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets', { keyPath: 'id' });
             };
             request.onsuccess = (e) => { this.db = e.target.result; resolve(); };
@@ -97,7 +96,6 @@ const AppDB = {
             tx.oncomplete = () => resolve();
         });
     },
-    // === 新增：背景图存取方法 ===
     async saveAsset(id, blob) {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(['assets'], 'readwrite');
@@ -140,11 +138,9 @@ async function init() {
         state.todoData = JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]');
         state.settings = Object.assign(state.settings, JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{}'));
         state.security = Object.assign(state.security, JSON.parse(localStorage.getItem('myDiarySecurity_v2') || '{}'));
-        // 尝试从旧的 LocalStorage 加载背景（兼容旧数据）
         state.bgImage = localStorage.getItem('myDiaryBg_v2') || null;
     } catch (e) { console.error("Settings Load Error", e); }
 
-    // === 新增：尝试从 IndexedDB 加载高清背景 ===
     const hdBg = await AppDB.getAsset('bgImage');
     if (hdBg) {
         state.bgImage = URL.createObjectURL(hdBg);
@@ -211,7 +207,7 @@ function focusInput(e) {
     }
 }
 
-// 辅助函数 (UI相关)
+// 辅助函数
 function openCloudHelp(e) { e.stopPropagation(); document.getElementById('cloud-help').classList.add('active'); }
 function closeCloudHelp() { document.getElementById('cloud-help').classList.remove('active'); }
 function toggleCloudPanel() { const p = document.getElementById('cloud-panel'); p.classList.toggle('open'); }
@@ -618,7 +614,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 更新：导出图片（高清但控制在5MB以内） ===
+// === 核心修改：导出图片（智能体积控制 1MB-5MB） ===
 function exportDiaryImage() { 
     const d=document.getElementById('export-date-picker').value; 
     if(!d) return alert("选日期"); 
@@ -626,14 +622,13 @@ function exportDiaryImage() {
     const c=state.diaryData[k]; 
     if(!c) return alert("空日记"); 
     
-    showToast("正在生成高清图片..."); 
+    showToast("正在生成..."); 
     
     const con=document.getElementById('screenshot-container'); 
     con.innerHTML=''; 
     const p=document.createElement('div'); 
     p.className=`paper-container ${state.settings.paper}`; 
     
-    // 使用高清 Blob URL
     if(state.bgImage){
         p.style.backgroundImage=`url(${state.bgImage})`;
         p.classList.add('has-custom-bg')
@@ -646,21 +641,29 @@ function exportDiaryImage() {
     p.innerHTML=`<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible">${c}</div>`; 
     con.appendChild(p); 
     
-    // 关键优化：scale: 3 (高清但不过分), useCORS: true
+    // 保持 scale: 3 (高清)
     html2canvas(p,{
         scale: 3, 
         useCORS: true, 
         backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null
     }).then(cvs=>{ 
-        // 智能压缩逻辑：从 0.95 质量开始，如果文件大于 5MB，降低质量
-        let quality = 0.95;
+        // 1. 尝试 100% 质量导出
+        let quality = 1.0;
         let dataUrl = cvs.toDataURL('image/jpeg', quality);
         
-        // 简单循环检查大小 (粗略计算 Base64 长度: 1MB ~= 1.37*10^6 字符)
-        const limit = 5 * 1024 * 1024 * 1.37;
-        while (dataUrl.length > limit && quality > 0.5) {
-            quality -= 0.1;
-            dataUrl = cvs.toDataURL('image/jpeg', quality);
+        // 计算字节大小 (估算: Base64长度 * 0.75)
+        let sizeInBytes = Math.round(dataUrl.length * 0.75);
+        const maxBytes = 5 * 1024 * 1024; // 5MB limit
+        
+        // 2. 只有当体积 > 5MB 时才进行压缩
+        // 如果初始体积就 < 1MB，循环不会执行，直接高质量导出
+        if (sizeInBytes > maxBytes) {
+            // 循环降低质量，直到 < 5MB，最低保护线 0.3
+            while (sizeInBytes > maxBytes && quality > 0.3) {
+                quality -= 0.05; 
+                dataUrl = cvs.toDataURL('image/jpeg', quality);
+                sizeInBytes = Math.round(dataUrl.length * 0.75);
+            }
         }
 
         const a=document.createElement('a'); 
@@ -668,28 +671,22 @@ function exportDiaryImage() {
         a.href=dataUrl; 
         a.click(); 
         con.innerHTML=''; 
-        showToast("已保存 (高清)"); 
+        showToast(`已保存 (${(sizeInBytes/1024/1024).toFixed(2)}MB)`); 
     }); 
 }
 
 function startCrop(i) { const f=i.files[0]; if(f) { const r=new FileReader(); r.onload=e=>{ document.getElementById('cropper-modal').style.display='flex'; document.getElementById('cropper-img').src=e.target.result; if(cropperInstance)cropperInstance.destroy(); cropperInstance=new Cropper(document.getElementById('cropper-img'),{viewMode:2,dragMode:'move',autoCropArea:1}); }; r.readAsDataURL(f); i.value=''; } }
 function cancelCrop() { document.getElementById('cropper-modal').style.display='none'; if(cropperInstance)cropperInstance.destroy(); }
 
-// === 更新：背景图保存逻辑（存入 DB 而非 LocalStorage） ===
 function finishCrop() { 
     if(cropperInstance) { 
-        // 1. 获取 Blob 而非 DataURL（支持高清大图）
-        // 2. 限制最大 3840 (4K)，防止过大导致崩溃，但足够高清
         cropperInstance.getCroppedCanvas({ 
             maxWidth: 3840, 
             maxHeight: 3840, 
             imageSmoothingQuality: 'high'
         }).toBlob((blob) => {
-            // 存入 IndexedDB
             AppDB.saveAsset('bgImage', blob).then(() => {
-                // 清理旧的 LocalStorage 缓存
                 localStorage.removeItem('myDiaryBg_v2');
-                // 更新内存状态
                 state.bgImage = URL.createObjectURL(blob);
                 applyBgImage();
                 cancelCrop();
@@ -704,7 +701,7 @@ function applyBgImage() { const p=document.getElementById('paper-layer'); if(sta
 function clearBgImage() { 
     state.bgImage=null; 
     localStorage.removeItem('myDiaryBg_v2'); 
-    AppDB.deleteAsset('bgImage'); // 同时删除 DB 中的图片
+    AppDB.deleteAsset('bgImage'); 
     applyBgImage(); 
     showToast("已还原"); 
 }
