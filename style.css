@@ -81,36 +81,52 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main);
 
 /* === 日记界面 === */
 #diary-view { background-color: var(--bg-color); }
+
 .paper-container {
-    width: 100%; height: 100%; background-color: var(--paper-color);
+    /* === 核心修改：固定宽度，保证导出比例和排版一致 === */
+    width: 750px; 
+    min-width: 750px;
+    /* 居中显示（在移动端溢出时默认靠左显示） */
+    margin: 0 auto;
+    
+    height: 100%; background-color: var(--paper-color);
     background-image: var(--paper-pattern); background-size: var(--paper-size);
     background-attachment: local; background-repeat: repeat;
     display: flex; flex-direction: column; position: relative;
     transition: transform 0.3s; border: 1px solid var(--border-color);
     z-index: 0; transform-style: preserve-3d;
 }
+
 .paper-container.has-custom-bg { background-repeat: no-repeat; background-position: center; background-size: cover; }
 .paper-header {
     padding: 25px 20px; display: flex; justify-content: space-between; align-items: center;
-    background: linear-gradient(to bottom, var(--paper-color) 80%, transparent); z-index: 20; /* 提升头部层级 */
+    background: linear-gradient(to bottom, var(--paper-color) 80%, transparent); z-index: 20;
 }
 .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
 
-/* 新增：滚动区域包装器 */
+/* === 新增：滚动区域包装器逻辑 === */
 #diary-scroll-area {
-    flex: 1; position: relative; overflow-y: auto; overflow-x: hidden;
+    flex: 1; position: relative; 
+    overflow-x: hidden; /* 默认：锁定水平滚动，只显示左侧 */
+    overflow-y: auto;   /* 默认：允许垂直滚动 */
     padding-bottom: 50px;
 }
 
-/* 修改：内容区域现在是完全透明的，覆盖在贴纸上方 */
+/* 激活横向滚动模式 */
+#diary-scroll-area.x-scroll-mode {
+    overflow-x: auto;   /* 允许左右拖动 */
+    overflow-y: hidden; /* 禁止上下拖动，防止误触 */
+    cursor: grab;
+}
+
 .paper-content {
-    min-height: 100%; width: 100%; padding: 10px 25px; 
+    min-height: 100%; width: 100%; padding: 10px 40px; /* 增加左右边距 */
     font-size: 1.15rem; line-height: 32px; border: none; 
-    background: transparent; /* 透明 */
+    background: transparent;
     color: var(--text-color); font-family: inherit; white-space: pre-wrap; word-break: break-word;
     position: relative; 
-    z-index: 5; /* 文字层级固定为5 */
-    pointer-events: auto; /* 允许输入 */
+    z-index: 5;
+    pointer-events: auto;
 }
 .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.5; }
 
@@ -130,6 +146,7 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main);
 }
 .format-toolbar.active { transform: scale(1); }
 .fmt-btn { width: 36px; height: 36px; border: none; background: transparent; color: var(--text-color); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.fmt-btn.active-state { color: var(--primary-color); background: rgba(0,0,0,0.05); } /* 激活状态样式 */
 .color-dot-btn { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
 
 /* ================= 待办 ================= */
@@ -260,7 +277,7 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 .sticker-item {
     position: absolute; display: inline-block; cursor: grab; 
     user-select: none; -webkit-user-select: none; touch-action: none;
-    z-index: 10; /* 默认: 文字上方 */
+    z-index: 10;
     line-height: 0; transform-origin: center center;
 }
 .sticker-item img { display: block; width: 100%; height: 100%; pointer-events: none; }
@@ -309,31 +326,3 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 }
 .cloud-panel.open { display: block; animation: fadeIn 0.3s; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-/* ==============================================
-   新增功能样式：请复制到 style.css 的最底部
-   ============================================== */
-
-/* 1. 锁屏/平移模式样式 */
-/* 当点击锁屏按钮开启 pan-mode 后，允许左右滑动 */
-#diary-scroll-area.pan-mode {
-    overflow-x: auto !important; /* 强制允许横向滚动 */
-    cursor: grab; /* 鼠标变成抓手 */
-}
-
-/* 2. 贴纸层级切换按钮样式 */
-/* 这是左上角的图层小图标 */
-.sticker-ctrl.ctrl-layer {
-    top: -12px; 
-    left: -12px;
-    cursor: pointer;
-    display: flex;       /* 确保图标居中 */
-    align-items: center;
-    justify-content: center;
-}
-
-/* 3. 确保文字层级固定 */
-/* 这样贴纸设为 z-index: 2 时就会跑到文字下面 */
-.paper-content {
-    z-index: 5 !important; 
-    position: relative;
-}
