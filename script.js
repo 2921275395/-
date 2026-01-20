@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 锁屏平移 & 贴纸图层管理
+// script.js - 完整版 (含锁屏平移 & 贴纸层级)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -30,14 +30,10 @@ let state = {
 
 let supabaseClient = null;
 let isEditingDrawer = false;
-let globalMaxZIndex = 100; 
-
-// === 新增：平移状态 ===
-let isPanMode = false; // 是否处于可拖动/调整布局模式
-let currentPaperX = 0; // 纸张当前的 X 轴偏移量
+let globalMaxZIndex = 100; // 初始最高层级
 
 // ==========================================
-// 数据库 (AppDB) - 保持不变
+// 数据库 (AppDB)
 // ==========================================
 const AppDB = {
     dbName: 'MyDiaryProDB',
@@ -169,12 +165,6 @@ async function init() {
     initDraggable(document.getElementById('fmt-toggle'), 'any');
     initDraggable(document.getElementById('sticker-btn'), 'any'); 
     
-    // === 新增：初始化锁屏/移动按钮 ===
-    // 我们需要在界面里动态插入这个按钮，或者你可以在HTML里加
-    // 这里我假设HTML里没有，动态插入到 sticker-btn 下方
-    createPanButton();
-    initPaperPanEvents();
-
     document.getElementById('export-date-picker').valueAsDate = new Date();
     const now = new Date();
     document.getElementById('gallery-month-picker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -211,78 +201,93 @@ async function init() {
     }
 }
 
-// === 新增：创建锁屏/平移按钮 ===
-function createPanButton() {
-    if(document.getElementById('btn-pan-toggle')) return;
-    const btn = document.createElement('div');
-    btn.id = 'btn-pan-toggle';
-    btn.className = 'float-btn';
-    btn.innerHTML = '🔒'; // 初始状态：锁定（不可动）
-    btn.style.bottom = '160px'; // 放在贴纸按钮上方
-    btn.onclick = togglePanMode;
-    document.body.appendChild(btn);
-}
-
-// === 新增：切换平移模式逻辑 ===
-function togglePanMode() {
-    isPanMode = !isPanMode;
-    const btn = document.getElementById('btn-pan-toggle');
-    const scrollArea = document.getElementById('diary-scroll-area');
-    
-    if (isPanMode) {
-        // 解锁状态：允许移动，允许穿透点击底层贴纸
-        btn.innerHTML = '🔓'; 
-        btn.classList.add('active');
-        scrollArea.classList.add('pan-active');
-        showToast("移动模式：左右拖动纸张，点击底层贴纸");
-    } else {
-        // 锁定状态：固定位置（保持当前的偏移），恢复文字输入
-        btn.innerHTML = '🔒';
-        btn.classList.remove('active');
-        scrollArea.classList.remove('pan-active');
-        showToast("锁定模式：可编辑文字");
-    }
-}
-
-// === 新增：纸张拖动逻辑 ===
-function initPaperPanEvents() {
-    const el = document.getElementById('diary-scroll-area');
-    let startX = 0;
-    let startTranslateX = 0;
-    let isDragging = false;
-
-    el.addEventListener('touchstart', (e) => {
-        if (!isPanMode) return;
-        // 如果点击的是贴纸，不触发背景拖动
-        if (e.target.closest('.sticker-item')) return;
-        
-        isDragging = true;
-        startX = e.touches[0].clientX;
-        startTranslateX = currentPaperX;
-    }, {passive: false});
-
-    el.addEventListener('touchmove', (e) => {
-        if (!isDragging || !isPanMode) return;
-        e.preventDefault(); // 防止触发原生滚动
-        const diff = e.touches[0].clientX - startX;
-        currentPaperX = startTranslateX + diff;
-        
-        // 应用位移
-        document.getElementById('paper-layer').style.transform = `translateX(${currentPaperX}px)`;
-    }, {passive: false});
-
-    el.addEventListener('touchend', () => {
-        isDragging = false;
-    });
-}
-
 function focusInput(e) {
-    // 只有在非移动模式下，点击背景才聚焦输入框
-    if(!isPanMode && (e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input')) {
+    if(e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input') {
         document.getElementById('diary-input').focus();
     }
 }
 
+// ================== 新增功能：平移/锁屏模式 ==================
+function togglePanMode() {
+    const scrollArea = document.getElementById('diary-scroll-area');
+    const btn = document.getElementById('btn-pan-lock');
+    const icon = btn.querySelector('span');
+    
+    // 切换 class (在 CSS 中控制 overflow-x)
+    scrollArea.classList.toggle('pan-mode');
+    
+    if (scrollArea.classList.contains('pan-mode')) {
+        icon.textContent = 'lock'; // 变为锁住（表示进入特殊模式）
+        btn.style.color = 'var(--primary-color)';
+        showToast("已允许左右滑动");
+    } else {
+        icon.textContent = 'lock_open'; // 恢复开锁（默认）
+        btn.style.color = 'var(--text-color)';
+        scrollArea.scrollLeft = 0; // 回到最左边
+    }
+}
+
+/* ============ Supabase 逻辑 (云同步) ============ */
+function initSupabase() {
+    if(window.supabase && state.settings.cloudUrl && state.settings.cloudKey) {
+        try { supabaseClient = window.supabase.createClient(state.settings.cloudUrl, state.settings.cloudKey); } 
+        catch(e) { console.error("Supabase Init Fail", e); }
+    }
+}
+function saveCloudConfig() {
+    const url = document.getElementById('cloud-url').value.trim();
+    const key = document.getElementById('cloud-key').value.trim();
+    state.settings.cloudUrl = url;
+    state.settings.cloudKey = key;
+    saveSettings();
+    initSupabase();
+    if(url && key) document.getElementById('cloud-ops').style.display = 'flex';
+    showToast("配置已保存");
+}
+async function testCloudConnection() {
+    if(!supabaseClient) return alert("请先保存配置");
+    showToast("正在连接...");
+    const { data, error } = await supabaseClient.from('diary_backup').select('id').limit(1);
+    if (error) {
+        if(error.code === 'PGRST204' || error.message.includes('does not exist')) {
+            alert("连接成功！\n但云端尚未创建表，请查看教程第二步。");
+        } else {
+            alert("连接失败: " + error.message);
+        }
+    } else {
+        alert("✅ 连接成功！数据库就绪。");
+    }
+}
+async function backupToCloud() {
+    if(!supabaseClient) return;
+    if(!confirm("确定要备份到云端吗？\n(云端旧数据将被覆盖)")) return;
+    const status = document.getElementById('cloud-status');
+    status.innerText = "正在打包上传...";
+    try {
+        const backupData = { updated_at: new Date().toISOString(), diary_data: state.diaryData, todo_data: state.todoData, settings: state.settings, device_info: navigator.userAgent };
+        const { data: exist } = await supabaseClient.from('diary_backup').select('id').eq('id', 1).single();
+        let err;
+        if(exist) { const { error } = await supabaseClient.from('diary_backup').update(backupData).eq('id', 1); err = error; } 
+        else { const { error } = await supabaseClient.from('diary_backup').insert([{ id: 1, ...backupData }]); err = error; }
+        if(err) throw err;
+        status.innerText = "✅ 备份成功 " + new Date().toLocaleTimeString(); showToast("备份成功");
+    } catch(e) { status.innerText = "❌ 失败: " + e.message; alert("备份失败: " + e.message); }
+}
+async function restoreFromCloud() {
+    if(!supabaseClient) return;
+    if(!confirm("⚠️ 警告：这将下载云端备份并【覆盖】当前数据！\n确定吗？")) return;
+    const status = document.getElementById('cloud-status');
+    status.innerText = "正在下载...";
+    try {
+        const { data, error } = await supabaseClient.from('diary_backup').select('*').eq('id', 1).single();
+        if(error) throw error; if(!data) return alert("云端无数据");
+        status.innerText = "正在恢复...";
+        if(data.diary_data) { state.diaryData = data.diary_data; await AppDB.bulkSaveEntries(state.diaryData); }
+        if(data.todo_data) { state.todoData = data.todo_data; saveTodo(); }
+        status.innerText = "✅ 恢复完成"; showToast("恢复成功");
+        setTimeout(() => { renderCalendar(); renderTodoList(); applySettings(); closeSettings(); }, 500);
+    } catch(e) { status.innerText = "❌ 恢复失败"; alert("恢复失败: " + e.message); }
+}
 // 辅助函数
 function openCloudHelp(e) { e.stopPropagation(); document.getElementById('cloud-help').classList.add('active'); }
 function closeCloudHelp() { document.getElementById('cloud-help').classList.remove('active'); }
@@ -307,73 +312,7 @@ function clearCache() {
     }
 }
 
-/* ============ Supabase 逻辑 (保持不变) ============ */
-function initSupabase() {
-    if(window.supabase && state.settings.cloudUrl && state.settings.cloudKey) {
-        try { supabaseClient = window.supabase.createClient(state.settings.cloudUrl, state.settings.cloudKey); } 
-        catch(e) { console.error("Supabase Init Fail", e); }
-    }
-}
-
-function saveCloudConfig() {
-    const url = document.getElementById('cloud-url').value.trim();
-    const key = document.getElementById('cloud-key').value.trim();
-    state.settings.cloudUrl = url;
-    state.settings.cloudKey = key;
-    saveSettings();
-    initSupabase();
-    if(url && key) document.getElementById('cloud-ops').style.display = 'flex';
-    showToast("配置已保存");
-}
-
-async function testCloudConnection() {
-    if(!supabaseClient) return alert("请先保存配置");
-    showToast("正在连接...");
-    const { data, error } = await supabaseClient.from('diary_backup').select('id').limit(1);
-    if (error) {
-        if(error.code === 'PGRST204' || error.message.includes('does not exist')) {
-            alert("连接成功！\n但云端尚未创建表，请查看教程第二步。");
-        } else {
-            alert("连接失败: " + error.message);
-        }
-    } else {
-        alert("✅ 连接成功！数据库就绪。");
-    }
-}
-
-async function backupToCloud() {
-    if(!supabaseClient) return;
-    if(!confirm("确定要备份到云端吗？\n(云端旧数据将被覆盖)")) return;
-    const status = document.getElementById('cloud-status');
-    status.innerText = "正在打包上传...";
-    try {
-        const backupData = { updated_at: new Date().toISOString(), diary_data: state.diaryData, todo_data: state.todoData, settings: state.settings, device_info: navigator.userAgent };
-        const { data: exist } = await supabaseClient.from('diary_backup').select('id').eq('id', 1).single();
-        let err;
-        if(exist) { const { error } = await supabaseClient.from('diary_backup').update(backupData).eq('id', 1); err = error; } 
-        else { const { error } = await supabaseClient.from('diary_backup').insert([{ id: 1, ...backupData }]); err = error; }
-        if(err) throw err;
-        status.innerText = "✅ 备份成功 " + new Date().toLocaleTimeString(); showToast("备份成功");
-    } catch(e) { status.innerText = "❌ 失败: " + e.message; alert("备份失败: " + e.message); }
-}
-
-async function restoreFromCloud() {
-    if(!supabaseClient) return;
-    if(!confirm("⚠️ 警告：这将下载云端备份并【覆盖】当前数据！\n确定吗？")) return;
-    const status = document.getElementById('cloud-status');
-    status.innerText = "正在下载...";
-    try {
-        const { data, error } = await supabaseClient.from('diary_backup').select('*').eq('id', 1).single();
-        if(error) throw error; if(!data) return alert("云端无数据");
-        status.innerText = "正在恢复...";
-        if(data.diary_data) { state.diaryData = data.diary_data; await AppDB.bulkSaveEntries(state.diaryData); }
-        if(data.todo_data) { state.todoData = data.todo_data; saveTodo(); }
-        status.innerText = "✅ 恢复完成"; showToast("恢复成功");
-        setTimeout(() => { renderCalendar(); renderTodoList(); applySettings(); closeSettings(); }, 500);
-    } catch(e) { status.innerText = "❌ 恢复失败"; alert("恢复失败: " + e.message); }
-}
-
-/* ============ 核心功能 ============ */
+/* ============ 核心功能：贴纸 ============ */
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 function openStickerDrawer() { renderStickerDrawer(); document.getElementById('sticker-drawer').classList.add('open'); toggleUI(false); }
 function closeStickerDrawer() { document.getElementById('sticker-drawer').classList.remove('open'); isEditingDrawer = false; toggleUI(true); renderStickerDrawer(); }
@@ -382,7 +321,7 @@ async function renderStickerDrawer() { const list = document.getElementById('sti
 async function importStickers(input) { if(!input.files.length) return; for(let file of input.files) { const compressed = await compressImage(file, 1024, 0.8); const blob = await (await fetch(compressed)).blob(); await AppDB.addSticker(blob); } renderStickerDrawer(); input.value = ''; }
 function deleteStickerFromLib(id, e) { e.stopPropagation(); if(confirm("删除此贴纸？")) AppDB.deleteSticker(id).then(renderStickerDrawer); }
 
-// === 更新：添加贴纸时增加图层按钮 ===
+// 修改：添加贴纸 (包含层级按钮)
 async function addStickerToPage(blob) { 
     closeStickerDrawer(); 
     const reader = new FileReader(); 
@@ -392,6 +331,7 @@ async function addStickerToPage(blob) {
         wrapper.className = 'sticker-item selected'; 
         wrapper.contentEditable = "false"; 
         
+        // 默认最顶层
         globalMaxZIndex++;
         wrapper.style.zIndex = globalMaxZIndex; 
         
@@ -399,14 +339,15 @@ async function addStickerToPage(blob) {
         wrapper.style.top = '100px'; 
         wrapper.style.width = '150px'; 
         
-        // 增加图层切换按钮 (ctrl-layer)
+        // HTML包含：删除、缩放、层级切换
         wrapper.innerHTML = `
             <img src="${base64}" draggable="false">
             <div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div>
-            <div class="sticker-ctrl ctrl-layer" onmousedown="toggleStickerLayer(event)" ontouchstart="toggleStickerLayer(event)">⬇️</div>
             <div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>
+            <div class="sticker-ctrl ctrl-layer" onmousedown="toggleStickerLayer(event)" ontouchstart="toggleStickerLayer(event)">
+                <span class="material-icons-round" style="font-size:14px;">layers</span>
+            </div>
         `; 
-        
         document.getElementById('diary-scroll-area').appendChild(wrapper); 
         attachStickerEvents(wrapper); 
         state.isDirty = true; 
@@ -414,39 +355,34 @@ async function addStickerToPage(blob) {
     reader.readAsDataURL(blob); 
 }
 
-// === 新增：切换贴纸图层 (上/下) ===
+// 新增：切换层级
 window.toggleStickerLayer = function(e) {
     e.stopPropagation();
     e.preventDefault();
     const el = e.target.closest('.sticker-item');
-    const btn = e.target;
-    
-    // 切换类名
-    el.classList.toggle('layer-bottom');
-    
-    if (el.classList.contains('layer-bottom')) {
-        // 沉底：z-index 设为 5 (背景 0, 文字 10)
-        el.style.zIndex = '5';
-        btn.innerText = '⬆️'; // 变成“向上”箭头
+    if (!el) return;
+
+    // 文字层级是 5
+    // 如果当前 > 5，说明在上面 -> 降到 2 (文字下方)
+    // 如果当前 <= 5，说明在下面 -> 升到顶 (文字上方)
+    let z = parseInt(window.getComputedStyle(el).zIndex);
+    if (z > 5) {
+        el.style.zIndex = '2';
+        showToast("已移至文字下方");
     } else {
-        // 置顶：z-index 设为当前最大值
         globalMaxZIndex++;
         el.style.zIndex = globalMaxZIndex;
-        btn.innerText = '⬇️'; // 变成“向下”箭头
+        showToast("已移至文字上方");
     }
+    activateStickerElement(el); 
     state.isDirty = true;
 };
 
+// 修改：点击选中 (不再自动置顶)
 function activateStickerElement(el) {
     document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); 
     el.classList.add('selected');
-    
-    // 只有非沉底的贴纸，点击时才自动置顶
-    // 如果是沉底贴纸，保持沉底 z-index
-    if (!el.classList.contains('layer-bottom')) {
-        globalMaxZIndex++;
-        el.style.zIndex = globalMaxZIndex;
-    }
+    // 注意：去掉了 el.style.zIndex = ... 这一行，保持原有层级
 }
 
 function attachStickerEvents(el) { 
@@ -555,13 +491,7 @@ async function registerBiometric() { if (!window.PublicKeyCredential) { alert("�
 function togglePinLock() { if(state.security.enabled) { if(prompt("输入PIN关闭")==state.security.pin) { state.security.enabled=false; state.security.biometrics=false; saveSecurity(); applySettings(); } } else { const p=prompt("设置4位PIN"); if(p&&p.length==4) { state.security.enabled=true; state.security.pin=p; saveSecurity(); applySettings(); } } }
 async function toggleBiometrics() { if(!state.security.enabled) return alert("先开启PIN"); if(!state.security.biometrics) { if(await registerBiometric()) { state.security.biometrics=true; saveSecurity(); applySettings(); } } else { state.security.biometrics=false; saveSecurity(); applySettings(); } }
 function saveSecurity() { localStorage.setItem('myDiarySecurity_v2', JSON.stringify(state.security)); }
-function toggleUI(show) { document.querySelectorAll('.side-tab').forEach(tab => { if(show) { if(tab.id!=='todo-tab' || state.settings.showTodo) tab.classList.remove('hidden-ui'); } else tab.classList.add('hidden-ui'); }); document.getElementById('sticker-btn').style.display = (show && state.settings.enableSticker) ? 'flex' : 'none'; 
-    if(show && state.settings.enableSticker && document.getElementById('btn-pan-toggle')) {
-        document.getElementById('btn-pan-toggle').style.display = 'flex';
-    } else if(document.getElementById('btn-pan-toggle')) {
-        document.getElementById('btn-pan-toggle').style.display = 'none';
-    }
-}
+function toggleUI(show) { document.querySelectorAll('.side-tab').forEach(tab => { if(show) { if(tab.id!=='todo-tab' || state.settings.showTodo) tab.classList.remove('hidden-ui'); } else tab.classList.add('hidden-ui'); }); document.getElementById('sticker-btn').style.display = (show && state.settings.enableSticker) ? 'flex' : 'none'; }
 function updateTodoTabVisibility() { document.getElementById('todo-tab').style.display = state.settings.showTodo ? 'flex' : 'none'; if(state.settings.showTodo) document.getElementById('todo-tab').classList.remove('hidden-ui'); }
 function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); toggleUI(false); }
 function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); toggleUI(true); }
@@ -673,19 +603,9 @@ function renderCalendar() { const y=state.currentDate.getFullYear(),m=state.curr
 function changeMonth(v) { if(v) { const [y,m]=v.split('-'); state.currentDate=new Date(y,m-1,1); renderCalendar(); } }
 function selectDate(d) { state.selectedDate=d; renderCalendar(); document.getElementById('tab-date').textContent=`${d.getMonth()+1}/${d.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
 
+// 修改：打开日记 (恢复贴纸层级 & 重置平移模式)
 function openDiary(e) { 
     if(e)e.stopPropagation(); 
-    
-    // 打开日记时重置平移状态
-    isPanMode = false;
-    currentPaperX = 0;
-    document.getElementById('paper-layer').style.transform = `translateX(0)`;
-    if(document.getElementById('btn-pan-toggle')) {
-        document.getElementById('btn-pan-toggle').innerHTML = '🔒';
-        document.getElementById('btn-pan-toggle').classList.remove('active');
-    }
-    document.getElementById('diary-scroll-area').classList.remove('pan-active');
-
     const k=formatDateKey(state.selectedDate); 
     document.getElementById('diary-date-display').textContent=state.selectedDate.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'}); 
     
@@ -703,43 +623,41 @@ function openDiary(e) {
         const z = parseInt(s.style.zIndex || 0);
         if(z > globalMaxZIndex) globalMaxZIndex = z;
         
-        // 恢复图层按钮的箭头状态
-        const layerBtn = s.querySelector('.ctrl-layer');
-        if(layerBtn) {
-            if(s.classList.contains('layer-bottom')) layerBtn.innerText = '⬆️';
-            else layerBtn.innerText = '⬇️';
+        // 兼容旧数据：如果没有层级按钮，补上
+        if (!s.querySelector('.ctrl-layer')) {
+            const layerBtn = document.createElement('div');
+            layerBtn.className = 'sticker-ctrl ctrl-layer';
+            layerBtn.setAttribute('onmousedown', 'toggleStickerLayer(event)');
+            layerBtn.setAttribute('ontouchstart', 'toggleStickerLayer(event)');
+            layerBtn.innerHTML = '<span class="material-icons-round" style="font-size:14px;">layers</span>';
+            s.appendChild(layerBtn);
         }
-
+        
         scrollArea.appendChild(s);
         attachStickerEvents(s);
     });
     
     div.innerHTML = tempDiv.innerHTML; 
     
+    // 重置平移状态
+    const scrollAreaEl = document.getElementById('diary-scroll-area');
+    scrollAreaEl.classList.remove('pan-mode');
+    scrollAreaEl.scrollLeft = 0;
+    const panBtn = document.getElementById('btn-pan-lock');
+    if(panBtn) {
+        panBtn.querySelector('span').textContent = 'lock_open';
+        panBtn.style.color = 'var(--text-color)';
+    }
+
     document.getElementById('diary-view').classList.remove('hidden-right'); 
     toggleUI(false); 
     document.getElementById('todo-tab').style.display = 'none'; 
     document.getElementById('index-tab').style.display = 'none'; 
-    if(state.settings.enableSticker) {
-        document.getElementById('sticker-btn').style.display='flex'; 
-        if(document.getElementById('btn-pan-toggle')) document.getElementById('btn-pan-toggle').style.display = 'flex';
-    }
+    if(state.settings.enableSticker) document.getElementById('sticker-btn').style.display='flex'; 
     state.isDirty=false; 
 }
 
-function closeDiary() { 
-    document.querySelectorAll('.sticker-item.selected').forEach(el=>el.classList.remove('selected')); 
-    saveDiaryManual(false); 
-    document.getElementById('diary-view').classList.add('hidden-right'); 
-    document.getElementById('fmt-bar').classList.remove('active'); 
-    document.getElementById('sticker-btn').style.display='none'; 
-    if(document.getElementById('btn-pan-toggle')) document.getElementById('btn-pan-toggle').style.display='none';
-    closeStickerDrawer(); 
-    toggleUI(true); 
-    updateTodoTabVisibility(); 
-    document.getElementById('index-tab').style.display = 'flex'; 
-    renderCalendar(); 
-}
+function closeDiary() { document.querySelectorAll('.sticker-item.selected').forEach(el=>el.classList.remove('selected')); saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right'); document.getElementById('fmt-bar').classList.remove('active'); document.getElementById('sticker-btn').style.display='none'; closeStickerDrawer(); toggleUI(true); updateTodoTabVisibility(); document.getElementById('index-tab').style.display = 'flex'; renderCalendar(); }
 function changeDay(o) { saveDiaryManual(false); state.selectedDate.setDate(state.selectedDate.getDate()+o); const p=document.getElementById('paper-layer'); const a=o>0?'anim-slide-left':'anim-slide-right'; p.classList.add(a); setTimeout(()=>{openDiary();p.classList.remove(a);p.style.opacity='0';requestAnimationFrame(()=>p.style.opacity='1')},350); }
 function toggleFormatToolbar(e) { e.stopPropagation(); const t=document.getElementById('fmt-toggle'); if(t.getBoundingClientRect().left<window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left'); document.getElementById('fmt-bar').classList.toggle('active'); }
 function execCmd(c,v=null) { document.execCommand(c,false,v); document.getElementById('diary-input').focus(); }
@@ -765,7 +683,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 更新：导出图片（需暂时复位 X 轴平移） ===
+// === 核心修改：导出图片（智能体积控制 1MB-5MB） ===
 function exportDiaryImage() { 
     const d=document.getElementById('export-date-picker').value; 
     if(!d) return alert("选日期"); 
@@ -774,10 +692,6 @@ function exportDiaryImage() {
     if(!c) return alert("空日记"); 
     
     showToast("正在生成..."); 
-
-    // 临时保存当前的平移状态并复位，保证截图完整
-    const savedTransform = document.getElementById('paper-layer').style.transform;
-    document.getElementById('paper-layer').style.transform = 'translateX(0)';
     
     const con=document.getElementById('screenshot-container'); 
     con.innerHTML=''; 
@@ -793,26 +707,27 @@ function exportDiaryImage() {
     p.style.minHeight='800px'; 
     p.style.position='relative'; 
     p.style.borderRadius='0'; 
-    
-    // 注意：这里导出的内容已经包含了 z-index (class 和 style)，html2canvas 会正确渲染图层
     p.innerHTML=`<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible">${c}</div>`; 
     con.appendChild(p); 
     
+    // 保持 scale: 3 (高清)
     html2canvas(p,{
         scale: 3, 
         useCORS: true, 
         backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null
     }).then(cvs=>{ 
-        // 恢复平移状态
-        document.getElementById('paper-layer').style.transform = savedTransform;
-
+        // 1. 尝试 100% 质量导出
         let quality = 1.0;
         let dataUrl = cvs.toDataURL('image/jpeg', quality);
         
+        // 计算字节大小 (估算: Base64长度 * 0.75)
         let sizeInBytes = Math.round(dataUrl.length * 0.75);
-        const maxBytes = 5 * 1024 * 1024; 
+        const maxBytes = 5 * 1024 * 1024; // 5MB limit
         
+        // 2. 只有当体积 > 5MB 时才进行压缩
+        // 如果初始体积就 < 1MB，循环不会执行，直接高质量导出
         if (sizeInBytes > maxBytes) {
+            // 循环降低质量，直到 < 5MB，最低保护线 0.3
             while (sizeInBytes > maxBytes && quality > 0.3) {
                 quality -= 0.05; 
                 dataUrl = cvs.toDataURL('image/jpeg', quality);
