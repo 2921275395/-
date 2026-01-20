@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 增加锁屏/解锁视图逻辑
+// script.js - 智能导出体积控制 (1MB-5MB)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -31,7 +31,6 @@ let state = {
 let supabaseClient = null;
 let isEditingDrawer = false;
 let globalMaxZIndex = 100; 
-let isPaperLocked = true; // 视图锁定状态
 
 // ==========================================
 // 数据库 (AppDB)
@@ -589,30 +588,7 @@ function openDiary(e) {
     state.isDirty=false; 
 }
 
-function closeDiary() { 
-    document.querySelectorAll('.sticker-item.selected').forEach(el=>el.classList.remove('selected')); 
-    saveDiaryManual(false); 
-    document.getElementById('diary-view').classList.add('hidden-right'); 
-    document.getElementById('fmt-bar').classList.remove('active'); 
-    document.getElementById('sticker-btn').style.display='none'; 
-    closeStickerDrawer(); 
-    toggleUI(true); 
-    updateTodoTabVisibility(); 
-    document.getElementById('index-tab').style.display = 'flex'; 
-    renderCalendar(); 
-    
-    // 退出日记时重置锁定状态
-    const area = document.getElementById('diary-scroll-area');
-    const btn = document.getElementById('btn-lock-toggle');
-    if(btn) { // 防止元素未渲染
-        const icon = btn.querySelector('span');
-        isPaperLocked = true;
-        area.classList.remove('x-scroll-mode');
-        icon.innerText = 'lock';
-        btn.classList.remove('active-state');
-    }
-}
-
+function closeDiary() { document.querySelectorAll('.sticker-item.selected').forEach(el=>el.classList.remove('selected')); saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right'); document.getElementById('fmt-bar').classList.remove('active'); document.getElementById('sticker-btn').style.display='none'; closeStickerDrawer(); toggleUI(true); updateTodoTabVisibility(); document.getElementById('index-tab').style.display = 'flex'; renderCalendar(); }
 function changeDay(o) { saveDiaryManual(false); state.selectedDate.setDate(state.selectedDate.getDate()+o); const p=document.getElementById('paper-layer'); const a=o>0?'anim-slide-left':'anim-slide-right'; p.classList.add(a); setTimeout(()=>{openDiary();p.classList.remove(a);p.style.opacity='0';requestAnimationFrame(()=>p.style.opacity='1')},350); }
 function toggleFormatToolbar(e) { e.stopPropagation(); const t=document.getElementById('fmt-toggle'); if(t.getBoundingClientRect().left<window.innerWidth/2) updateFormatBarPos('right'); else updateFormatBarPos('left'); document.getElementById('fmt-bar').classList.toggle('active'); }
 function execCmd(c,v=null) { document.execCommand(c,false,v); document.getElementById('diary-input').focus(); }
@@ -638,30 +614,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 新增：切换锁定视图逻辑 ===
-function togglePaperLock() {
-    const area = document.getElementById('diary-scroll-area');
-    const btn = document.getElementById('btn-lock-toggle');
-    const icon = btn.querySelector('span');
-
-    isPaperLocked = !isPaperLocked;
-
-    if(!isPaperLocked) {
-        // 解锁视图（允许横向拖动，查看右侧内容）
-        area.classList.add('x-scroll-mode');
-        icon.innerText = 'lock_open';
-        btn.classList.add('active-state');
-        showToast("↔️ 可左右拖动编辑");
-    } else {
-        // 锁定视图（默认状态，只能看左侧，防止误触）
-        area.classList.remove('x-scroll-mode');
-        icon.innerText = 'lock';
-        btn.classList.remove('active-state');
-        area.scrollLeft = 0; // 回到最左侧
-        showToast("🔒 视图已锁定");
-    }
-}
-
+// === 核心修改：导出图片（智能体积控制 1MB-5MB） ===
 function exportDiaryImage() { 
     const d=document.getElementById('export-date-picker').value; 
     if(!d) return alert("选日期"); 
@@ -688,17 +641,24 @@ function exportDiaryImage() {
     p.innerHTML=`<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible">${c}</div>`; 
     con.appendChild(p); 
     
+    // 保持 scale: 3 (高清)
     html2canvas(p,{
         scale: 3, 
         useCORS: true, 
         backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null
     }).then(cvs=>{ 
+        // 1. 尝试 100% 质量导出
         let quality = 1.0;
         let dataUrl = cvs.toDataURL('image/jpeg', quality);
-        let sizeInBytes = Math.round(dataUrl.length * 0.75);
-        const maxBytes = 5 * 1024 * 1024; 
         
+        // 计算字节大小 (估算: Base64长度 * 0.75)
+        let sizeInBytes = Math.round(dataUrl.length * 0.75);
+        const maxBytes = 5 * 1024 * 1024; // 5MB limit
+        
+        // 2. 只有当体积 > 5MB 时才进行压缩
+        // 如果初始体积就 < 1MB，循环不会执行，直接高质量导出
         if (sizeInBytes > maxBytes) {
+            // 循环降低质量，直到 < 5MB，最低保护线 0.3
             while (sizeInBytes > maxBytes && quality > 0.3) {
                 quality -= 0.05; 
                 dataUrl = cvs.toDataURL('image/jpeg', quality);
