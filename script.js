@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极版 (高清拼接背景 + 固定剪裁比例)
+// script.js - 终极修复版 (智能整页拼接 + 高清导出)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -614,7 +614,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片（平铺背景图，解决黑色区域） ===
+// === 核心逻辑：导出图片（智能计算高度，强制整数倍页面） ===
 function exportDiaryImage() { 
     const d=document.getElementById('export-date-picker').value; 
     if(!d) return alert("选日期"); 
@@ -627,16 +627,17 @@ function exportDiaryImage() {
     const con=document.getElementById('screenshot-container'); 
     con.innerHTML=''; 
     
-    // 1. 设置宽度
+    // 1. 获取单屏尺寸
     const screenWidth = document.body.clientWidth;
-    const screenHeight = window.innerHeight; // 关键：获取单屏高度
+    const screenHeight = window.innerHeight; // 关键：获取当前设备一屏的高度
     con.style.width = screenWidth + 'px';
 
+    // 2. 创建容器，初始不设固定高度，让内容撑开以测量
     const p=document.createElement('div'); 
     p.className=`paper-container ${state.settings.paper}`; 
     p.style.imageRendering = '-webkit-optimize-contrast';
     p.style.height='auto'; 
-    p.style.minHeight='800px'; 
+    p.style.minHeight='0'; // 清除之前的硬编码
     p.style.position='relative'; 
     p.style.borderRadius='0'; 
     p.style.overflow = 'hidden'; 
@@ -644,37 +645,47 @@ function exportDiaryImage() {
     p.style.paddingBottom = '30px'; 
     p.style.background = 'transparent';
 
-    // 2. 先插入内容，为了计算总高度
+    // 3. 插入内容层
     const textLayer = document.createElement('div');
     textLayer.style.position = 'relative';
-    textLayer.style.zIndex = '1'; // 文字在上
+    textLayer.style.zIndex = '1'; 
     textLayer.innerHTML = `<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px;">${c}</div>`;
     
     p.appendChild(textLayer);
-    con.appendChild(p); // 插入DOM以便计算高度
+    con.appendChild(p); // 渲染以测量高度
 
-    // 3. 动态平铺背景图 (解决黑色区域 + 保持高清)
+    // 4. 智能计算：需要多少张屏幕的高度？
+    // 加上60px的余量，防止边缘内容被切
+    const contentHeight = textLayer.offsetHeight + 60; 
+    
+    // 向上取整，至少1页
+    let pagesNeeded = Math.ceil(contentHeight / screenHeight);
+    if(pagesNeeded < 1) pagesNeeded = 1;
+
+    // 5. 强制设置容器高度为屏幕高度的整数倍
+    const finalHeight = pagesNeeded * screenHeight;
+    p.style.height = finalHeight + 'px';
+
+    // 6. 动态平铺背景图
     if(state.bgImage){
-        // 获取实际内容高度
-        const totalContentHeight = p.offsetHeight;
-        // 计算需要多少张图 (总高度 / 单屏高度，向上取整)
-        const tilesNeeded = Math.ceil(totalContentHeight / screenHeight);
-        
         const bgContainer = document.createElement('div');
         bgContainer.style.position = 'absolute';
         bgContainer.style.top = '0';
         bgContainer.style.left = '0';
         bgContainer.style.width = '100%';
         bgContainer.style.height = '100%';
-        bgContainer.style.zIndex = '0'; // 背景在下
+        bgContainer.style.zIndex = '0'; 
         bgContainer.style.overflow = 'hidden';
 
         // 循环插入图片
-        for(let i=0; i<tilesNeeded; i++) {
+        for(let i=0; i<pagesNeeded; i++) {
             const img = document.createElement('img');
             img.src = state.bgImage;
             img.style.width = '100%';
-            img.style.display = 'block'; // 防止图片间隙
+            // 如果是最后一张，也可以考虑 cropping，但平铺通常直接放
+            img.style.height = screenHeight + 'px'; // 强制每张图的高度等于屏幕高度
+            img.style.objectFit = 'cover';
+            img.style.display = 'block'; 
             img.style.pointerEvents = 'none';
             bgContainer.appendChild(img);
         }
@@ -683,7 +694,7 @@ function exportDiaryImage() {
         p.insertBefore(bgContainer, p.firstChild);
     } 
     
-    // 4. 高清导出
+    // 7. 高清导出
     html2canvas(p,{
         scale: 4, 
         useCORS: true, 
@@ -713,7 +724,6 @@ function exportDiaryImage() {
     }); 
 }
 
-// === 固定剪裁比例 ===
 function startCrop(i) { 
     const f=i.files[0]; 
     if(f) { 
