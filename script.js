@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 画质极致优化版 (使用IMG图层替代CSS背景 + 4K导出)
+// script.js - 固定剪裁比例 + 极致画质 (IMG图层导出)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -19,7 +19,7 @@ let state = {
         darkMode: false, 
         customFont: "", 
         showTodo: true, 
-        enableSticker: false,
+        enableSticker: false, 
         cloudUrl: "", 
         cloudKey: ""
     },
@@ -614,7 +614,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心修复：使用IMG标签替代背景图，解决模糊问题 ===
+// === 核心逻辑：导出图片（自适应屏幕宽度 + 4倍高清采样 + IMG层级导出） ===
 function exportDiaryImage() { 
     const d=document.getElementById('export-date-picker').value; 
     if(!d) return alert("选日期"); 
@@ -627,7 +627,7 @@ function exportDiaryImage() {
     const con=document.getElementById('screenshot-container'); 
     con.innerHTML=''; 
     
-    // 1. 获取屏幕宽度，保证排版一致
+    // 1. 获取屏幕宽度
     const screenWidth = document.body.clientWidth;
     con.style.width = screenWidth + 'px';
 
@@ -636,22 +636,20 @@ function exportDiaryImage() {
     p.style.imageRendering = '-webkit-optimize-contrast';
     p.style.height='auto'; 
     p.style.minHeight='800px'; 
-    p.style.position='relative'; // 必须relative，方便绝对定位img
+    p.style.position='relative'; 
     p.style.borderRadius='0'; 
     p.style.overflow = 'hidden'; 
     p.style.width = '100%'; 
     p.style.paddingBottom = '30px'; 
     
-    // 2. 核心修改：如果是自定义背景，插入 <img> 标签，而不是用 CSS background
+    // 2. 插入 IMG 标签作为背景
     let bgLayerHtml = '';
     if(state.bgImage){
         p.classList.add('has-custom-bg');
-        // 使用 img 标签，z-index 为 -1，强制 100% 宽度，高度自动 (点对点清晰)
         bgLayerHtml = `<img src="${state.bgImage}" style="position:absolute; top:0; left:0; width:100%; height:auto; z-index:0; pointer-events:none;">`;
-        p.style.background = 'transparent'; // 移除CSS背景
+        p.style.background = 'transparent'; 
     } 
 
-    // 内容层放在 z-index: 1
     p.innerHTML = `${bgLayerHtml}
         <div style="position:relative; z-index:1;">
             <div class="paper-header" style="background:none"><span class="date-display">${d}</span></div>
@@ -670,11 +668,9 @@ function exportDiaryImage() {
     }).then(cvs=>{ 
         let quality = 1.0;
         let dataUrl = cvs.toDataURL('image/jpeg', quality);
-        
         let sizeInBytes = Math.round(dataUrl.length * 0.75);
-        const maxBytes = 5 * 1024 * 1024; // 5MB limit
+        const maxBytes = 5 * 1024 * 1024; 
         
-        // 智能压缩
         if (sizeInBytes > maxBytes) {
             while (sizeInBytes > maxBytes && quality > 0.3) {
                 quality -= 0.05; 
@@ -692,7 +688,31 @@ function exportDiaryImage() {
     }); 
 }
 
-function startCrop(i) { const f=i.files[0]; if(f) { const r=new FileReader(); r.onload=e=>{ document.getElementById('cropper-modal').style.display='flex'; document.getElementById('cropper-img').src=e.target.result; if(cropperInstance)cropperInstance.destroy(); cropperInstance=new Cropper(document.getElementById('cropper-img'),{viewMode:2,dragMode:'move',autoCropArea:1}); }; r.readAsDataURL(f); i.value=''; } }
+// === 修改点：增加 aspectRatio 固定比例 ===
+function startCrop(i) { 
+    const f=i.files[0]; 
+    if(f) { 
+        const r=new FileReader(); 
+        r.onload=e=>{ 
+            document.getElementById('cropper-modal').style.display='flex'; 
+            document.getElementById('cropper-img').src=e.target.result; 
+            if(cropperInstance)cropperInstance.destroy(); 
+            
+            // 自动计算当前屏幕比例
+            const screenRatio = window.innerWidth / window.innerHeight;
+
+            cropperInstance=new Cropper(document.getElementById('cropper-img'),{
+                viewMode:2,
+                dragMode:'move',
+                autoCropArea:1,
+                aspectRatio: screenRatio // 强制固定比例
+            }); 
+        }; 
+        r.readAsDataURL(f); 
+        i.value=''; 
+    } 
+}
+
 function cancelCrop() { document.getElementById('cropper-modal').style.display='none'; if(cropperInstance)cropperInstance.destroy(); }
 
 function finishCrop() { 
