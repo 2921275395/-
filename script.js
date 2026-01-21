@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 固定剪裁比例 + 极致画质 (IMG图层导出)
+// script.js - 终极版 (高清拼接背景 + 固定剪裁比例)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -614,7 +614,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片（自适应屏幕宽度 + 4倍高清采样 + IMG层级导出） ===
+// === 核心逻辑：导出图片（平铺背景图，解决黑色区域） ===
 function exportDiaryImage() { 
     const d=document.getElementById('export-date-picker').value; 
     if(!d) return alert("选日期"); 
@@ -627,8 +627,9 @@ function exportDiaryImage() {
     const con=document.getElementById('screenshot-container'); 
     con.innerHTML=''; 
     
-    // 1. 获取屏幕宽度
+    // 1. 设置宽度
     const screenWidth = document.body.clientWidth;
+    const screenHeight = window.innerHeight; // 关键：获取单屏高度
     con.style.width = screenWidth + 'px';
 
     const p=document.createElement('div'); 
@@ -641,24 +642,48 @@ function exportDiaryImage() {
     p.style.overflow = 'hidden'; 
     p.style.width = '100%'; 
     p.style.paddingBottom = '30px'; 
-    
-    // 2. 插入 IMG 标签作为背景
-    let bgLayerHtml = '';
-    if(state.bgImage){
-        p.classList.add('has-custom-bg');
-        bgLayerHtml = `<img src="${state.bgImage}" style="position:absolute; top:0; left:0; width:100%; height:auto; z-index:0; pointer-events:none;">`;
-        p.style.background = 'transparent'; 
-    } 
+    p.style.background = 'transparent';
 
-    p.innerHTML = `${bgLayerHtml}
-        <div style="position:relative; z-index:1;">
-            <div class="paper-header" style="background:none"><span class="date-display">${d}</span></div>
-            <div class="paper-content" style="overflow:visible; padding-right:15px;">${c}</div>
-        </div>`; 
+    // 2. 先插入内容，为了计算总高度
+    const textLayer = document.createElement('div');
+    textLayer.style.position = 'relative';
+    textLayer.style.zIndex = '1'; // 文字在上
+    textLayer.innerHTML = `<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px;">${c}</div>`;
     
-    con.appendChild(p); 
+    p.appendChild(textLayer);
+    con.appendChild(p); // 插入DOM以便计算高度
+
+    // 3. 动态平铺背景图 (解决黑色区域 + 保持高清)
+    if(state.bgImage){
+        // 获取实际内容高度
+        const totalContentHeight = p.offsetHeight;
+        // 计算需要多少张图 (总高度 / 单屏高度，向上取整)
+        const tilesNeeded = Math.ceil(totalContentHeight / screenHeight);
+        
+        const bgContainer = document.createElement('div');
+        bgContainer.style.position = 'absolute';
+        bgContainer.style.top = '0';
+        bgContainer.style.left = '0';
+        bgContainer.style.width = '100%';
+        bgContainer.style.height = '100%';
+        bgContainer.style.zIndex = '0'; // 背景在下
+        bgContainer.style.overflow = 'hidden';
+
+        // 循环插入图片
+        for(let i=0; i<tilesNeeded; i++) {
+            const img = document.createElement('img');
+            img.src = state.bgImage;
+            img.style.width = '100%';
+            img.style.display = 'block'; // 防止图片间隙
+            img.style.pointerEvents = 'none';
+            bgContainer.appendChild(img);
+        }
+        
+        // 插入到最前
+        p.insertBefore(bgContainer, p.firstChild);
+    } 
     
-    // 3. 4倍高清采样
+    // 4. 高清导出
     html2canvas(p,{
         scale: 4, 
         useCORS: true, 
@@ -688,7 +713,7 @@ function exportDiaryImage() {
     }); 
 }
 
-// === 修改点：增加 aspectRatio 固定比例 ===
+// === 固定剪裁比例 ===
 function startCrop(i) { 
     const f=i.files[0]; 
     if(f) { 
@@ -698,14 +723,13 @@ function startCrop(i) {
             document.getElementById('cropper-img').src=e.target.result; 
             if(cropperInstance)cropperInstance.destroy(); 
             
-            // 自动计算当前屏幕比例
             const screenRatio = window.innerWidth / window.innerHeight;
 
             cropperInstance=new Cropper(document.getElementById('cropper-img'),{
                 viewMode:2,
                 dragMode:'move',
                 autoCropArea:1,
-                aspectRatio: screenRatio // 强制固定比例
+                aspectRatio: screenRatio 
             }); 
         }; 
         r.readAsDataURL(f); 
