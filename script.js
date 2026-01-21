@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 (完美比例 + 智能拼接 + 高清导出)
+// script.js - 终极修复版 V2 (精准高度计算 + 防拉伸)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -614,61 +614,77 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片（终极修复：绝对比例） ===
+// === 核心逻辑：导出图片（精准高度计算 + 防拉伸） ===
 function exportDiaryImage() { 
-    const d=document.getElementById('export-date-picker').value; 
-    if(!d) return alert("选日期"); 
-    const k=d; 
-    const c=state.diaryData[k]; 
-    if(!c) return alert("空日记"); 
+    const d = document.getElementById('export-date-picker').value; 
+    if(!d) return alert("请先选择日期"); 
+    const k = d; 
+    const c = state.diaryData[k]; 
+    if(!c) return alert("日记内容为空"); 
     
     showToast("正在生成..."); 
     
-    const con=document.getElementById('screenshot-container'); 
-    con.innerHTML=''; 
+    const con = document.getElementById('screenshot-container'); 
+    con.innerHTML = ''; 
     
-    // 1. 获取容器宽度和屏幕比例
+    // 1. 获取当前设备的精准“一页”尺寸
     const screenWidth = document.body.clientWidth;
-    const screenRatio = window.innerWidth / window.innerHeight; // 关键比例
+    const screenHeight = window.innerHeight; // 以此作为标准的一页高度
+    
     con.style.width = screenWidth + 'px';
 
-    // 2. 计算图片的自然高度 (宽度 / 比例)
-    // 无论屏幕多高，图片的宽高比永远保持一致，不会被拉伸
-    const singleImgHeight = screenWidth / screenRatio;
-
-    // 3. 创建容器
-    const p=document.createElement('div'); 
-    p.className=`paper-container ${state.settings.paper}`; 
+    // 2. 创建容器
+    const p = document.createElement('div'); 
+    p.className = `paper-container ${state.settings.paper}`; 
     p.style.imageRendering = '-webkit-optimize-contrast';
-    p.style.height='auto'; 
-    p.style.minHeight='0'; 
-    p.style.position='relative'; 
-    p.style.borderRadius='0'; 
+    p.style.position = 'relative'; 
+    p.style.borderRadius = '0'; 
     p.style.overflow = 'hidden'; 
     p.style.width = '100%'; 
-    p.style.paddingBottom = '30px'; 
     p.style.background = 'transparent';
+    p.style.height = 'auto'; // 暂时自动，稍后锁定
 
-    // 4. 插入内容层以测量高度
+    // 3. 插入内容层（用于计算高度）
     const textLayer = document.createElement('div');
     textLayer.style.position = 'relative';
     textLayer.style.zIndex = '1'; 
-    textLayer.innerHTML = `<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px;">${c}</div>`;
+    // 增加 padding-bottom 防止文字贴底
+    textLayer.innerHTML = `<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px; padding-bottom: 40px;">${c}</div>`;
     
     p.appendChild(textLayer);
-    con.appendChild(p); 
+    con.appendChild(p); // 渲染到 DOM 以便测量
 
-    // 5. 智能计算：需要多少张“自然高度”的背景图？
-    const contentHeight = textLayer.offsetHeight + 60; 
-    let pagesNeeded = Math.ceil(contentHeight / singleImgHeight);
-    if(pagesNeeded < 1) pagesNeeded = 1;
+    // === 关键修改：精准计算实际内容高度 ===
+    // 1. 获取文字流的高度
+    let maxContentBottom = textLayer.offsetHeight;
 
-    // 6. 强制设置容器高度 (自然高度 * 张数)
-    // 这样容器高度和背景图的总高度完全一致，没有缝隙，也没有拉伸
-    const finalHeight = pagesNeeded * singleImgHeight;
+    // 2. 遍历所有绝对定位的贴纸，找出最靠下的那个
+    const stickers = textLayer.querySelectorAll('.sticker-item');
+    stickers.forEach(s => {
+        // 获取贴纸的 top 值和 height
+        const top = parseFloat(s.style.top) || 0;
+        const height = parseFloat(s.style.height) || s.offsetHeight || 100;
+        
+        const bottomEdge = top + height;
+        if (bottomEdge > maxContentBottom) {
+            maxContentBottom = bottomEdge;
+        }
+    });
+
+    // 加上底部安全边距 (60px)
+    maxContentBottom += 60;
+
+    // === 关键修改：计算页数 ===
+    // 向上取整。如果内容只有 0.5 倍屏幕高，算作 1 页。如果 1.1 倍，算作 2 页。
+    let pagesNeeded = Math.ceil(maxContentBottom / screenHeight);
+    if (pagesNeeded < 1) pagesNeeded = 1;
+
+    // === 关键修改：强制锁定容器高度 ===
+    // 容器高度必须永远是 screenHeight 的整数倍
+    const finalHeight = pagesNeeded * screenHeight;
     p.style.height = finalHeight + 'px';
 
-    // 7. 动态平铺背景图
+    // 4. 动态平铺背景图
     if(state.bgImage){
         const bgContainer = document.createElement('div');
         bgContainer.style.position = 'absolute';
@@ -679,12 +695,17 @@ function exportDiaryImage() {
         bgContainer.style.zIndex = '0'; 
         bgContainer.style.overflow = 'hidden';
 
+        // 循环插入图片
         for(let i=0; i<pagesNeeded; i++) {
             const img = document.createElement('img');
             img.src = state.bgImage;
             img.style.width = '100%';
-            img.style.height = singleImgHeight + 'px'; // 强制高度为自然高度
-            img.style.objectFit = 'cover'; 
+            
+            // === 核心修复：强制指定图片高度 ===
+            // 强制每一张背景图的高度都等于屏幕高度
+            img.style.height = screenHeight + 'px'; 
+            
+            img.style.objectFit = 'fill'; // 强制填满预设区域，因为剪裁时已经是这个比例了
             img.style.display = 'block'; 
             img.style.pointerEvents = 'none';
             bgContainer.appendChild(img);
@@ -693,7 +714,7 @@ function exportDiaryImage() {
         p.insertBefore(bgContainer, p.firstChild);
     } 
     
-    // 8. 高清导出
+    // 5. 高清导出
     html2canvas(p,{
         scale: 4, 
         useCORS: true, 
@@ -714,11 +735,11 @@ function exportDiaryImage() {
             }
         }
 
-        const a=document.createElement('a'); 
-        a.download=`diary_${k}.jpg`; 
-        a.href=dataUrl; 
+        const a = document.createElement('a'); 
+        a.download = `diary_${k}.jpg`; 
+        a.href = dataUrl; 
         a.click(); 
-        con.innerHTML=''; 
+        con.innerHTML = ''; 
         showToast(`已保存 (${(sizeInBytes/1024/1024).toFixed(2)}MB)`); 
     }); 
 }
