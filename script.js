@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 智能导出体积控制 (1MB-5MB)
+// script.js - 完整版 (自适应屏幕导出 + 智能压缩 + 高清背景)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -33,7 +33,7 @@ let isEditingDrawer = false;
 let globalMaxZIndex = 100; 
 
 // ==========================================
-// 数据库 (AppDB)
+// 数据库 (AppDB) - 处理高清大图与数据
 // ==========================================
 const AppDB = {
     dbName: 'MyDiaryProDB',
@@ -96,6 +96,7 @@ const AppDB = {
             tx.oncomplete = () => resolve();
         });
     },
+    // 保存大文件（背景图）
     async saveAsset(id, blob) {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(['assets'], 'readwrite');
@@ -104,6 +105,7 @@ const AppDB = {
             tx.onerror = (e) => reject(e);
         });
     },
+    // 获取大文件
     async getAsset(id) {
         return new Promise((resolve) => {
             const tx = this.db.transaction(['assets'], 'readonly');
@@ -122,7 +124,7 @@ const AppDB = {
 };
 
 // ==========================================
-// 初始化
+// 初始化逻辑
 // ==========================================
 let cropperInstance = null;
 let notifyInterval = null;
@@ -138,9 +140,11 @@ async function init() {
         state.todoData = JSON.parse(localStorage.getItem('myDiaryTodo_v2') || '[]');
         state.settings = Object.assign(state.settings, JSON.parse(localStorage.getItem('myDiarySettings_v2') || '{}'));
         state.security = Object.assign(state.security, JSON.parse(localStorage.getItem('myDiarySecurity_v2') || '{}'));
+        // 尝试从旧 LocalStorage 加载背景（兼容旧数据）
         state.bgImage = localStorage.getItem('myDiaryBg_v2') || null;
     } catch (e) { console.error("Settings Load Error", e); }
 
+    // 优先从 IndexedDB 加载高清背景
     const hdBg = await AppDB.getAsset('bgImage');
     if (hdBg) {
         state.bgImage = URL.createObjectURL(hdBg);
@@ -207,7 +211,7 @@ function focusInput(e) {
     }
 }
 
-// 辅助函数
+// 辅助 UI 函数
 function openCloudHelp(e) { e.stopPropagation(); document.getElementById('cloud-help').classList.add('active'); }
 function closeCloudHelp() { document.getElementById('cloud-help').classList.remove('active'); }
 function toggleCloudPanel() { const p = document.getElementById('cloud-panel'); p.classList.toggle('open'); }
@@ -231,7 +235,7 @@ function clearCache() {
     }
 }
 
-/* ============ Supabase 逻辑 ============ */
+/* ============ Supabase 云端逻辑 ============ */
 function initSupabase() {
     if(window.supabase && state.settings.cloudUrl && state.settings.cloudKey) {
         try { supabaseClient = window.supabase.createClient(state.settings.cloudUrl, state.settings.cloudKey); } 
@@ -297,7 +301,7 @@ async function restoreFromCloud() {
     } catch(e) { status.innerText = "❌ 恢复失败"; alert("恢复失败: " + e.message); }
 }
 
-/* ============ 核心功能 ============ */
+/* ============ 贴纸功能 ============ */
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 function openStickerDrawer() { renderStickerDrawer(); document.getElementById('sticker-drawer').classList.add('open'); toggleUI(false); }
 function closeStickerDrawer() { document.getElementById('sticker-drawer').classList.remove('open'); isEditingDrawer = false; toggleUI(true); renderStickerDrawer(); }
@@ -433,6 +437,8 @@ window.removeSticker = function(e) {
 
 function compressImage(file, maxWidth, quality) { return new Promise((resolve) => { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); let w = img.width, h = img.height; if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth; } canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL(file.type, quality)); }; img.src = e.target.result; }; reader.readAsDataURL(file); }); }
 function performSearch(query) { const container = document.getElementById('search-results'); container.innerHTML = ''; if(!query.trim()) return; const results = []; const tempDiv = document.createElement('div'); Object.keys(state.diaryData).sort().reverse().forEach(dateKey => { tempDiv.innerHTML = state.diaryData[dateKey]; if(tempDiv.innerText.toLowerCase().includes(query.toLowerCase())) results.push({ date: dateKey, text: tempDiv.innerText }); }); if(!results.length) { container.innerHTML = '<div class="no-results">无结果</div>'; return; } results.forEach(item => { const el = document.createElement('div'); el.className = 'search-item'; const idx = item.text.toLowerCase().indexOf(query.toLowerCase()); const snippet = item.text.substring(Math.max(0, idx-10), Math.min(item.text.length, idx+query.length+20)); el.innerHTML = `<div class="search-date">${item.date}</div><div class="search-snippet">...${snippet.replace(new RegExp(`(${query})`,'gi'), '<span class="highlight-text">$1</span>')}...</div>`; el.onclick = () => { document.getElementById('search-input').value = ''; container.innerHTML = ''; closeSettings(); selectDate(new Date(item.date)); setTimeout(openDiary, 300); }; container.appendChild(el); }); }
+
+// ============ 安全 (PIN/生物) ============
 function checkLockStatus() { if (state.security.enabled) { document.getElementById('lock-screen').classList.add('active'); updatePinDots(); if (state.security.biometrics && state.security.credentialId) setTimeout(tryBiometric, 500); } else { document.getElementById('lock-screen').classList.remove('active'); } }
 function enterPin(num) { if (currentPinInput.length < 4) { currentPinInput += num; updatePinDots(); if (currentPinInput.length === 4) setTimeout(verifyPin, 100); } }
 function deletePin() { currentPinInput = currentPinInput.slice(0, -1); updatePinDots(); }
@@ -443,6 +449,8 @@ async function registerBiometric() { if (!window.PublicKeyCredential) { alert("�
 function togglePinLock() { if(state.security.enabled) { if(prompt("输入PIN关闭")==state.security.pin) { state.security.enabled=false; state.security.biometrics=false; saveSecurity(); applySettings(); } } else { const p=prompt("设置4位PIN"); if(p&&p.length==4) { state.security.enabled=true; state.security.pin=p; saveSecurity(); applySettings(); } } }
 async function toggleBiometrics() { if(!state.security.enabled) return alert("先开启PIN"); if(!state.security.biometrics) { if(await registerBiometric()) { state.security.biometrics=true; saveSecurity(); applySettings(); } } else { state.security.biometrics=false; saveSecurity(); applySettings(); } }
 function saveSecurity() { localStorage.setItem('myDiarySecurity_v2', JSON.stringify(state.security)); }
+
+// ============ 界面/UI ============
 function toggleUI(show) { document.querySelectorAll('.side-tab').forEach(tab => { if(show) { if(tab.id!=='todo-tab' || state.settings.showTodo) tab.classList.remove('hidden-ui'); } else tab.classList.add('hidden-ui'); }); document.getElementById('sticker-btn').style.display = (show && state.settings.enableSticker) ? 'flex' : 'none'; }
 function updateTodoTabVisibility() { document.getElementById('todo-tab').style.display = state.settings.showTodo ? 'flex' : 'none'; if(state.settings.showTodo) document.getElementById('todo-tab').classList.remove('hidden-ui'); }
 function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); toggleUI(false); }
@@ -486,7 +494,7 @@ function toggleTodo(id) { const t=state.todoData.find(i=>i.id===id); if(t) { t.d
 function updateTodoData(id, k, v) { const t=state.todoData.find(i=>i.id===id); if(t) { t[k]=v; if(k==='time'||k==='date') t.notified=false; saveTodo(); renderTodoList(); } }
 function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
 
-// === 渲染排序逻辑 ===
+// === 渲染待办事项 ===
 function renderTodoList() { 
     const list=document.getElementById('todo-list'); 
     list.innerHTML=''; 
@@ -614,7 +622,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心修改：导出图片（智能体积控制 1MB-5MB） ===
+// === 核心逻辑：导出图片（自适应屏幕宽度 + 1MB-5MB 智能压缩） ===
 function exportDiaryImage() { 
     const d=document.getElementById('export-date-picker').value; 
     if(!d) return alert("选日期"); 
@@ -626,6 +634,13 @@ function exportDiaryImage() {
     
     const con=document.getElementById('screenshot-container'); 
     con.innerHTML=''; 
+    
+    // 1. 获取当前屏幕宽度，确保导出时排版和手机看到的一模一样
+    const screenWidth = document.body.clientWidth;
+    
+    // 设置导出容器宽度等于屏幕宽度
+    con.style.width = screenWidth + 'px';
+
     const p=document.createElement('div'); 
     p.className=`paper-container ${state.settings.paper}`; 
     
@@ -634,18 +649,27 @@ function exportDiaryImage() {
         p.classList.add('has-custom-bg')
     } 
     
+    // 样式调整：确保内容铺满，去掉多余边距，裁切右侧
     p.style.height='auto'; 
     p.style.minHeight='800px'; 
     p.style.position='relative'; 
     p.style.borderRadius='0'; 
-    p.innerHTML=`<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible">${c}</div>`; 
+    p.style.overflow = 'hidden'; // 关键：裁剪掉右侧超出的背景
+    p.style.width = '100%'; 
+    
+    // 优化底部：减小底部留白，看起来更紧凑
+    p.style.paddingBottom = '30px'; 
+
+    p.innerHTML=`<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px;">${c}</div>`; 
+    
     con.appendChild(p); 
     
     // 保持 scale: 3 (高清)
     html2canvas(p,{
         scale: 3, 
         useCORS: true, 
-        backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null
+        backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null,
+        windowWidth: screenWidth // 强制 html2canvas 使用当前屏幕宽度
     }).then(cvs=>{ 
         // 1. 尝试 100% 质量导出
         let quality = 1.0;
