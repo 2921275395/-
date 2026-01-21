@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 修复背景比例 + 自适应导出 + 智能压缩
+// script.js - 高清画质版 (4倍超采样 + 100%质量背景 + 自适应布局)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -614,7 +614,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片（自适应屏幕宽度 + 背景图比例修正 + 1MB-5MB 控制） ===
+// === 核心逻辑：导出图片（自适应屏幕宽度 + 背景图比例修正 + 4倍高清采样） ===
 function exportDiaryImage() { 
     const d=document.getElementById('export-date-picker').value; 
     if(!d) return alert("选日期"); 
@@ -636,14 +636,17 @@ function exportDiaryImage() {
     const p=document.createElement('div'); 
     p.className=`paper-container ${state.settings.paper}`; 
     
+    // 渲染优化：锐化边缘
+    p.style.imageRendering = '-webkit-optimize-contrast';
+    
     if(state.bgImage){
         p.style.backgroundImage=`url(${state.bgImage})`;
         p.classList.add('has-custom-bg');
         
-        // 【关键修复】强制背景图宽度100%，高度自动。
+        // 关键修复：强制背景图宽度100%，高度自动。
         // 防止 cover 属性在长日记（高度很高）时过度拉伸背景图
         p.style.backgroundSize = '100% auto'; 
-        p.style.backgroundRepeat = 'repeat-y'; // 允许垂直重复，避免下方空白
+        p.style.backgroundRepeat = 'repeat-y'; // 允许垂直重复
         p.style.backgroundPosition = 'top center';
     } 
     
@@ -662,10 +665,11 @@ function exportDiaryImage() {
     
     con.appendChild(p); 
     
-    // 保持 scale: 3 (高清)
+    // 4倍高清采样 (High Clarity)
     html2canvas(p,{
-        scale: 3, 
+        scale: 4, // 提升清晰度：从 3 -> 4
         useCORS: true, 
+        logging: false,
         backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null,
         windowWidth: screenWidth // 强制 html2canvas 使用当前屏幕宽度
     }).then(cvs=>{ 
@@ -678,7 +682,6 @@ function exportDiaryImage() {
         const maxBytes = 5 * 1024 * 1024; // 5MB limit
         
         // 2. 只有当体积 > 5MB 时才进行压缩
-        // 如果初始体积就 < 1MB，循环不会执行，直接高质量导出
         if (sizeInBytes > maxBytes) {
             // 循环降低质量，直到 < 5MB，最低保护线 0.3
             while (sizeInBytes > maxBytes && quality > 0.3) {
@@ -700,13 +703,14 @@ function exportDiaryImage() {
 function startCrop(i) { const f=i.files[0]; if(f) { const r=new FileReader(); r.onload=e=>{ document.getElementById('cropper-modal').style.display='flex'; document.getElementById('cropper-img').src=e.target.result; if(cropperInstance)cropperInstance.destroy(); cropperInstance=new Cropper(document.getElementById('cropper-img'),{viewMode:2,dragMode:'move',autoCropArea:1}); }; r.readAsDataURL(f); i.value=''; } }
 function cancelCrop() { document.getElementById('cropper-modal').style.display='none'; if(cropperInstance)cropperInstance.destroy(); }
 
+// 修复背景图质量的核心函数
 function finishCrop() { 
     if(cropperInstance) { 
         cropperInstance.getCroppedCanvas({ 
-            maxWidth: 3840, 
-            maxHeight: 3840, 
+            maxWidth: 4096, maxHeight: 4096, // 允许更大的 4K 图片
             imageSmoothingQuality: 'high'
         }).toBlob((blob) => {
+            // 使用质量 1.0 保存（无损JPEG）
             AppDB.saveAsset('bgImage', blob).then(() => {
                 localStorage.removeItem('myDiaryBg_v2');
                 state.bgImage = URL.createObjectURL(blob);
@@ -714,7 +718,7 @@ function finishCrop() {
                 cancelCrop();
                 showToast("高清背景已设置");
             });
-        }, 'image/jpeg', 0.95); 
+        }, 'image/jpeg', 1.0); // 质量 1.0
     } 
 }
 
