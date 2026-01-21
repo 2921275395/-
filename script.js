@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V2 (精准高度计算 + 防拉伸)
+// script.js - 终极修复版 V3 (图片比例优先 + 绝对防拉伸)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -614,24 +614,42 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片（精准高度计算 + 防拉伸） ===
-function exportDiaryImage() { 
+// === 核心逻辑：导出图片（图片比例优先，绝对防拉伸） ===
+async function exportDiaryImage() { 
     const d = document.getElementById('export-date-picker').value; 
     if(!d) return alert("请先选择日期"); 
     const k = d; 
     const c = state.diaryData[k]; 
     if(!c) return alert("日记内容为空"); 
     
-    showToast("正在生成..."); 
+    showToast("正在分析图片比例..."); 
     
     const con = document.getElementById('screenshot-container'); 
     con.innerHTML = ''; 
     
-    // 1. 获取当前设备的精准“一页”尺寸
+    // 1. 获取宽度（宽度是固定的，以屏幕宽为准）
     const screenWidth = document.body.clientWidth;
-    const screenHeight = window.innerHeight; // 以此作为标准的一页高度
-    
     con.style.width = screenWidth + 'px';
+
+    // === 关键修改 step 1: 预读取图片，计算“一张纸”的自然高度 ===
+    let singlePageHeight = window.innerHeight; // 默认值（如果没有背景图）
+
+    if (state.bgImage) {
+        await new Promise((resolve) => {
+            const img = new Image();
+            img.src = state.bgImage;
+            img.onload = () => {
+                // 计算比例：自然高度 / 自然宽度
+                const ratio = img.naturalHeight / img.naturalWidth;
+                // 算出在当前屏幕宽度下，这张图自然应该有多高
+                singlePageHeight = screenWidth * ratio;
+                resolve();
+            };
+            img.onerror = () => {
+                resolve();
+            };
+        });
+    }
 
     // 2. 创建容器
     const p = document.createElement('div'); 
@@ -642,49 +660,41 @@ function exportDiaryImage() {
     p.style.overflow = 'hidden'; 
     p.style.width = '100%'; 
     p.style.background = 'transparent';
-    p.style.height = 'auto'; // 暂时自动，稍后锁定
+    // 先暂时设为一张纸的高度
+    p.style.height = singlePageHeight + 'px';
 
-    // 3. 插入内容层（用于计算高度）
+    // 3. 插入内容层（用于计算文字实际高度）
     const textLayer = document.createElement('div');
     textLayer.style.position = 'relative';
     textLayer.style.zIndex = '1'; 
-    // 增加 padding-bottom 防止文字贴底
-    textLayer.innerHTML = `<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px; padding-bottom: 40px;">${c}</div>`;
+    // 增加 padding-bottom，避免文字太靠底
+    textLayer.innerHTML = `<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px; padding-bottom: 50px;">${c}</div>`;
     
     p.appendChild(textLayer);
-    con.appendChild(p); // 渲染到 DOM 以便测量
+    con.appendChild(p); 
 
-    // === 关键修改：精准计算实际内容高度 ===
-    // 1. 获取文字流的高度
+    // 4. 计算内容实际高度 (文字 + 贴纸)
     let maxContentBottom = textLayer.offsetHeight;
-
-    // 2. 遍历所有绝对定位的贴纸，找出最靠下的那个
     const stickers = textLayer.querySelectorAll('.sticker-item');
     stickers.forEach(s => {
-        // 获取贴纸的 top 值和 height
         const top = parseFloat(s.style.top) || 0;
         const height = parseFloat(s.style.height) || s.offsetHeight || 100;
-        
-        const bottomEdge = top + height;
-        if (bottomEdge > maxContentBottom) {
-            maxContentBottom = bottomEdge;
-        }
+        if (top + height > maxContentBottom) maxContentBottom = top + height;
     });
+    maxContentBottom += 60; // 底部安全距离
 
-    // 加上底部安全边距 (60px)
-    maxContentBottom += 60;
-
-    // === 关键修改：计算页数 ===
-    // 向上取整。如果内容只有 0.5 倍屏幕高，算作 1 页。如果 1.1 倍，算作 2 页。
-    let pagesNeeded = Math.ceil(maxContentBottom / screenHeight);
+    // 5. 计算需要几张背景图
+    // 用“内容高度”除以我们刚才算出的“图片自然高度”
+    let pagesNeeded = Math.ceil(maxContentBottom / singlePageHeight);
     if (pagesNeeded < 1) pagesNeeded = 1;
 
-    // === 关键修改：强制锁定容器高度 ===
-    // 容器高度必须永远是 screenHeight 的整数倍
-    const finalHeight = pagesNeeded * screenHeight;
+    // === 关键修改 step 2: 设定最终高度 ===
+    // 容器高度 = 页数 * 图片自然高度
+    // 这样能保证容器刚好能塞下 N 张完整的背景图，不多也不少，不黑边也不拉伸
+    const finalHeight = pagesNeeded * singlePageHeight;
     p.style.height = finalHeight + 'px';
 
-    // 4. 动态平铺背景图
+    // 6. 铺设背景图
     if(state.bgImage){
         const bgContainer = document.createElement('div');
         bgContainer.style.position = 'absolute';
@@ -693,55 +703,60 @@ function exportDiaryImage() {
         bgContainer.style.width = '100%';
         bgContainer.style.height = '100%';
         bgContainer.style.zIndex = '0'; 
-        bgContainer.style.overflow = 'hidden';
+        // 使用 flex 布局让图片垂直排列，无缝衔接
+        bgContainer.style.display = 'flex';
+        bgContainer.style.flexDirection = 'column';
 
-        // 循环插入图片
         for(let i=0; i<pagesNeeded; i++) {
             const img = document.createElement('img');
             img.src = state.bgImage;
             img.style.width = '100%';
-            
-            // === 核心修复：强制指定图片高度 ===
-            // 强制每一张背景图的高度都等于屏幕高度
-            img.style.height = screenHeight + 'px'; 
-            
-            img.style.objectFit = 'fill'; // 强制填满预设区域，因为剪裁时已经是这个比例了
+            // === 核心：高度自动 ===
+            // 只要宽度是 100%，高度自动，图片就永远是原比例，绝对不会拉伸
+            img.style.height = 'auto'; 
             img.style.display = 'block'; 
             img.style.pointerEvents = 'none';
+            // 防止 flex 布局压缩图片
+            img.style.flexShrink = '0'; 
             bgContainer.appendChild(img);
         }
         
         p.insertBefore(bgContainer, p.firstChild);
     } 
     
-    // 5. 高清导出
-    html2canvas(p,{
-        scale: 4, 
-        useCORS: true, 
-        logging: false,
-        backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null,
-        windowWidth: screenWidth 
-    }).then(cvs=>{ 
-        let quality = 1.0;
-        let dataUrl = cvs.toDataURL('image/jpeg', quality);
-        let sizeInBytes = Math.round(dataUrl.length * 0.75);
-        const maxBytes = 5 * 1024 * 1024; 
-        
-        if (sizeInBytes > maxBytes) {
-            while (sizeInBytes > maxBytes && quality > 0.3) {
-                quality -= 0.05; 
-                dataUrl = cvs.toDataURL('image/jpeg', quality);
-                sizeInBytes = Math.round(dataUrl.length * 0.75);
-            }
-        }
+    showToast("正在生成高清图...");
 
-        const a = document.createElement('a'); 
-        a.download = `diary_${k}.jpg`; 
-        a.href = dataUrl; 
-        a.click(); 
-        con.innerHTML = ''; 
-        showToast(`已保存 (${(sizeInBytes/1024/1024).toFixed(2)}MB)`); 
-    }); 
+    // 7. 高清导出
+    // 稍作延迟确保 DOM 渲染完成
+    setTimeout(() => {
+        html2canvas(p,{
+            scale: 4, 
+            useCORS: true, 
+            logging: false,
+            backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null,
+            windowWidth: screenWidth 
+        }).then(cvs=>{ 
+            let quality = 1.0;
+            let dataUrl = cvs.toDataURL('image/jpeg', quality);
+            let sizeInBytes = Math.round(dataUrl.length * 0.75);
+            const maxBytes = 5 * 1024 * 1024; 
+            
+            if (sizeInBytes > maxBytes) {
+                while (sizeInBytes > maxBytes && quality > 0.3) {
+                    quality -= 0.05; 
+                    dataUrl = cvs.toDataURL('image/jpeg', quality);
+                    sizeInBytes = Math.round(dataUrl.length * 0.75);
+                }
+            }
+
+            const a = document.createElement('a'); 
+            a.download = `diary_${k}.jpg`; 
+            a.href = dataUrl; 
+            a.click(); 
+            con.innerHTML = ''; 
+            showToast(`已保存 (${(sizeInBytes/1024/1024).toFixed(2)}MB)`); 
+        }); 
+    }, 100);
 }
 
 function startCrop(i) { 
