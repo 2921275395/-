@@ -26,7 +26,7 @@ body.paper-grid { --paper-pattern: linear-gradient(var(--line-color) 1px, transp
 body.paper-blank { --paper-pattern: none; --paper-size: auto; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); overflow: hidden; transition: background 0.4s ease, color 0.4s ease; }
+body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: var(--font-main); background-color: var(--bg-color); color: var(--text-color); overflow: hidden; transition: background 0.4s ease, color 0.4s ease; }
 
 .icon-btn { 
     border: 1px solid var(--border-color); background: var(--paper-color); 
@@ -79,75 +79,48 @@ body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-main);
 #index-tab.visible { transform: translateX(0); }
 .snap-transition { transition: top 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.3s ease !important; }
 
-/* === 日记界面 (修改部分) === */
-#diary-view { 
-    background-color: var(--bg-color); 
-    /* 新增：让纸张在屏幕中间 */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
+/* === 日记界面 === */
+#diary-view { background-color: var(--bg-color); }
 .paper-container {
-    /* 修改：宽度占 94% 的视口宽，高度占 96% 的视口高，留出空隙 */
-    width: 94vw; 
-    height: 96vh;
-    max-width: 600px; /* 平板上不要太宽 */
-    
-    background-color: var(--paper-color);
-    background-image: var(--paper-pattern);
-    background-size: var(--paper-size);
-    background-attachment: local; 
-    background-repeat: repeat;
-    
+    width: 100%; height: 100%; background-color: var(--paper-color);
+    background-image: var(--paper-pattern); background-size: var(--paper-size);
+    background-attachment: local; background-repeat: repeat;
     display: flex; flex-direction: column; position: relative;
-    transition: transform 0.3s; 
-    border: 1px solid var(--border-color);
+    transition: transform 0.3s; border: 1px solid var(--border-color);
     z-index: 0; transform-style: preserve-3d;
-    
-    /* 新增：圆角和阴影 */
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    overflow: hidden; /* 防止内容溢出圆角 */
+    overflow: hidden; /* 防止溢出 */
 }
-
 .paper-container.has-custom-bg { background-repeat: no-repeat; background-position: center; background-size: cover; }
 .paper-header {
     padding: 25px 20px; display: flex; justify-content: space-between; align-items: center;
-    background: linear-gradient(to bottom, var(--paper-color) 80%, transparent); z-index: 20;
+    background: linear-gradient(to bottom, var(--paper-color) 80%, transparent); z-index: 20; 
 }
 .date-display { font-size: 1.6rem; font-weight: 800; color: var(--text-color); letter-spacing: 1px; }
 
 #diary-scroll-area {
     flex: 1; position: relative; overflow-y: auto; overflow-x: hidden;
     padding-bottom: 50px;
+    width: 100%; /* 强制宽度 */
 }
 
+/* 修改：减小内边距以适应小屏，防止右侧被切 */
 .paper-content {
-    min-height: 100%; width: 100%; padding: 10px 25px; 
+    min-height: 100%; width: 100%; 
+    padding: 10px 15px; /* 从 25px 减小到 15px */
     font-size: 1.15rem; line-height: 32px; border: none; 
     background: transparent; 
     color: var(--text-color); font-family: inherit; white-space: pre-wrap; word-break: break-word;
     position: relative; 
-    z-index: 5;
-    pointer-events: auto;
+    z-index: 5; 
+    pointer-events: auto; 
 }
 .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.5; }
 
 .page-nav { display: flex; justify-content: space-between; padding: 15px 25px; background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 20; }
-
-/* 格式刷按钮 (修改为绝对定位) */
 .format-toolbar-toggle {
-    position: absolute; /* 改为相对于纸张 */
-    right: 0; 
-    top: 150px; 
-    width: 40px; height: 40px;
-    background: rgba(255,255,255,0.9); 
-    border-radius: 50% 0 0 50%; /* 贴边样式 */
-    display: flex; align-items: center; justify-content: center;
-    cursor: grab; box-shadow: -2px 2px 10px rgba(0,0,0,0.1); 
-    z-index: 150; color: var(--text-color); border: 1px solid var(--line-color); border-right: none;
-    touch-action: none;
+    position: fixed; right: 0; top: 150px; width: 40px; height: 40px;
+    background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    cursor: grab; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 150; color: var(--text-color); border: 1px solid var(--line-color); touch-action: none;
 }
 .format-toolbar {
     position: absolute; top: 100px; right: 50px; 
@@ -208,9 +181,12 @@ button.btn-text { border: none; background: transparent; color: var(--text-color
 /* ================= 月度画廊样式 ================= */
 #month-gallery { background-color: var(--bg-color); z-index: 350; display: flex; flex-direction: column; overflow: hidden; }
 #gallery-content { flex: 1; overflow-y: auto; padding: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; align-content: start; }
+/* 修正画廊卡片宽度问题 */
 .gallery-card { position: relative; width: 100%; padding-bottom: 160%; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.05); }
 .thumb-scaler {
-    position: absolute; top: 0; left: 0; width: 300%; height: 300%; transform: scale(0.33333333); transform-origin: top left;
+    position: absolute; top: 0; left: 0; 
+    width: 300%; height: 300%; /* 比例需对应 transform */
+    transform: scale(0.33333333); transform-origin: top left;
     background-color: var(--paper-color); background-image: var(--paper-pattern); background-size: var(--paper-size);
     padding: 30px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; pointer-events: none; border: 3px solid transparent; 
 }
@@ -252,10 +228,9 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 .pin-btn.bio-btn { border: none; box-shadow: none; background: transparent; color: var(--primary-color); transform: scale(1.2); }
 .pin-btn.del-btn { border: none; box-shadow: none; background: transparent; font-size: 1rem; }
 
-/* ================= 贴纸功能样式 (修改部分) ================= */
+/* ================= 贴纸功能样式 ================= */
 .sticker-float-btn {
-    position: absolute; /* 改为相对于纸张 */
-    right: 20px; bottom: 30px; 
+    position: fixed; right: 20px; bottom: 100px; 
     width: 40px; height: 40px; 
     background: rgba(255,255,255,0.6); backdrop-filter: blur(5px);
     border: 1px solid var(--border-color); border-radius: 50%;
@@ -290,7 +265,7 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 .sticker-item {
     position: absolute; display: inline-block; cursor: grab; 
     user-select: none; -webkit-user-select: none; touch-action: none;
-    z-index: 10; /* 默认: 文字上方 */
+    z-index: 10; 
     line-height: 0; transform-origin: center center;
 }
 .sticker-item img { display: block; width: 100%; height: 100%; pointer-events: none; }
@@ -340,15 +315,9 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 .cloud-panel.open { display: block; animation: fadeIn 0.3s; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
-/* 
-   确保导出图片时依然是完整的长图，不受屏幕显示限制
-   添加 !important 强制覆盖上面的屏幕适配样式
-*/
-#screenshot-container .paper-container {
-    width: 100% !important;
-    height: auto !important;
-    max-width: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    margin: 0 !important;
+/* 关键：截图容器移出可视区但保持动态宽度 */
+#screenshot-container { 
+    position: fixed; top: 0; left: -9999px; 
+    /* 移除固定 width: 450px，改为 JS 控制 */
+    z-index: -1; pointer-events: none; 
 }
