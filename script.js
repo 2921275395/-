@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V3 (图片比例优先 + 绝对防拉伸)
+// script.js - 终极修复版 V4 (修复自带背景黑屏 + 完美比例)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -614,7 +614,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片（图片比例优先，绝对防拉伸） ===
+// === 核心逻辑：导出图片（修复自带背景黑屏 + 终极防拉伸） ===
 async function exportDiaryImage() { 
     const d = document.getElementById('export-date-picker').value; 
     if(!d) return alert("请先选择日期"); 
@@ -627,53 +627,56 @@ async function exportDiaryImage() {
     const con = document.getElementById('screenshot-container'); 
     con.innerHTML = ''; 
     
-    // 1. 获取宽度（宽度是固定的，以屏幕宽为准）
+    // 1. 获取宽度
     const screenWidth = document.body.clientWidth;
     con.style.width = screenWidth + 'px';
 
-    // === 关键修改 step 1: 预读取图片，计算“一张纸”的自然高度 ===
-    let singlePageHeight = window.innerHeight; // 默认值（如果没有背景图）
+    // 2. 预读取图片高度（如果有自定义背景）
+    let singlePageHeight = window.innerHeight; // 默认一页高度
 
     if (state.bgImage) {
         await new Promise((resolve) => {
             const img = new Image();
             img.src = state.bgImage;
             img.onload = () => {
-                // 计算比例：自然高度 / 自然宽度
                 const ratio = img.naturalHeight / img.naturalWidth;
-                // 算出在当前屏幕宽度下，这张图自然应该有多高
                 singlePageHeight = screenWidth * ratio;
                 resolve();
             };
-            img.onerror = () => {
-                resolve();
-            };
+            img.onerror = () => { resolve(); };
         });
     }
 
-    // 2. 创建容器
+    // 3. 创建容器
     const p = document.createElement('div'); 
-    p.className = `paper-container ${state.settings.paper}`; 
+    // === 修复点 1: 必须同时加上 theme 和 paper 的 class，否则没有背景色 ===
+    p.className = `paper-container ${state.settings.theme} ${state.settings.paper}`; 
     p.style.imageRendering = '-webkit-optimize-contrast';
     p.style.position = 'relative'; 
     p.style.borderRadius = '0'; 
     p.style.overflow = 'hidden'; 
     p.style.width = '100%'; 
-    p.style.background = 'transparent';
-    // 先暂时设为一张纸的高度
+    
+    // === 修复点 2: 只有在有自定义背景图时，才把容器设为透明 ===
+    if (state.bgImage) {
+        p.style.background = 'transparent';
+    } else {
+        // 如果是自带背景，清除行内样式，让 CSS 类生效（显示米色/白色）
+        p.style.background = ''; 
+    }
+
     p.style.height = singlePageHeight + 'px';
 
-    // 3. 插入内容层（用于计算文字实际高度）
+    // 4. 插入内容层
     const textLayer = document.createElement('div');
     textLayer.style.position = 'relative';
     textLayer.style.zIndex = '1'; 
-    // 增加 padding-bottom，避免文字太靠底
     textLayer.innerHTML = `<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px; padding-bottom: 50px;">${c}</div>`;
     
     p.appendChild(textLayer);
     con.appendChild(p); 
 
-    // 4. 计算内容实际高度 (文字 + 贴纸)
+    // 5. 计算内容实际高度
     let maxContentBottom = textLayer.offsetHeight;
     const stickers = textLayer.querySelectorAll('.sticker-item');
     stickers.forEach(s => {
@@ -681,20 +684,16 @@ async function exportDiaryImage() {
         const height = parseFloat(s.style.height) || s.offsetHeight || 100;
         if (top + height > maxContentBottom) maxContentBottom = top + height;
     });
-    maxContentBottom += 60; // 底部安全距离
+    maxContentBottom += 60; 
 
-    // 5. 计算需要几张背景图
-    // 用“内容高度”除以我们刚才算出的“图片自然高度”
+    // 6. 计算页数
     let pagesNeeded = Math.ceil(maxContentBottom / singlePageHeight);
     if (pagesNeeded < 1) pagesNeeded = 1;
 
-    // === 关键修改 step 2: 设定最终高度 ===
-    // 容器高度 = 页数 * 图片自然高度
-    // 这样能保证容器刚好能塞下 N 张完整的背景图，不多也不少，不黑边也不拉伸
     const finalHeight = pagesNeeded * singlePageHeight;
     p.style.height = finalHeight + 'px';
 
-    // 6. 铺设背景图
+    // 7. 铺设自定义背景图（如果有）
     if(state.bgImage){
         const bgContainer = document.createElement('div');
         bgContainer.style.position = 'absolute';
@@ -703,7 +702,6 @@ async function exportDiaryImage() {
         bgContainer.style.width = '100%';
         bgContainer.style.height = '100%';
         bgContainer.style.zIndex = '0'; 
-        // 使用 flex 布局让图片垂直排列，无缝衔接
         bgContainer.style.display = 'flex';
         bgContainer.style.flexDirection = 'column';
 
@@ -711,12 +709,9 @@ async function exportDiaryImage() {
             const img = document.createElement('img');
             img.src = state.bgImage;
             img.style.width = '100%';
-            // === 核心：高度自动 ===
-            // 只要宽度是 100%，高度自动，图片就永远是原比例，绝对不会拉伸
             img.style.height = 'auto'; 
             img.style.display = 'block'; 
             img.style.pointerEvents = 'none';
-            // 防止 flex 布局压缩图片
             img.style.flexShrink = '0'; 
             bgContainer.appendChild(img);
         }
@@ -726,14 +721,14 @@ async function exportDiaryImage() {
     
     showToast("正在生成高清图...");
 
-    // 7. 高清导出
-    // 稍作延迟确保 DOM 渲染完成
+    // 8. 高清导出
     setTimeout(() => {
         html2canvas(p,{
             scale: 4, 
             useCORS: true, 
             logging: false,
-            backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null,
+            // === 修复点 3: 设为 null，完全由 CSS 决定背景 ===
+            backgroundColor: null, 
             windowWidth: screenWidth 
         }).then(cvs=>{ 
             let quality = 1.0;
