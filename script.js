@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 高清画质版 (4倍超采样 + 100%质量背景 + 自适应布局)
+// script.js - 画质极致优化版 (使用IMG图层替代CSS背景 + 4K导出)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -614,7 +614,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片（自适应屏幕宽度 + 背景图比例修正 + 4倍高清采样） ===
+// === 核心修复：使用IMG标签替代背景图，解决模糊问题 ===
 function exportDiaryImage() { 
     const d=document.getElementById('export-date-picker').value; 
     if(!d) return alert("选日期"); 
@@ -627,63 +627,55 @@ function exportDiaryImage() {
     const con=document.getElementById('screenshot-container'); 
     con.innerHTML=''; 
     
-    // 1. 获取当前屏幕宽度，确保导出时排版和手机看到的一模一样
+    // 1. 获取屏幕宽度，保证排版一致
     const screenWidth = document.body.clientWidth;
-    
-    // 设置导出容器宽度等于屏幕宽度
     con.style.width = screenWidth + 'px';
 
     const p=document.createElement('div'); 
     p.className=`paper-container ${state.settings.paper}`; 
-    
-    // 渲染优化：锐化边缘
     p.style.imageRendering = '-webkit-optimize-contrast';
-    
-    if(state.bgImage){
-        p.style.backgroundImage=`url(${state.bgImage})`;
-        p.classList.add('has-custom-bg');
-        
-        // 关键修复：强制背景图宽度100%，高度自动。
-        // 防止 cover 属性在长日记（高度很高）时过度拉伸背景图
-        p.style.backgroundSize = '100% auto'; 
-        p.style.backgroundRepeat = 'repeat-y'; // 允许垂直重复
-        p.style.backgroundPosition = 'top center';
-    } 
-    
-    // 样式调整：确保内容铺满，去掉多余边距，裁切右侧
     p.style.height='auto'; 
     p.style.minHeight='800px'; 
-    p.style.position='relative'; 
+    p.style.position='relative'; // 必须relative，方便绝对定位img
     p.style.borderRadius='0'; 
     p.style.overflow = 'hidden'; 
     p.style.width = '100%'; 
-    
-    // 优化底部：减小底部留白，看起来更紧凑
     p.style.paddingBottom = '30px'; 
+    
+    // 2. 核心修改：如果是自定义背景，插入 <img> 标签，而不是用 CSS background
+    let bgLayerHtml = '';
+    if(state.bgImage){
+        p.classList.add('has-custom-bg');
+        // 使用 img 标签，z-index 为 -1，强制 100% 宽度，高度自动 (点对点清晰)
+        bgLayerHtml = `<img src="${state.bgImage}" style="position:absolute; top:0; left:0; width:100%; height:auto; z-index:0; pointer-events:none;">`;
+        p.style.background = 'transparent'; // 移除CSS背景
+    } 
 
-    p.innerHTML=`<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px;">${c}</div>`; 
+    // 内容层放在 z-index: 1
+    p.innerHTML = `${bgLayerHtml}
+        <div style="position:relative; z-index:1;">
+            <div class="paper-header" style="background:none"><span class="date-display">${d}</span></div>
+            <div class="paper-content" style="overflow:visible; padding-right:15px;">${c}</div>
+        </div>`; 
     
     con.appendChild(p); 
     
-    // 4倍高清采样 (High Clarity)
+    // 3. 4倍高清采样
     html2canvas(p,{
-        scale: 4, // 提升清晰度：从 3 -> 4
+        scale: 4, 
         useCORS: true, 
         logging: false,
         backgroundColor: state.settings.theme==='theme-beige'?'#fffbf0':null,
-        windowWidth: screenWidth // 强制 html2canvas 使用当前屏幕宽度
+        windowWidth: screenWidth 
     }).then(cvs=>{ 
-        // 1. 尝试 100% 质量导出
         let quality = 1.0;
         let dataUrl = cvs.toDataURL('image/jpeg', quality);
         
-        // 计算字节大小 (估算: Base64长度 * 0.75)
         let sizeInBytes = Math.round(dataUrl.length * 0.75);
         const maxBytes = 5 * 1024 * 1024; // 5MB limit
         
-        // 2. 只有当体积 > 5MB 时才进行压缩
+        // 智能压缩
         if (sizeInBytes > maxBytes) {
-            // 循环降低质量，直到 < 5MB，最低保护线 0.3
             while (sizeInBytes > maxBytes && quality > 0.3) {
                 quality -= 0.05; 
                 dataUrl = cvs.toDataURL('image/jpeg', quality);
@@ -703,14 +695,12 @@ function exportDiaryImage() {
 function startCrop(i) { const f=i.files[0]; if(f) { const r=new FileReader(); r.onload=e=>{ document.getElementById('cropper-modal').style.display='flex'; document.getElementById('cropper-img').src=e.target.result; if(cropperInstance)cropperInstance.destroy(); cropperInstance=new Cropper(document.getElementById('cropper-img'),{viewMode:2,dragMode:'move',autoCropArea:1}); }; r.readAsDataURL(f); i.value=''; } }
 function cancelCrop() { document.getElementById('cropper-modal').style.display='none'; if(cropperInstance)cropperInstance.destroy(); }
 
-// 修复背景图质量的核心函数
 function finishCrop() { 
     if(cropperInstance) { 
         cropperInstance.getCroppedCanvas({ 
-            maxWidth: 4096, maxHeight: 4096, // 允许更大的 4K 图片
+            maxWidth: 4096, maxHeight: 4096, 
             imageSmoothingQuality: 'high'
         }).toBlob((blob) => {
-            // 使用质量 1.0 保存（无损JPEG）
             AppDB.saveAsset('bgImage', blob).then(() => {
                 localStorage.removeItem('myDiaryBg_v2');
                 state.bgImage = URL.createObjectURL(blob);
@@ -718,7 +708,7 @@ function finishCrop() {
                 cancelCrop();
                 showToast("高清背景已设置");
             });
-        }, 'image/jpeg', 1.0); // 质量 1.0
+        }, 'image/jpeg', 1.0); 
     } 
 }
 
