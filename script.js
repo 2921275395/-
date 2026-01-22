@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V4 (修复自带背景黑屏 + 完美比例)
+// script.js - 终极修复版 V5 (增加贴纸图层功能)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -202,6 +202,10 @@ async function init() {
 }
 
 function focusInput(e) {
+    // 只有当点击的是滚动区域本身，或者是输入框本身时才聚焦
+    // 如果文字层被锁定（贴纸编辑模式），则不聚焦
+    if(document.getElementById('diary-input').classList.contains('interaction-locked')) return;
+    
     if(e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input') {
         document.getElementById('diary-input').focus();
     }
@@ -299,8 +303,24 @@ async function restoreFromCloud() {
 
 /* ============ 核心功能 ============ */
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
-function openStickerDrawer() { renderStickerDrawer(); document.getElementById('sticker-drawer').classList.add('open'); toggleUI(false); }
-function closeStickerDrawer() { document.getElementById('sticker-drawer').classList.remove('open'); isEditingDrawer = false; toggleUI(true); renderStickerDrawer(); }
+
+// 打开抽屉时锁定文字输入，以便操作下方贴纸
+function openStickerDrawer() { 
+    renderStickerDrawer(); 
+    document.getElementById('sticker-drawer').classList.add('open'); 
+    document.getElementById('diary-input').classList.add('interaction-locked'); // 关键：锁定文字层
+    toggleUI(false); 
+}
+
+// 关闭抽屉时解锁
+function closeStickerDrawer() { 
+    document.getElementById('sticker-drawer').classList.remove('open'); 
+    document.getElementById('diary-input').classList.remove('interaction-locked'); // 恢复
+    isEditingDrawer = false; 
+    toggleUI(true); 
+    renderStickerDrawer(); 
+}
+
 function toggleEditStickerDrawer() { isEditingDrawer = !isEditingDrawer; renderStickerDrawer(); }
 async function renderStickerDrawer() { const list = document.getElementById('sticker-list'); const uploadBtn = list.querySelector('.sticker-add-btn'); list.innerHTML = ''; list.appendChild(uploadBtn); const stickers = await AppDB.getAllStickers(); stickers.forEach(s => { const div = document.createElement('div'); div.className = 'sticker-thumb'; const url = URL.createObjectURL(s.image); let inner = `<img src="${url}">`; if(isEditingDrawer) inner += `<div class="del-mark" onclick="deleteStickerFromLib(${s.id}, event)">删除</div>`; div.innerHTML = inner; if(!isEditingDrawer) div.onclick = () => addStickerToPage(s.image); list.appendChild(div); }); }
 async function importStickers(input) { if(!input.files.length) return; for(let file of input.files) { const compressed = await compressImage(file, 1024, 0.8); const blob = await (await fetch(compressed)).blob(); await AppDB.addSticker(blob); } renderStickerDrawer(); input.value = ''; }
@@ -315,13 +335,17 @@ async function addStickerToPage(blob) {
         wrapper.className = 'sticker-item selected'; 
         wrapper.contentEditable = "false"; 
         
+        // 默认顶层
         globalMaxZIndex++;
         wrapper.style.zIndex = globalMaxZIndex; 
+        wrapper.dataset.layer = 'top';
         
         wrapper.style.left = '50px'; 
         wrapper.style.top = '100px'; 
         wrapper.style.width = '150px'; 
-        wrapper.innerHTML = `<img src="${base64}" draggable="false"><div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div><div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>`; 
+        
+        // 新增 ctrl-layer 按钮
+        wrapper.innerHTML = `<img src="${base64}" draggable="false"><div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div><div class="sticker-ctrl ctrl-layer" onmousedown="toggleLayer(event)" ontouchstart="toggleLayer(event)">⇩</div><div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>`; 
         document.getElementById('diary-scroll-area').appendChild(wrapper); 
         attachStickerEvents(wrapper); 
         state.isDirty = true; 
@@ -329,12 +353,39 @@ async function addStickerToPage(blob) {
     reader.readAsDataURL(blob); 
 }
 
+// 切换贴纸图层（文字上/文字下）
+window.toggleLayer = function(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    const wrapper = e.target.closest('.sticker-item');
+    if(!wrapper) return;
+    
+    const current = wrapper.dataset.layer || 'top';
+    
+    if (current === 'top') {
+        // 沉底：设为 bottom，z-index 设为 1 (Text 是 5)
+        wrapper.dataset.layer = 'bottom';
+        wrapper.style.zIndex = '1';
+        e.target.innerText = '⇧'; // 变为上浮图标
+    } else {
+        // 浮顶：设为 top，z-index 设为最大
+        wrapper.dataset.layer = 'top';
+        globalMaxZIndex++;
+        wrapper.style.zIndex = globalMaxZIndex;
+        e.target.innerText = '⇩'; // 变为下沉图标
+    }
+    state.isDirty = true;
+};
+
 function activateStickerElement(el) {
     document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); 
     el.classList.add('selected');
     
-    globalMaxZIndex++;
-    el.style.zIndex = globalMaxZIndex;
+    // 只有在 top 模式下才更新 zIndex，bottom 模式保持在底部
+    if (!el.dataset.layer || el.dataset.layer === 'top') {
+        globalMaxZIndex++;
+        el.style.zIndex = globalMaxZIndex;
+    }
 }
 
 function attachStickerEvents(el) { 
@@ -574,6 +625,16 @@ function openDiary(e) {
         const z = parseInt(s.style.zIndex || 0);
         if(z > globalMaxZIndex) globalMaxZIndex = z;
         
+        // 恢复 ctrl-layer 按钮的文字状态
+        const isBottom = s.dataset.layer === 'bottom';
+        // 如果 HTML 里的按钮文字不对，进行修正
+        const layerBtn = s.querySelector('.ctrl-layer');
+        if(layerBtn) {
+            layerBtn.innerText = isBottom ? '⇧' : '⇩';
+            layerBtn.setAttribute('onmousedown', 'toggleLayer(event)');
+            layerBtn.setAttribute('ontouchstart', 'toggleLayer(event)');
+        }
+
         scrollArea.appendChild(s);
         attachStickerEvents(s);
     });
@@ -614,7 +675,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片（修复自带背景黑屏 + 终极防拉伸） ===
+// === 核心逻辑：导出图片（修复自带背景黑屏 + 终极防拉伸 + 图层支持） ===
 async function exportDiaryImage() { 
     const d = document.getElementById('export-date-picker').value; 
     if(!d) return alert("请先选择日期"); 
@@ -649,7 +710,6 @@ async function exportDiaryImage() {
 
     // 3. 创建容器
     const p = document.createElement('div'); 
-    // === 修复点 1: 必须同时加上 theme 和 paper 的 class，否则没有背景色 ===
     p.className = `paper-container ${state.settings.theme} ${state.settings.paper}`; 
     p.style.imageRendering = '-webkit-optimize-contrast';
     p.style.position = 'relative'; 
@@ -657,11 +717,9 @@ async function exportDiaryImage() {
     p.style.overflow = 'hidden'; 
     p.style.width = '100%'; 
     
-    // === 修复点 2: 只有在有自定义背景图时，才把容器设为透明 ===
     if (state.bgImage) {
         p.style.background = 'transparent';
     } else {
-        // 如果是自带背景，清除行内样式，让 CSS 类生效（显示米色/白色）
         p.style.background = ''; 
     }
 
@@ -671,8 +729,17 @@ async function exportDiaryImage() {
     const textLayer = document.createElement('div');
     textLayer.style.position = 'relative';
     textLayer.style.zIndex = '1'; 
+    textLayer.style.isolation = 'isolate'; // 关键：建立堆叠上下文，允许子元素 z-index: -1 位于此层底部（背景之上）
     textLayer.innerHTML = `<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px; padding-bottom: 50px;">${c}</div>`;
     
+    // 4.1 处理导出时的图层
+    textLayer.querySelectorAll('.sticker-item').forEach(s => {
+        // 如果是底层贴纸，强制设为 -1，使其位于文字节点下方，但因 isolation 存在，不会穿透到纸张背景下方
+        if (s.dataset.layer === 'bottom') {
+            s.style.zIndex = '-1';
+        }
+    });
+
     p.appendChild(textLayer);
     con.appendChild(p); 
 
@@ -727,7 +794,6 @@ async function exportDiaryImage() {
             scale: 4, 
             useCORS: true, 
             logging: false,
-            // === 修复点 3: 设为 null，完全由 CSS 决定背景 ===
             backgroundColor: null, 
             windowWidth: screenWidth 
         }).then(cvs=>{ 
