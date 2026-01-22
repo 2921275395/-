@@ -122,6 +122,7 @@ create policy "Public Access" on diary_backup for all using (true);</div>
                 <input type="month" id="month-picker" onchange="changeMonth(this.value)">
             </label>
             <button class="icon-btn" onclick="openSettings()">
+                <!-- 修复：用简单的图标标签代替了复杂的SVG，避免语法报错 -->
                 <span class="material-icons-round" style="font-size:24px; color:var(--icon-color)">settings</span>
             </button>
         </header>
