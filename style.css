@@ -259,10 +259,29 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 .sticker-drawer.open { transform: translateY(0); }
 .drawer-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line-color); }
 .drawer-header .header-actions { display: flex; align-items: center; gap: 10px; }
-.drawer-content { flex: 1; overflow-y: auto; padding: 15px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; align-content: start; }
+/* 关键修复：改为自动换行，并确保最小宽度 */
+.drawer-content { 
+    flex: 1; 
+    overflow-y: auto; 
+    padding: 15px; 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); 
+    gap: 15px; 
+    grid-auto-rows: max-content;
+    align-content: start; 
+}
+/* 关键修复：强制保持正方形比例 */
 .sticker-thumb { 
-    aspect-ratio: 1; border-radius: 12px; background: rgba(0,0,0,0.05); 
-    display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative;
+    aspect-ratio: 1 / 1; 
+    border-radius: 12px; 
+    background: rgba(0,0,0,0.05); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer; 
+    overflow: hidden; 
+    position: relative;
+    width: 100%;
 }
 .sticker-thumb img { max-width: 90%; max-height: 90%; object-fit: contain; }
 .sticker-add-btn { border: 2px dashed var(--line-color); color: var(--icon-color); font-size: 2rem; }
