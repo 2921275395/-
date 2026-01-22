@@ -166,17 +166,23 @@ body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: var(
 .test-notify-btn { padding: 8px 15px; font-size: 0.8rem; border: 1px dashed var(--text-color); opacity: 0.5; background: transparent; color: var(--text-color); border-radius: 20px; cursor: pointer; width: fit-content; align-self: center; }
 #android-sw-missing { display: none; background: #fff3e0; padding: 12px; border-radius: 12px; font-size: 0.8rem; color: #e65100; margin-bottom: 10px; }
 
-/* ================= 设置 & 搜索 (可折叠版) ================= */
-#settings-view { background-color: var(--bg-color); z-index: 200; padding: 20px; overflow-y: auto; }
+/* ================= 设置 & 搜索 (修复版) ================= */
+#settings-view { 
+    background-color: var(--bg-color); 
+    z-index: 200; 
+    padding: 20px; 
+    overflow-y: auto; 
+    -webkit-overflow-scrolling: touch; 
+    padding-bottom: 80px; 
+}
 
-/* 修改后的分组样式 */
+/* 分组容器 */
 .setting-group { 
     background: var(--paper-color); 
     padding: 0; 
-    border-radius: var(--radius); 
     margin-bottom: 15px; 
     border: 1px solid var(--border-color); 
-    overflow: hidden; 
+    border-radius: var(--radius);
     transition: all 0.3s ease;
 }
 
@@ -194,6 +200,8 @@ body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: var(
     background: rgba(0,0,0,0.02); 
     user-select: none;
     opacity: 0.8;
+    border-radius: var(--radius) var(--radius) 0 0;
+    transition: border-radius 0.2s;
 }
 
 /* 标题右侧小箭头 */
@@ -204,14 +212,14 @@ body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: var(
     opacity: 0.5;
 }
 
-/* 折叠状态下箭头旋转 */
-.setting-group.collapsed .setting-title::after {
-    transform: rotate(-90deg);
-}
-
-/* 折叠状态下隐藏边框 */
+/* 折叠状态样式 */
 .setting-group.collapsed .setting-title {
     opacity: 0.6;
+    border-radius: var(--radius);
+}
+
+.setting-group.collapsed .setting-title::after {
+    transform: rotate(-90deg);
 }
 
 /* 内容容器 */
@@ -220,6 +228,7 @@ body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: var(
     border-top: 1px dashed var(--line-color);
     display: block;
     animation: slideDown 0.3s ease;
+    border-radius: 0 0 var(--radius) var(--radius);
 }
 
 /* 折叠时隐藏内容 */
