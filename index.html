@@ -1,178 +1,312 @@
-    <!-- 设置界面 (重构版) -->
-    <div id="settings-view" class="view hidden-right settings-layout">
-        <header>
-            <span style="font-weight:800; font-size:1.3rem; letter-spacing:1px; color:var(--text-color);">设置</span>
-            <button class="icon-btn" onclick="closeSettings()">✕</button>
-        </header>
-        
-        <!-- 顶部导航栏 -->
-        <div class="settings-nav">
-            <button class="nav-item active" onclick="switchSettingsTab('tab-look', this)">外观</button>
-            <button class="nav-item" onclick="switchSettingsTab('tab-func', this)">功能</button>
-            <button class="nav-item" onclick="switchSettingsTab('tab-data', this)">数据</button>
-            <button class="nav-item" onclick="switchSettingsTab('tab-safe', this)">隐私</button>
-        </div>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#f7f9fc">
+    <title>我的日记本</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-beige paper-lines" onclick="handleGlobalClick(event)">
 
-        <div class="settings-content-area">
+    <div id="save-toast">☁️ 已自动保存</div>
+
+    <!-- 云端同步帮助弹窗 -->
+    <div id="cloud-help" class="cloud-help-modal">
+        <div class="help-content">
+            <div class="help-close" onclick="closeCloudHelp()">×</div>
+            <h2 style="margin-top:0; border-bottom:2px solid var(--line-color); padding-bottom:10px;">☁️ 云端同步设置教程</h2>
             
-            <!-- 1. 外观设置 -->
-            <div id="tab-look" class="settings-panel active">
-                <div class="setting-card">
-                    <div class="card-title">纸张主题</div>
-                    <div class="theme-grid">
-                        <div class="theme-opt" onclick="setTheme('theme-beige')"><div class="circle" style="background:#fffbf0"></div><span>米黄</span></div>
-                        <div class="theme-opt" onclick="setTheme('theme-white')"><div class="circle" style="background:#ffffff"></div><span>纯白</span></div>
-                        <div class="theme-opt" onclick="setTheme('theme-green')"><div class="circle" style="background:#f1f8f3"></div><span>薄荷</span></div>
-                        <div class="theme-opt" onclick="setTheme('theme-pink')"><div class="circle" style="background:#fff5f7"></div><span>樱花</span></div>
-                    </div>
-                    <div class="divider"></div>
-                    <div class="paper-style-row">
-                        <button class="style-btn" onclick="setPaper('paper-lines')">横线</button>
-                        <button class="style-btn" onclick="setPaper('paper-grid')">方格</button>
-                        <button class="style-btn" onclick="setPaper('paper-blank')">空白</button>
-                    </div>
-                </div>
-
-                <div class="setting-card">
-                    <div class="card-title">个性化</div>
-                    <div class="switch-row">
-                        <span>夜间模式</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="chk-dark" onchange="toggleDarkMode()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="divider"></div>
-                    <div class="input-group">
-                        <span>自定义背景</span>
-                        <div style="display:flex; gap:10px; margin-top:10px;">
-                            <button class="btn-small" onclick="document.getElementById('bg-upload').click()">选择图片</button>
-                            <button class="btn-small danger" onclick="clearBgImage()">清除</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="setting-card">
-                    <div class="card-title">字体</div>
-                    <div style="display:flex; gap:8px;">
-                        <input type="text" id="font-url-input" class="modern-input" placeholder="输入字体 URL...">
-                        <button class="btn-icon-only" onclick="applyFont()">✓</button>
-                        <button class="btn-icon-only" onclick="resetFont()">✕</button>
-                    </div>
-                </div>
+            <div class="help-step">
+                <h3>第一步：注册 Supabase</h3>
+                <p>1. 访问 <a href="https://supabase.com" target="_blank" style="color:var(--primary-color);font-weight:bold;">supabase.com</a> 并点击 "Start your project"。</p>
+                <p>2. 注册账号，点击 "New Project"，填写 Name (如 Diary)，设置 Password (要记住)，Region 选 Singapore/Tokyo。</p>
+                <p>3. 等待项目变成绿色 "Active" 状态。</p>
             </div>
 
-            <!-- 2. 功能设置 -->
-            <div id="tab-func" class="settings-panel">
-                 <div class="setting-card">
-                    <div class="card-title">实用工具</div>
-                    <div class="switch-row">
-                        <span>待办清单入口</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="chk-todo" onchange="toggleTodoSetting()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="divider"></div>
-                    <div class="switch-row">
-                        <span>贴纸功能</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="chk-sticker" onchange="toggleStickerSetting()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
+            <div class="help-step">
+                <h3>第二步：创建数据表</h3>
+                <p>1. 在 Supabase 页面左侧菜单点击 <strong>SQL Editor</strong> 图标。</p>
+                <p>2. 点击 "New query"，将下方代码复制进去，然后点击右下角 <strong>Run</strong>。</p>
+                <div class="code-block" id="sql-code">create table diary_backup (
+  id bigint primary key,
+  updated_at timestamp with time zone,
+  diary_data jsonb,
+  todo_data jsonb,
+  settings jsonb,
+  device_info text
+);
 
-                <div class="setting-card">
-                    <div class="card-title">回顾与搜索</div>
-                    <div class="action-row" onclick="openMonthGallery()">
-                        <span>🗓️ 月度快速浏览</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <div class="divider"></div>
-                    <div class="input-group">
-                        <input type="text" id="search-input" class="modern-input" placeholder="🔍 搜索日记关键词..." oninput="performSearch(this.value)">
-                        <div id="search-results" class="search-results-mini"></div>
-                    </div>
-                </div>
+alter table diary_backup enable row level security;
+create policy "Public Access" on diary_backup for all using (true);</div>
+                <button onclick="copySQL()" class="btn" style="width:100%;">📋 点击复制上方代码</button>
             </div>
 
-            <!-- 3. 数据设置 -->
-            <div id="tab-data" class="settings-panel">
-                <div class="setting-card highlight-card">
-                    <div class="card-header-flex">
-                        <div class="card-title">☁️ 私有云同步</div>
-                        <button class="btn-xs" onclick="openCloudHelp(event)">教程</button>
-                    </div>
-                    <div class="cloud-status-box" id="cloud-status-display">
-                        <div class="status-dot"></div>
-                        <span id="cloud-state-text">未配置</span>
-                    </div>
-                    <button class="btn-full" onclick="toggleCloudPanel()">配置 / 同步</button>
-                    
-                    <!-- 隐藏的配置面板 -->
-                    <div id="cloud-panel" class="cloud-panel" style="margin-top:15px;">
-                        <input type="text" id="cloud-url" placeholder="Project URL" class="modern-input">
-                        <input type="password" id="cloud-key" placeholder="Anon Key" class="modern-input">
-                        <div class="btn-grid">
-                            <button onclick="saveCloudConfig()" class="btn-small primary">保存配置</button>
-                            <button onclick="testCloudConnection()" class="btn-small">测试连接</button>
-                        </div>
-                        <div id="cloud-ops" style="display:none; margin-top:15px; border-top:1px dashed var(--line-color); padding-top:15px;">
-                            <button onclick="backupToCloud()" class="btn-action upload">☁️ 上传备份</button>
-                            <button onclick="restoreFromCloud()" class="btn-action download">📥 下载恢复</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="setting-card">
-                    <div class="card-title">本地备份 & 导出</div>
-                    <div class="action-row" onclick="exportData()">
-                        <span>💾 导出备份 (JSON)</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <div class="divider"></div>
-                    <div class="action-row" onclick="document.getElementById('import-file').click()">
-                        <span>📂 恢复备份</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <div class="divider"></div>
-                    <div class="action-row" onclick="exportDiaryImage()">
-                        <span>🖼️ 导出当前日记长图</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <div class="divider"></div>
-                    <div class="action-row danger-text" onclick="clearCache()">
-                        <span>🗑️ 清空应用缓存 (重置)</span>
-                        <span class="arrow">›</span>
-                    </div>
-                </div>
+            <div class="help-step">
+                <h3>第三步：连接日记本</h3>
+                <p>1. 点击 Supabase 左下角齿轮 <strong>Project Settings</strong> -> <strong>API</strong>。</p>
+                <p>2. 找到 <strong>Project URL</strong> 和 <strong>anon public key</strong>。</p>
+                <p>3. 复制这两个值，填入日记本的输入框中，点击保存。</p>
             </div>
-
-            <!-- 4. 安全设置 -->
-            <div id="tab-safe" class="settings-panel">
-                <div class="setting-card">
-                    <div class="card-title">应用锁</div>
-                    <div class="switch-row">
-                        <span>PIN 码保护</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="chk-pin" onchange="togglePinLock()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div id="row-bio" class="divider" style="display:none"></div>
-                    <div id="row-bio-content" class="switch-row" style="display:none">
-                        <span>生物识别 (指纹/面容)</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="chk-bio" onchange="toggleBiometrics()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-                <p style="font-size:0.8rem; opacity:0.6; padding:0 10px; text-align:center;">
-                    安全提示：密码仅保存在本地浏览器缓存中，清除缓存会导致密码重置。
-                </p>
-            </div>
-
+            
+            <button onclick="closeCloudHelp()" class="btn" style="width:100%; background:var(--primary-color); color:#fff; border:none;">我明白了</button>
         </div>
     </div>
+
+    <!-- 隐私锁屏界面 -->
+    <div id="lock-screen">
+        <div class="lock-icon"><span class="material-icons-round">lock</span></div>
+        <div class="status-text" style="margin-bottom:20px; font-weight:bold;">日记本已锁定</div>
+        <div class="pin-dots" id="pin-dots">
+            <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+        </div>
+        <div class="pin-pad">
+            <div class="pin-btn" onclick="enterPin(1)">1</div>
+            <div class="pin-btn" onclick="enterPin(2)">2</div>
+            <div class="pin-btn" onclick="enterPin(3)">3</div>
+            <div class="pin-btn" onclick="enterPin(4)">4</div>
+            <div class="pin-btn" onclick="enterPin(5)">5</div>
+            <div class="pin-btn" onclick="enterPin(6)">6</div>
+            <div class="pin-btn" onclick="enterPin(7)">7</div>
+            <div class="pin-btn" onclick="enterPin(8)">8</div>
+            <div class="pin-btn" onclick="enterPin(9)">9</div>
+            <div class="pin-btn bio-btn" onclick="tryBiometric()"><span class="material-icons-round">fingerprint</span></div>
+            <div class="pin-btn" onclick="enterPin(0)">0</div>
+            <div class="pin-btn del-btn" onclick="deletePin()">删除</div>
+        </div>
+    </div>
+
+    <!-- 裁剪器界面 -->
+    <div id="cropper-modal">
+        <div class="crop-container"><img id="cropper-img" style="max-width:100%;"></div>
+        <div class="crop-actions">
+            <button class="crop-btn" onclick="cancelCrop()">取消</button>
+            <button class="crop-btn confirm" onclick="finishCrop()">应用背景</button>
+        </div>
+    </div>
+
+    <!-- 贴纸抽屉 -->
+    <div id="sticker-drawer" class="sticker-drawer">
+        <div class="drawer-header">
+            <span style="font-weight:bold;">贴纸库 (打开时可编辑底层贴纸)</span>
+            <div class="header-actions">
+                <button class="btn" style="font-size:0.8rem" onclick="toggleEditStickerDrawer()">管理</button>
+                <button class="icon-btn" onclick="closeStickerDrawer()">✕</button>
+            </div>
+        </div>
+        <div class="drawer-content" id="sticker-list">
+            <label class="sticker-thumb sticker-add-btn">
+                <span class="material-icons-round">add</span>
+                <input type="file" id="sticker-upload" accept="image/*" multiple onchange="importStickers(this)">
+            </label>
+        </div>
+    </div>
+
+    <!-- 左侧悬浮标签 -->
+    <div id="todo-tab" class="side-tab" onclick="openTodo()"><span class="material-icons-round">checklist</span></div>
+    <div id="index-tab" class="side-tab" onclick="openDiary(event)"><span id="tab-date">10/24</span></div>
+
+    <!-- 主界面 -->
+    <div id="home-view" class="view">
+        <header>
+            <div style="width: 40px;"></div> 
+            <label class="date-picker-wrapper" style="justify-content:center;">
+                <span id="current-month-label">2026年 01月</span>
+                <input type="month" id="month-picker" onchange="changeMonth(this.value)">
+            </label>
+            <button class="icon-btn" onclick="openSettings()">
+                <span class="material-icons-round" style="font-size:24px; color:var(--icon-color)">settings</span>
+            </button>
+        </header>
+        <div class="calendar-container">
+            <div class="weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
+            <div id="calendar-days" class="days"></div>
+        </div>
+    </div>
+
+    <!-- 待办清单 -->
+    <div id="todo-view" class="view hidden-right">
+        <div class="todo-header"><span style="font-weight:bold; font-size:1.2rem">待办 & 提醒</span><button class="icon-btn" onclick="closeTodo()">✕</button></div>
+        <div class="notification-area">
+            <div id="android-sw-missing">⚠️ <strong>推送配置：</strong>请确保目录包含 sw.js</div>
+            <button id="perm-btn" class="permission-btn" onclick="requestNotifyPermission()">🔔 开启通知权限</button>
+            <button class="test-notify-btn" onclick="testNotification()">发送测试通知</button>
+        </div>
+        <div class="todo-input-container"><input type="text" id="new-todo-input" class="todo-text-input" placeholder="添加新任务..."><button class="todo-add-btn" onclick="addTodo()">＋</button></div>
+        <div class="todo-list" id="todo-list"></div>
+    </div>
+
+    <!-- 日记界面 -->
+    <div id="diary-view" class="view hidden-right">
+        <div class="paper-container" id="paper-layer">
+            <div class="paper-header"><span class="date-display" id="diary-date-display">10月24日</span><button class="icon-btn" onclick="closeDiary()">✕</button></div>
+            
+            <div class="format-toolbar-toggle" id="fmt-toggle" onclick="toggleFormatToolbar(event)"><span class="material-icons-round">text_format</span></div>
+            <div class="format-toolbar" id="fmt-bar">
+                <button class="fmt-btn" onclick="execCmd('bold')"><span class="material-icons-round">format_bold</span></button>
+                <button class="fmt-btn" onclick="execCmd('italic')"><span class="material-icons-round">format_italic</span></button>
+                <button class="fmt-btn" onclick="execCmd('underline')"><span class="material-icons-round">format_underlined</span></button>
+                <button class="fmt-btn" onclick="execCmd('strikeThrough')"><span class="material-icons-round">strikethrough_s</span></button>
+                <div style="height:1px; background:var(--line-color); margin:5px 0;"></div>
+                <button class="fmt-btn" onclick="execCmd('foreColor', '#ff6b6b')"><div class="color-dot-btn" style="background:#ff6b6b"></div></button>
+                <button class="fmt-btn" onclick="execCmd('foreColor', '#4dabf7')"><div class="color-dot-btn" style="background:#4dabf7"></div></button>
+                <button class="fmt-btn" onclick="execCmd('removeFormat')"><span class="material-icons-round" style="font-size:1rem; opacity:0.6">format_clear</span></button>
+                <div style="height:1px; background:var(--line-color); margin:5px 0;"></div>
+                <button class="fmt-btn" onclick="execCmd('fontSize', 3)"><span class="material-icons-round" style="font-size:1rem">text_decrease</span></button>
+                <button class="fmt-btn" onclick="execCmd('fontSize', 5)"><span class="material-icons-round" style="font-size:1.4rem">text_increase</span></button>
+            </div>
+            
+            <div id="sticker-btn" class="sticker-float-btn" onclick="openStickerDrawer()" style="display:none">
+                <span class="material-icons-round">sentiment_satisfied_alt</span>
+            </div>
+
+            <!-- 滚动容器 -->
+            <div id="diary-scroll-area" onclick="focusInput(event)">
+                <!-- 文字层 -->
+                <div id="diary-input" class="paper-content" contenteditable="true" placeholder="记录此刻的心情... (选中文本可调整格式)"></div>
+            </div>
+
+            <div class="page-nav">
+                <button class="icon-btn" onclick="changeDay(-1)">←</button>
+                <button class="icon-btn save-btn" onclick="saveDiaryManual()"><svg viewBox="0 0 24 24"><path d="M17,3H5C3.89,3,3,3.9,3,5v14c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V7L17,3z M12,19c-1.66,0-3-1.34-3-3s1.34-3,3-3 s3,1.34,3,3S13.66,19,12,19z M15,9H5V5h10V9z" fill="#fff"/></svg></button>
+                <button class="icon-btn" onclick="changeDay(1)">→</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 月度回顾画廊 -->
+    <div id="month-gallery" class="view hidden-right">
+        <header><span style="font-weight:bold; font-size:1.2rem">月度回顾</span><button class="icon-btn" onclick="closeMonthGallery()">✕</button></header>
+        <div id="gallery-content"></div>
+    </div>
+
+    <!-- 设置界面 (已折叠优化) -->
+    <div id="settings-view" class="view hidden-right">
+        <header><span style="font-weight:bold; font-size:1.2rem">设置</span><button class="icon-btn" onclick="closeSettings()">✕</button></header>
+        
+        <!-- 全文搜索 (默认展开) -->
+        <div class="setting-group">
+            <div class="setting-title" onclick="this.parentElement.classList.toggle('collapsed')">全文搜索</div>
+            <div class="setting-content">
+                <div class="input-row"><input type="text" id="search-input" class="input-text" placeholder="输入关键词查找日记..." oninput="performSearch(this.value)"></div>
+                <div id="search-results" class="search-results"></div>
+            </div>
+        </div>
+
+        <!-- 日记回顾 (默认折叠) -->
+        <div class="setting-group collapsed">
+            <div class="setting-title" onclick="this.parentElement.classList.toggle('collapsed')">日记回顾</div>
+            <div class="setting-content">
+                <div class="setting-row">
+                    <span>月度快速浏览</span>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="month" id="gallery-month-picker" class="input-text" style="width:130px">
+                        <button class="btn" onclick="openMonthGallery()">浏览</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 个性化 (默认展开) -->
+        <div class="setting-group">
+            <div class="setting-title" onclick="this.parentElement.classList.toggle('collapsed')">个性化</div>
+            <div class="setting-content">
+                <div class="setting-row"><span>夜间模式</span><button class="btn" onclick="toggleDarkMode()" id="btn-dark">OFF</button></div>
+                <div class="setting-row"><span>待办清单入口</span><button class="btn" onclick="toggleTodoSetting()" id="btn-todo-toggle">ON</button></div>
+                <div class="setting-row"><span>贴纸功能</span><button class="btn" onclick="toggleStickerSetting()" id="btn-sticker-toggle">OFF</button></div>
+                <div class="setting-row">
+                    <span>纸张颜色</span>
+                    <div class="color-dots">
+                        <div class="dot" style="background:#fffbf0" onclick="setTheme('theme-beige')"></div>
+                        <div class="dot" style="background:#ffffff" onclick="setTheme('theme-white')"></div>
+                        <div class="dot" style="background:#f1f8f3" onclick="setTheme('theme-green')"></div>
+                        <div class="dot" style="background:#fff5f7" onclick="setTheme('theme-pink')"></div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <span>纸张样式</span>
+                    <div>
+                        <button class="btn" onclick="setPaper('paper-lines')">横线</button>
+                        <button class="btn" onclick="setPaper('paper-grid')">方格</button>
+                        <button class="btn" onclick="setPaper('paper-blank')">空白</button>
+                    </div>
+                </div>
+                <div class="setting-row" style="display:block">
+                    <div style="display:flex; justify-content:space-between; align-items:center">
+                        <span>自定义字体 URL</span>
+                        <div>
+                            <button class="btn-text" onclick="resetFont()">✕</button>
+                            <button class="btn" onclick="applyFont()">应用</button>
+                        </div>
+                    </div>
+                    <div class="input-row"><input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接..."></div>
+                </div>
+                <div class="setting-row"><span>自定义背景图</span><input type="file" id="bg-upload" accept="image/*" onchange="startCrop(this)"><button class="btn" onclick="document.getElementById('bg-upload').click()">选图裁剪</button></div>
+                <div class="setting-row"><span>还原默认背景</span><button class="btn" onclick="clearBgImage()">还原</button></div>
+            </div>
+        </div>
+        
+        <!-- 安全与隐私 (默认折叠) -->
+        <div class="setting-group collapsed">
+            <div class="setting-title" onclick="this.parentElement.classList.toggle('collapsed')">安全与隐私</div>
+            <div class="setting-content">
+                <div class="setting-row"><span>密码保护 (PIN)</span><button class="btn" onclick="togglePinLock()" id="btn-pin-toggle">OFF</button></div>
+                <div class="setting-row" id="row-bio" style="display:none"><span>生物识别解锁 (指纹/面容)</span><button class="btn" onclick="toggleBiometrics()" id="btn-bio-toggle">OFF</button></div>
+            </div>
+        </div>
+        
+        <!-- 数据 (默认折叠) -->
+        <div class="setting-group collapsed">
+            <div class="setting-title" onclick="this.parentElement.classList.toggle('collapsed')">数据管理</div>
+            <div class="setting-content">
+                <div class="setting-row" style="display:block">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center;">
+                            <span>私有云同步</span>
+                            <div class="help-btn-circle" onclick="openCloudHelp(event)">?</div>
+                        </div>
+                        <button class="btn" onclick="toggleCloudPanel()" style="font-size:0.8rem">配置</button>
+                    </div>
+                    
+                    <div id="cloud-panel" class="cloud-panel">
+                        <div style="font-size:12px;opacity:0.7;margin-bottom:10px">配置你的专属数据库，实现多设备同步。</div>
+                        <input type="text" id="cloud-url" placeholder="Project URL (https://...)" class="input-text" style="margin-bottom:5px; font-size:12px;">
+                        <input type="password" id="cloud-key" placeholder="API Key (Anon Public)" class="input-text" style="margin-bottom:10px; font-size:12px;">
+                        
+                        <div class="cloud-actions" style="display:flex;gap:10px;justify-content:space-between; margin-bottom:15px;">
+                            <button onclick="saveCloudConfig()" class="btn" style="flex:1; border-color:var(--primary-color); color:var(--primary-color)">💾 保存</button>
+                            <button onclick="testCloudConnection()" class="btn" style="flex:1;">📡 测试</button>
+                        </div>
+
+                        <div id="cloud-ops" style="display:none; flex-direction:column; gap:8px; border-top:1px dashed var(--line-color); padding-top:15px;">
+                            <button onclick="backupToCloud()" class="btn" style="background:var(--primary-color); color:#fff; border:none;">⬆️ 备份到云端</button>
+                            <button onclick="restoreFromCloud()" class="btn" style="background:#2196f3; color:#fff; border:none;">⬇️ 从云端恢复</button>
+                            <div id="cloud-status" style="font-size:11px;text-align:center;opacity:0.7;margin-top:5px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-row"><span>清理缓存 (重置)</span><button class="btn" onclick="clearCache()" style="color:#ff6b6b; border-color:#ff6b6b">清理</button></div>
+
+                <div class="setting-row" style="display:block">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span>生成日记长图</span><button class="btn" onclick="exportDiaryImage()">导出图片</button></div>
+                    <input type="date" id="export-date-picker" class="input-text" style="width:100%">
+                </div>
+                <div class="setting-row"><span>导出备份 (JSON)</span><button class="btn" onclick="exportData()">导出</button></div>
+                <div class="setting-row"><span>恢复备份</span><input type="file" id="import-file" accept=".json" onchange="importData(this)"><button class="btn" onclick="document.getElementById('import-file').click()">导入</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screenshot-container" style="position:fixed; top:0; left:-9999px; width:450px; z-index:-1; pointer-events:none;"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
