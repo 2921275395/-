@@ -88,7 +88,7 @@ body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: var(
     display: flex; flex-direction: column; position: relative;
     transition: transform 0.3s; border: 1px solid var(--border-color);
     z-index: 0; transform-style: preserve-3d;
-    overflow: hidden; /* 防止溢出 */
+    overflow: hidden; 
 }
 .paper-container.has-custom-bg { background-repeat: no-repeat; background-position: center; background-size: cover; }
 .paper-header {
@@ -100,21 +100,28 @@ body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: var(
 #diary-scroll-area {
     flex: 1; position: relative; overflow-y: auto; overflow-x: hidden;
     padding-bottom: 50px;
-    width: 100%; /* 强制宽度 */
+    width: 100%; 
+    z-index: 0; /* 关键：建立堆叠层级 */
 }
 
-/* 修改：减小内边距以适应小屏，防止右侧被切 */
+/* 文字内容区域 */
 .paper-content {
     min-height: 100%; width: 100%; 
-    padding: 10px 15px; /* 从 25px 减小到 15px */
+    padding: 10px 15px; 
     font-size: 1.15rem; line-height: 32px; border: none; 
     background: transparent; 
     color: var(--text-color); font-family: inherit; white-space: pre-wrap; word-break: break-word;
     position: relative; 
-    z-index: 5; 
+    z-index: 5; /* 文字层级在普通贴纸之上 */
     pointer-events: auto; 
 }
 .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.5; }
+
+/* 当抽屉打开时，锁定文字交互，允许点击下方贴纸 */
+.paper-content.interaction-locked {
+    pointer-events: none;
+    user-select: none;
+}
 
 .page-nav { display: flex; justify-content: space-between; padding: 15px 25px; background: var(--paper-color); border-top: 1px solid var(--border-color); z-index: 20; }
 .format-toolbar-toggle {
@@ -185,7 +192,7 @@ button.btn-text { border: none; background: transparent; color: var(--text-color
 .gallery-card { position: relative; width: 100%; padding-bottom: 160%; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.05); }
 .thumb-scaler {
     position: absolute; top: 0; left: 0; 
-    width: 300%; height: 300%; /* 比例需对应 transform */
+    width: 300%; height: 300%; 
     transform: scale(0.33333333); transform-origin: top left;
     background-color: var(--paper-color); background-image: var(--paper-pattern); background-size: var(--paper-size);
     padding: 30px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; pointer-events: none; border: 3px solid transparent; 
@@ -270,6 +277,12 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 }
 .sticker-item img { display: block; width: 100%; height: 100%; pointer-events: none; }
 .sticker-item.selected { outline: 1.5px dashed var(--primary-color); }
+
+/* 底层贴纸样式 */
+.sticker-item[data-layer="bottom"] {
+    z-index: 1 !important; /* 低于文字层级(5) */
+}
+
 .sticker-ctrl {
     position: absolute; width: 24px; height: 24px; background: #fff; border: 1px solid var(--primary-color);
     border-radius: 50%; color: var(--primary-color); display: none;
@@ -278,7 +291,7 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 .sticker-item.selected .sticker-ctrl { display: flex; }
 .ctrl-del { top: -12px; right: -12px; color: #ff6b6b; border-color: #ff6b6b; }
 .ctrl-resize { bottom: -12px; right: -12px; cursor: nwse-resize; }
-.ctrl-layer { top: -12px; left: -12px; font-size: 12px; font-weight: bold; }
+.ctrl-layer { top: -12px; left: -12px; font-size: 14px; font-weight: bold; cursor: pointer; }
 
 /* ============ 云端同步 & 帮助样式 ============ */
 .cloud-help-modal { 
@@ -315,9 +328,7 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 .cloud-panel.open { display: block; animation: fadeIn 0.3s; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
-/* 关键：截图容器移出可视区但保持动态宽度 */
 #screenshot-container { 
     position: fixed; top: 0; left: -9999px; 
-    /* 移除固定 width: 450px，改为 JS 控制 */
     z-index: -1; pointer-events: none; 
 }
