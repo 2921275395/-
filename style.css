@@ -166,7 +166,7 @@ body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: var(
 .test-notify-btn { padding: 8px 15px; font-size: 0.8rem; border: 1px dashed var(--text-color); opacity: 0.5; background: transparent; color: var(--text-color); border-radius: 20px; cursor: pointer; width: fit-content; align-self: center; }
 #android-sw-missing { display: none; background: #fff3e0; padding: 12px; border-radius: 12px; font-size: 0.8rem; color: #e65100; margin-bottom: 10px; }
 
-/* ================= 设置 & 搜索 (修复版) ================= */
+/* ================= 设置 & 搜索 (折叠样式优化版) ================= */
 #settings-view { 
     background-color: var(--bg-color); 
     z-index: 200; 
@@ -197,29 +197,22 @@ body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: var(
     display: flex; 
     justify-content: space-between; 
     align-items: center;
-    background: rgba(0,0,0,0.02); 
+    background: transparent; /* 去除背景色 */
     user-select: none;
     opacity: 0.8;
     border-radius: var(--radius) var(--radius) 0 0;
-    transition: border-radius 0.2s;
+    transition: opacity 0.2s;
 }
 
-/* 标题右侧小箭头 */
+/* 去除右侧折叠箭头 */
 .setting-title::after {
-    content: '▼';
-    font-size: 0.7rem;
-    transition: transform 0.3s ease;
-    opacity: 0.5;
+    display: none;
 }
 
 /* 折叠状态样式 */
 .setting-group.collapsed .setting-title {
     opacity: 0.6;
     border-radius: var(--radius);
-}
-
-.setting-group.collapsed .setting-title::after {
-    transform: rotate(-90deg);
 }
 
 /* 内容容器 */
