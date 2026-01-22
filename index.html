@@ -122,7 +122,8 @@ create policy "Public Access" on diary_backup for all using (true);</div>
                 <input type="month" id="month-picker" onchange="changeMonth(this.value)">
             </label>
             <button class="icon-btn" onclick="openSettings()">
-                <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12-0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+                <!-- 修复：用简单的图标标签代替了复杂的SVG，避免语法报错 -->
+                <span class="material-icons-round" style="font-size:24px; color:var(--icon-color)">settings</span>
             </button>
         </header>
         <div class="calendar-container">
@@ -143,7 +144,7 @@ create policy "Public Access" on diary_backup for all using (true);</div>
         <div class="todo-list" id="todo-list"></div>
     </div>
 
-    <!-- 日记界面 (新结构：分离文字和滚动) -->
+    <!-- 日记界面 -->
     <div id="diary-view" class="view hidden-right">
         <div class="paper-container" id="paper-layer">
             <div class="paper-header"><span class="date-display" id="diary-date-display">10月24日</span><button class="icon-btn" onclick="closeDiary()">✕</button></div>
@@ -167,16 +168,15 @@ create policy "Public Access" on diary_backup for all using (true);</div>
                 <span class="material-icons-round">sentiment_satisfied_alt</span>
             </div>
 
-            <!-- 新增滚动容器，文字和贴纸在此容器内并列 -->
+            <!-- 滚动容器 -->
             <div id="diary-scroll-area" onclick="focusInput(event)">
                 <!-- 文字层 -->
                 <div id="diary-input" class="paper-content" contenteditable="true" placeholder="记录此刻的心情... (选中文本可调整格式)"></div>
-                <!-- 贴纸将通过 JS 动态添加到这里作为兄弟元素 -->
             </div>
 
             <div class="page-nav">
                 <button class="icon-btn" onclick="changeDay(-1)">←</button>
-                <button class="icon-btn save-btn" onclick="saveDiaryManual()"><svg viewBox="0 0 24 24"><path d="M17,3H5C3.89,3,3,3.9,3,5v14c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V7L17,3z M12,19c-1.66,0-3-1.34-3-3s1.34-3,3-3 s3,1.34,3,3S13.66,19,12,19z M15,9H5V5h10V9z"/></svg></button>
+                <button class="icon-btn save-btn" onclick="saveDiaryManual()"><svg viewBox="0 0 24 24"><path d="M17,3H5C3.89,3,3,3.9,3,5v14c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V7L17,3z M12,19c-1.66,0-3-1.34-3-3s1.34-3,3-3 s3,1.34,3,3S13.66,19,12,19z M15,9H5V5h10V9z" fill="#fff"/></svg></button>
                 <button class="icon-btn" onclick="changeDay(1)">→</button>
             </div>
         </div>
@@ -194,7 +194,13 @@ create policy "Public Access" on diary_backup for all using (true);</div>
         
         <div class="setting-group">
             <div class="setting-title">日记回顾</div>
-            <div class="setting-row"><span>月度快速浏览</span><div style="display:flex; align-items:center; gap:5px;"><input type="month" id="gallery-month-picker" class="input-text" style="width:130px"><button class="btn" onclick="openMonthGallery()">浏览</button></div></div>
+            <div class="setting-row">
+                <span>月度快速浏览</span>
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <input type="month" id="gallery-month-picker" class="input-text" style="width:130px">
+                    <button class="btn" onclick="openMonthGallery()">浏览</button>
+                </div>
+            </div>
         </div>
         
         <div class="setting-group">
@@ -208,9 +214,33 @@ create policy "Public Access" on diary_backup for all using (true);</div>
             <div class="setting-row"><span>夜间模式</span><button class="btn" onclick="toggleDarkMode()" id="btn-dark">OFF</button></div>
             <div class="setting-row"><span>待办清单入口</span><button class="btn" onclick="toggleTodoSetting()" id="btn-todo-toggle">ON</button></div>
             <div class="setting-row"><span>贴纸功能</span><button class="btn" onclick="toggleStickerSetting()" id="btn-sticker-toggle">OFF</button></div>
-            <div class="setting-row"><span>纸张颜色</span><div class="color-dots"><div class="dot" style="background:#fffbf0" onclick="setTheme('theme-beige')"></div><div class="dot" style="background:#ffffff" onclick="setTheme('theme-white')"></div><div class="dot" style="background:#f1f8f3" onclick="setTheme('theme-green')"></div><div class="dot" style="background:#fff5f7" onclick="setTheme('theme-pink')"></div></div></div>
-            <div class="setting-row"><span>纸张样式</span><div><button class="btn" onclick="setPaper('paper-lines')">横线</button><button class="btn" onclick="setPaper('paper-grid')">方格</button><button class="btn" onclick="setPaper('paper-blank')">空白</button></div></div>
-            <div class="setting-row" style="display:block"><div style="display:flex; justify-content:space-between; align-items:center"><span>自定义字体 URL</span><div><button class="btn-text" onclick="resetFont()">✕</button><button class="btn" onclick="applyFont()">应用</button></div></div><div class="input-row"><input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接..."></div></div>
+            <div class="setting-row">
+                <span>纸张颜色</span>
+                <div class="color-dots">
+                    <div class="dot" style="background:#fffbf0" onclick="setTheme('theme-beige')"></div>
+                    <div class="dot" style="background:#ffffff" onclick="setTheme('theme-white')"></div>
+                    <div class="dot" style="background:#f1f8f3" onclick="setTheme('theme-green')"></div>
+                    <div class="dot" style="background:#fff5f7" onclick="setTheme('theme-pink')"></div>
+                </div>
+            </div>
+            <div class="setting-row">
+                <span>纸张样式</span>
+                <div>
+                    <button class="btn" onclick="setPaper('paper-lines')">横线</button>
+                    <button class="btn" onclick="setPaper('paper-grid')">方格</button>
+                    <button class="btn" onclick="setPaper('paper-blank')">空白</button>
+                </div>
+            </div>
+            <div class="setting-row" style="display:block">
+                <div style="display:flex; justify-content:space-between; align-items:center">
+                    <span>自定义字体 URL</span>
+                    <div>
+                        <button class="btn-text" onclick="resetFont()">✕</button>
+                        <button class="btn" onclick="applyFont()">应用</button>
+                    </div>
+                </div>
+                <div class="input-row"><input type="text" id="font-url-input" class="input-text" placeholder="输入 woff2/ttf 链接..."></div>
+            </div>
             <div class="setting-row"><span>自定义背景图</span><input type="file" id="bg-upload" accept="image/*" onchange="startCrop(this)"><button class="btn" onclick="document.getElementById('bg-upload').click()">选图裁剪</button></div>
             <div class="setting-row"><span>还原默认背景</span><button class="btn" onclick="clearBgImage()">还原</button></div>
         </div>
@@ -254,7 +284,10 @@ create policy "Public Access" on diary_backup for all using (true);</div>
 
             <div class="setting-row"><span>清理缓存 (重置)</span><button class="btn" onclick="clearCache()" style="color:#ff6b6b; border-color:#ff6b6b">清理</button></div>
 
-            <div class="setting-row" style="display:block"><div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span>生成日记长图</span><button class="btn" onclick="exportDiaryImage()">导出图片</button></div><input type="date" id="export-date-picker" class="input-text" style="width:100%"></div>
+            <div class="setting-row" style="display:block">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span>生成日记长图</span><button class="btn" onclick="exportDiaryImage()">导出图片</button></div>
+                <input type="date" id="export-date-picker" class="input-text" style="width:100%">
+            </div>
             <div class="setting-row"><span>导出备份 (JSON)</span><button class="btn" onclick="exportData()">导出</button></div>
             <div class="setting-row"><span>恢复备份</span><input type="file" id="import-file" accept=".json" onchange="importData(this)"><button class="btn" onclick="document.getElementById('import-file').click()">导入</button></div>
         </div>
