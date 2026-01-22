@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V5.1 (语法修正 + 贴纸图层)
+// script.js - 终极修复版 V5.2 (修复图片导出层级)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -710,23 +710,53 @@ async function exportDiaryImage() {
 
     p.style.height = singlePageHeight + 'px';
 
-    const textLayer = document.createElement('div');
-    textLayer.style.position = 'relative';
-    textLayer.style.zIndex = '1'; 
-    textLayer.style.isolation = 'isolate'; 
-    textLayer.innerHTML = `<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px; padding-bottom: 50px;">${c}</div>`;
+    // 1. 创建文字容器 (层级：10)
+    // 关键修复：文字层独立，背景透明，以便看到下层贴纸
+    const textContainer = document.createElement('div');
+    textContainer.style.position = 'relative';
+    textContainer.style.zIndex = '10'; 
+    textContainer.style.background = 'transparent';
+    textContainer.style.isolation = 'isolate'; 
+
+    // 2. 分离内容和贴纸
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = c; // 原始 HTML
     
-    textLayer.querySelectorAll('.sticker-item').forEach(s => {
+    const stickers = Array.from(tempDiv.querySelectorAll('.sticker-item'));
+    stickers.forEach(el => el.remove()); // 从临时容器中移除贴纸，只剩下文字
+    
+    // 3. 填充文字层
+    textContainer.innerHTML = `<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px; padding-bottom: 50px;">${tempDiv.innerHTML}</div>`;
+    
+    // 4. 创建贴纸容器 (绝对定位)
+    const stickerContainer = document.createElement('div');
+    stickerContainer.style.position = 'absolute';
+    stickerContainer.style.top = '0';
+    stickerContainer.style.left = '0';
+    stickerContainer.style.width = '100%';
+    stickerContainer.style.height = '100%'; 
+    stickerContainer.style.pointerEvents = 'none'; // 导出时不需交互
+    
+    // 5. 根据图层设置 Z-Index
+    // 文字层是 10。
+    // 底层贴纸设为 5 (在文字下)。
+    // 顶层贴纸设为 20 (在文字上)。
+    stickers.forEach(s => {
         if (s.dataset.layer === 'bottom') {
-            s.style.zIndex = '-1';
+            s.style.zIndex = '5';
+        } else {
+            s.style.zIndex = '20';
         }
+        stickerContainer.appendChild(s);
     });
 
-    p.appendChild(textLayer);
+    // 6. 组装：贴纸容器在 DOM 上可以先放，但视觉由 z-index 决定
+    p.appendChild(stickerContainer);
+    p.appendChild(textContainer);
     con.appendChild(p); 
 
-    let maxContentBottom = textLayer.offsetHeight;
-    const stickers = textLayer.querySelectorAll('.sticker-item');
+    // 计算高度逻辑：需要同时考虑文字高度和贴纸位置
+    let maxContentBottom = textContainer.offsetHeight; 
     stickers.forEach(s => {
         const top = parseFloat(s.style.top) || 0;
         const height = parseFloat(s.style.height) || s.offsetHeight || 100;
@@ -747,7 +777,7 @@ async function exportDiaryImage() {
         bgContainer.style.left = '0';
         bgContainer.style.width = '100%';
         bgContainer.style.height = '100%';
-        bgContainer.style.zIndex = '0'; 
+        bgContainer.style.zIndex = '0'; // 背景层级 0
         bgContainer.style.display = 'flex';
         bgContainer.style.flexDirection = 'column';
 
