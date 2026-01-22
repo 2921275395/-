@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V5 (增加贴纸图层功能)
+// script.js - 终极修复版 V5.1 (语法修正 + 贴纸图层)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -202,8 +202,6 @@ async function init() {
 }
 
 function focusInput(e) {
-    // 只有当点击的是滚动区域本身，或者是输入框本身时才聚焦
-    // 如果文字层被锁定（贴纸编辑模式），则不聚焦
     if(document.getElementById('diary-input').classList.contains('interaction-locked')) return;
     
     if(e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input') {
@@ -304,18 +302,16 @@ async function restoreFromCloud() {
 /* ============ 核心功能 ============ */
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 
-// 打开抽屉时锁定文字输入，以便操作下方贴纸
 function openStickerDrawer() { 
     renderStickerDrawer(); 
     document.getElementById('sticker-drawer').classList.add('open'); 
-    document.getElementById('diary-input').classList.add('interaction-locked'); // 关键：锁定文字层
+    document.getElementById('diary-input').classList.add('interaction-locked'); 
     toggleUI(false); 
 }
 
-// 关闭抽屉时解锁
 function closeStickerDrawer() { 
     document.getElementById('sticker-drawer').classList.remove('open'); 
-    document.getElementById('diary-input').classList.remove('interaction-locked'); // 恢复
+    document.getElementById('diary-input').classList.remove('interaction-locked'); 
     isEditingDrawer = false; 
     toggleUI(true); 
     renderStickerDrawer(); 
@@ -335,7 +331,6 @@ async function addStickerToPage(blob) {
         wrapper.className = 'sticker-item selected'; 
         wrapper.contentEditable = "false"; 
         
-        // 默认顶层
         globalMaxZIndex++;
         wrapper.style.zIndex = globalMaxZIndex; 
         wrapper.dataset.layer = 'top';
@@ -344,7 +339,6 @@ async function addStickerToPage(blob) {
         wrapper.style.top = '100px'; 
         wrapper.style.width = '150px'; 
         
-        // 新增 ctrl-layer 按钮
         wrapper.innerHTML = `<img src="${base64}" draggable="false"><div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div><div class="sticker-ctrl ctrl-layer" onmousedown="toggleLayer(event)" ontouchstart="toggleLayer(event)">⇩</div><div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>`; 
         document.getElementById('diary-scroll-area').appendChild(wrapper); 
         attachStickerEvents(wrapper); 
@@ -353,7 +347,6 @@ async function addStickerToPage(blob) {
     reader.readAsDataURL(blob); 
 }
 
-// 切换贴纸图层（文字上/文字下）
 window.toggleLayer = function(e) {
     e.stopPropagation();
     e.preventDefault();
@@ -363,16 +356,14 @@ window.toggleLayer = function(e) {
     const current = wrapper.dataset.layer || 'top';
     
     if (current === 'top') {
-        // 沉底：设为 bottom，z-index 设为 1 (Text 是 5)
         wrapper.dataset.layer = 'bottom';
         wrapper.style.zIndex = '1';
-        e.target.innerText = '⇧'; // 变为上浮图标
+        e.target.innerText = '⇧'; 
     } else {
-        // 浮顶：设为 top，z-index 设为最大
         wrapper.dataset.layer = 'top';
         globalMaxZIndex++;
         wrapper.style.zIndex = globalMaxZIndex;
-        e.target.innerText = '⇩'; // 变为下沉图标
+        e.target.innerText = '⇩'; 
     }
     state.isDirty = true;
 };
@@ -381,7 +372,6 @@ function activateStickerElement(el) {
     document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); 
     el.classList.add('selected');
     
-    // 只有在 top 模式下才更新 zIndex，bottom 模式保持在底部
     if (!el.dataset.layer || el.dataset.layer === 'top') {
         globalMaxZIndex++;
         el.style.zIndex = globalMaxZIndex;
@@ -625,9 +615,7 @@ function openDiary(e) {
         const z = parseInt(s.style.zIndex || 0);
         if(z > globalMaxZIndex) globalMaxZIndex = z;
         
-        // 恢复 ctrl-layer 按钮的文字状态
         const isBottom = s.dataset.layer === 'bottom';
-        // 如果 HTML 里的按钮文字不对，进行修正
         const layerBtn = s.querySelector('.ctrl-layer');
         if(layerBtn) {
             layerBtn.innerText = isBottom ? '⇧' : '⇩';
@@ -675,7 +663,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片（修复自带背景黑屏 + 终极防拉伸 + 图层支持） ===
+// === 核心逻辑：导出图片 ===
 async function exportDiaryImage() { 
     const d = document.getElementById('export-date-picker').value; 
     if(!d) return alert("请先选择日期"); 
@@ -688,12 +676,10 @@ async function exportDiaryImage() {
     const con = document.getElementById('screenshot-container'); 
     con.innerHTML = ''; 
     
-    // 1. 获取宽度
     const screenWidth = document.body.clientWidth;
     con.style.width = screenWidth + 'px';
 
-    // 2. 预读取图片高度（如果有自定义背景）
-    let singlePageHeight = window.innerHeight; // 默认一页高度
+    let singlePageHeight = window.innerHeight; 
 
     if (state.bgImage) {
         await new Promise((resolve) => {
@@ -708,7 +694,6 @@ async function exportDiaryImage() {
         });
     }
 
-    // 3. 创建容器
     const p = document.createElement('div'); 
     p.className = `paper-container ${state.settings.theme} ${state.settings.paper}`; 
     p.style.imageRendering = '-webkit-optimize-contrast';
@@ -725,16 +710,13 @@ async function exportDiaryImage() {
 
     p.style.height = singlePageHeight + 'px';
 
-    // 4. 插入内容层
     const textLayer = document.createElement('div');
     textLayer.style.position = 'relative';
     textLayer.style.zIndex = '1'; 
-    textLayer.style.isolation = 'isolate'; // 关键：建立堆叠上下文，允许子元素 z-index: -1 位于此层底部（背景之上）
+    textLayer.style.isolation = 'isolate'; 
     textLayer.innerHTML = `<div class="paper-header" style="background:none"><span class="date-display">${d}</span></div><div class="paper-content" style="overflow:visible; padding-right:15px; padding-bottom: 50px;">${c}</div>`;
     
-    // 4.1 处理导出时的图层
     textLayer.querySelectorAll('.sticker-item').forEach(s => {
-        // 如果是底层贴纸，强制设为 -1，使其位于文字节点下方，但因 isolation 存在，不会穿透到纸张背景下方
         if (s.dataset.layer === 'bottom') {
             s.style.zIndex = '-1';
         }
@@ -743,7 +725,6 @@ async function exportDiaryImage() {
     p.appendChild(textLayer);
     con.appendChild(p); 
 
-    // 5. 计算内容实际高度
     let maxContentBottom = textLayer.offsetHeight;
     const stickers = textLayer.querySelectorAll('.sticker-item');
     stickers.forEach(s => {
@@ -753,14 +734,12 @@ async function exportDiaryImage() {
     });
     maxContentBottom += 60; 
 
-    // 6. 计算页数
     let pagesNeeded = Math.ceil(maxContentBottom / singlePageHeight);
     if (pagesNeeded < 1) pagesNeeded = 1;
 
     const finalHeight = pagesNeeded * singlePageHeight;
     p.style.height = finalHeight + 'px';
 
-    // 7. 铺设自定义背景图（如果有）
     if(state.bgImage){
         const bgContainer = document.createElement('div');
         bgContainer.style.position = 'absolute';
@@ -788,7 +767,6 @@ async function exportDiaryImage() {
     
     showToast("正在生成高清图...");
 
-    // 8. 高清导出
     setTimeout(() => {
         html2canvas(p,{
             scale: 4, 
