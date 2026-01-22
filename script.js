@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V5.4 (修复日期消失问题)
+// script.js - V6.0 (整合新版UI与所有修复)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -178,12 +178,10 @@ async function init() {
         if (startY - e.touches[0].clientY > 10) hideToast(); 
     }, {passive: true});
     
+    // 初始化云端配置回显
     if(document.getElementById('cloud-url')) {
         document.getElementById('cloud-url').value = state.settings.cloudUrl || '';
         document.getElementById('cloud-key').value = state.settings.cloudKey || '';
-        if(state.settings.cloudUrl && state.settings.cloudKey) {
-             document.getElementById('cloud-ops').style.display = 'flex';
-        }
     }
 
     document.body.addEventListener('click', (e) => {
@@ -212,7 +210,25 @@ function focusInput(e) {
 // 辅助函数
 function openCloudHelp(e) { e.stopPropagation(); document.getElementById('cloud-help').classList.add('active'); }
 function closeCloudHelp() { document.getElementById('cloud-help').classList.remove('active'); }
-function toggleCloudPanel() { const p = document.getElementById('cloud-panel'); p.classList.toggle('open'); }
+
+// === 新版设置面板逻辑 ===
+function toggleCloudPanel() { 
+    const p = document.getElementById('cloud-panel'); 
+    if(p.style.display === 'none' || !p.style.display) {
+        p.style.display = 'block';
+    } else {
+        p.style.display = 'none';
+    }
+}
+
+// 切换设置 Tab
+window.switchSettingsTab = function(tabId, btn) {
+    document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    document.querySelectorAll('.settings-nav .nav-item').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
 function copySQL() {
     const text = document.getElementById('sql-code').innerText;
     navigator.clipboard.writeText(text).then(() => showToast("已复制SQL代码"));
@@ -248,7 +264,7 @@ function saveCloudConfig() {
     state.settings.cloudKey = key;
     saveSettings();
     initSupabase();
-    if(url && key) document.getElementById('cloud-ops').style.display = 'flex';
+    applySettings(); // 更新状态灯
     showToast("配置已保存");
 }
 
@@ -270,8 +286,7 @@ async function testCloudConnection() {
 async function backupToCloud() {
     if(!supabaseClient) return;
     if(!confirm("确定要备份到云端吗？\n(云端旧数据将被覆盖)")) return;
-    const status = document.getElementById('cloud-status');
-    status.innerText = "正在打包上传...";
+    showToast("正在上传...");
     try {
         const backupData = { updated_at: new Date().toISOString(), diary_data: state.diaryData, todo_data: state.todoData, settings: state.settings, device_info: navigator.userAgent };
         const { data: exist } = await supabaseClient.from('diary_backup').select('id').eq('id', 1).single();
@@ -279,24 +294,23 @@ async function backupToCloud() {
         if(exist) { const { error } = await supabaseClient.from('diary_backup').update(backupData).eq('id', 1); err = error; } 
         else { const { error } = await supabaseClient.from('diary_backup').insert([{ id: 1, ...backupData }]); err = error; }
         if(err) throw err;
-        status.innerText = "✅ 备份成功 " + new Date().toLocaleTimeString(); showToast("备份成功");
-    } catch(e) { status.innerText = "❌ 失败: " + e.message; alert("备份失败: " + e.message); }
+        showToast("备份成功");
+    } catch(e) { alert("备份失败: " + e.message); }
 }
 
 async function restoreFromCloud() {
     if(!supabaseClient) return;
     if(!confirm("⚠️ 警告：这将下载云端备份并【覆盖】当前数据！\n确定吗？")) return;
-    const status = document.getElementById('cloud-status');
-    status.innerText = "正在下载...";
+    showToast("正在下载...");
     try {
         const { data, error } = await supabaseClient.from('diary_backup').select('*').eq('id', 1).single();
         if(error) throw error; if(!data) return alert("云端无数据");
-        status.innerText = "正在恢复...";
+        showToast("正在恢复...");
         if(data.diary_data) { state.diaryData = data.diary_data; await AppDB.bulkSaveEntries(state.diaryData); }
         if(data.todo_data) { state.todoData = data.todo_data; saveTodo(); }
-        status.innerText = "✅ 恢复完成"; showToast("恢复成功");
+        showToast("恢复成功");
         setTimeout(() => { renderCalendar(); renderTodoList(); applySettings(); closeSettings(); }, 500);
-    } catch(e) { status.innerText = "❌ 恢复失败"; alert("恢复失败: " + e.message); }
+    } catch(e) { alert("恢复失败: " + e.message); }
 }
 
 /* ============ 核心功能 ============ */
@@ -663,7 +677,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片 (已修复日期被背景遮挡) ===
+// === 核心逻辑：导出图片 (已修复日期被背景遮挡 & 贴纸偏移) ===
 async function exportDiaryImage() { 
     const d = document.getElementById('export-date-picker').value; 
     if(!d) return alert("请先选择日期"); 
@@ -890,7 +904,50 @@ function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.string
 function toggleDarkMode() { state.settings.darkMode=!state.settings.darkMode; applySettings(); }
 function setTheme(t) { state.settings.theme=t; applySettings(); }
 function setPaper(p) { state.settings.paper=p; applySettings(); }
-function applySettings() { document.body.className=`${state.settings.theme} ${state.settings.paper}`; if(state.settings.darkMode)document.body.classList.add('dark-mode');else document.body.classList.remove('dark-mode'); document.getElementById('btn-dark').textContent=state.settings.darkMode?"ON":"OFF"; document.getElementById('btn-todo-toggle').textContent=state.settings.showTodo?"ON":"OFF"; document.getElementById('btn-sticker-toggle').textContent=state.settings.enableSticker?"ON":"OFF"; document.getElementById('btn-pin-toggle').textContent=state.security.enabled?"ON":"OFF"; document.getElementById('btn-bio-toggle').textContent=state.security.biometrics?"ON":"OFF"; document.getElementById('row-bio').style.display=state.security.enabled?'flex':'none'; applyBgImage(); updateTodoTabVisibility(); }
+
+// === 更新版 applySettings (适配新UI开关状态) ===
+function applySettings() { 
+    document.body.className = `${state.settings.theme} ${state.settings.paper}`; 
+    
+    if(state.settings.darkMode) document.body.classList.add('dark-mode');
+    else document.body.classList.remove('dark-mode'); 
+    
+    // 更新开关状态
+    const safeSet = (id, val) => { const el = document.getElementById(id); if(el) el.checked = val; };
+    safeSet('chk-dark', state.settings.darkMode);
+    safeSet('chk-todo', state.settings.showTodo);
+    safeSet('chk-sticker', state.settings.enableSticker);
+    safeSet('chk-pin', state.security.enabled);
+    safeSet('chk-bio', state.security.biometrics);
+    
+    // 生物识别行显示控制
+    const bioRow = document.getElementById('row-bio-content');
+    const bioDivider = document.getElementById('row-bio');
+    if(bioRow && bioDivider) {
+        const display = state.security.enabled ? 'flex' : 'none';
+        bioRow.style.display = display;
+        bioDivider.style.display = state.security.enabled ? 'block' : 'none';
+    }
+
+    // 云状态指示灯更新
+    const cloudDot = document.querySelector('.status-dot');
+    const cloudText = document.getElementById('cloud-state-text');
+    if(cloudDot && cloudText) {
+         if(state.settings.cloudUrl && state.settings.cloudKey) {
+             cloudDot.classList.add('active');
+             cloudText.innerText = "已配置";
+             const ops = document.getElementById('cloud-ops');
+             if(ops) ops.style.display = 'block'; 
+         } else {
+             cloudDot.classList.remove('active');
+             cloudText.innerText = "未配置";
+         }
+    }
+
+    applyBgImage(); 
+    updateTodoTabVisibility(); 
+}
+
 function formatDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function exportData() { const b=new Blob([JSON.stringify(state.diaryData)],{type:"application/json"}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`backup_${formatDateKey(new Date())}.json`; a.click(); }
 function importData(i) { const f=i.files[0]; if(f) { const r=new FileReader(); r.onload=e=>{ try{state.diaryData=JSON.parse(e.target.result);localStorage.setItem('myDiaryData_v2',JSON.stringify(state.diaryData));renderCalendar();alert("导入成功");}catch(x){alert("格式错误");} }; r.readAsText(f); } }
