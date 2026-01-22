@@ -101,7 +101,7 @@ body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: var(
     flex: 1; position: relative; overflow-y: auto; overflow-x: hidden;
     padding-bottom: 50px;
     width: 100%; 
-    z-index: 0; /* 关键：建立堆叠层级 */
+    z-index: 0;
 }
 
 /* 文字内容区域 */
@@ -112,7 +112,7 @@ body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: var(
     background: transparent; 
     color: var(--text-color); font-family: inherit; white-space: pre-wrap; word-break: break-word;
     position: relative; 
-    z-index: 5; /* 文字层级在普通贴纸之上 */
+    z-index: 5;
     pointer-events: auto; 
 }
 .paper-content:empty:before { content: attr(placeholder); color: #999; opacity: 0.5; }
@@ -259,29 +259,27 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
 .sticker-drawer.open { transform: translateY(0); }
 .drawer-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line-color); }
 .drawer-header .header-actions { display: flex; align-items: center; gap: 10px; }
-/* 关键修复：改为自动换行，并确保最小宽度 */
+
+/* 关键修复：确保 Grid 行高自适应，防止挤压 */
 .drawer-content { 
     flex: 1; 
     overflow-y: auto; 
     padding: 15px; 
     display: grid; 
-    grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); 
+    grid-template-columns: repeat(4, 1fr); 
+    grid-auto-rows: max-content; /* 关键：强制行高由内容决定，不压缩 */
     gap: 15px; 
-    grid-auto-rows: max-content;
     align-content: start; 
+    min-height: 0; /* 修复 Flex 子元素滚动问题 */
 }
-/* 关键修复：强制保持正方形比例 */
+
+/* 关键修复：确保宽高比锁定 */
 .sticker-thumb { 
     aspect-ratio: 1 / 1; 
-    border-radius: 12px; 
-    background: rgba(0,0,0,0.05); 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    cursor: pointer; 
-    overflow: hidden; 
-    position: relative;
+    height: auto;
     width: 100%;
+    border-radius: 12px; background: rgba(0,0,0,0.05); 
+    display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative;
 }
 .sticker-thumb img { max-width: 90%; max-height: 90%; object-fit: contain; }
 .sticker-add-btn { border: 2px dashed var(--line-color); color: var(--icon-color); font-size: 2rem; }
