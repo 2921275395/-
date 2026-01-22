@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V5.3 (修复导出偏移与层级)
+// script.js - 终极修复版 V5.4 (修复日期消失问题)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -663,7 +663,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片 (已修复坐标偏移与层级) ===
+// === 核心逻辑：导出图片 (已修复日期被背景遮挡) ===
 async function exportDiaryImage() { 
     const d = document.getElementById('export-date-picker').value; 
     if(!d) return alert("请先选择日期"); 
@@ -713,12 +713,14 @@ async function exportDiaryImage() {
     // 1. 创建页眉 (独立于内容容器)
     const header = document.createElement('div');
     header.className = 'paper-header';
-    header.style.background = 'none'; // 透明背景
+    header.style.background = 'none';
+    // 关键修复：强制设置定位和层级，确保在背景上方
+    header.style.position = 'relative'; 
+    header.style.zIndex = '50'; 
     header.innerHTML = `<span class="date-display">${d}</span>`;
     p.appendChild(header);
 
     // 2. 创建内容容器 (相对定位，作为贴纸和文字的共同父级)
-    // 关键修复：这个容器位于页眉下方，与编辑时的 scroll-area 坐标系一致
     const contentArea = document.createElement('div');
     contentArea.style.position = 'relative';
     contentArea.style.width = '100%';
@@ -728,7 +730,7 @@ async function exportDiaryImage() {
     // 3. 准备文字层
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = c;
-    Array.from(tempDiv.querySelectorAll('.sticker-item')).forEach(el => el.remove()); // 移除所有贴纸，只留文字
+    Array.from(tempDiv.querySelectorAll('.sticker-item')).forEach(el => el.remove()); 
 
     const textDiv = document.createElement('div');
     textDiv.className = 'paper-content';
@@ -741,37 +743,28 @@ async function exportDiaryImage() {
     // 4. 将文字加入内容容器
     contentArea.appendChild(textDiv);
 
-    // 5. 准备贴纸 (重新解析原始 HTML 以获取贴纸)
+    // 5. 准备贴纸
     const rawDiv = document.createElement('div');
     rawDiv.innerHTML = c;
     const stickers = rawDiv.querySelectorAll('.sticker-item');
     
     stickers.forEach(s => {
-        // 设置层级：底层贴纸 < 文字 < 顶层贴纸
         if (s.dataset.layer === 'bottom') {
             s.style.zIndex = '5';
         } else {
             s.style.zIndex = '20';
         }
-        // 直接加入 contentArea，因为是 absolute positioning，
-        // 它的 top 值是相对于 contentArea (即页眉下方) 的，位置正确。
         contentArea.appendChild(s);
     });
 
-    // 计算高度：页眉高度 + 内容区域的最大高度
-    // 需要先挂载到 DOM 才能获取 offsetHeight
-    // 但 html2canvas 会渲染可见内容，所以这里主要是计算重复背景的页数
-    
-    let maxContentBottom = textDiv.offsetHeight; // 文字高度
+    let maxContentBottom = textDiv.offsetHeight; 
     stickers.forEach(s => {
         const top = parseFloat(s.style.top) || 0;
         const height = parseFloat(s.style.height) || s.offsetHeight || 100;
         if (top + height > maxContentBottom) maxContentBottom = top + height;
     });
     
-    // 加上页眉的高度 (估算或通过 header.offsetHeight)
-    // 简单起见，maxContentBottom 只是内容部分，所以总高度 = Header + Content
-    const totalContentHeight = 80 + maxContentBottom + 60; // 80是页眉估算高度
+    const totalContentHeight = 80 + maxContentBottom + 60; 
 
     let pagesNeeded = Math.ceil(totalContentHeight / singlePageHeight);
     if (pagesNeeded < 1) pagesNeeded = 1;
@@ -804,7 +797,7 @@ async function exportDiaryImage() {
         p.insertBefore(bgContainer, p.firstChild);
     } 
     
-    con.appendChild(p); // 挂载到屏幕外容器
+    con.appendChild(p); 
 
     showToast("正在生成高清图...");
 
