@@ -426,3 +426,10 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
     color: var(--primary-color);
     background-color: rgba(0,0,0,0.05);
 }
+/* ...原有代码... */
+
+/* === 修复：抽屉打开时底部增加滚动空间 === */
+#diary-scroll-area.drawer-open {
+    padding-bottom: 300px !important; /* 抽屉高度280px + 缓冲 */
+    transition: padding-bottom 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+}
