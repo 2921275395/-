@@ -161,6 +161,12 @@ create policy "Public Access" on diary_backup for all using (true);</div>
                 <div style="height:1px; background:var(--line-color); margin:5px 0;"></div>
                 <button class="fmt-btn" onclick="execCmd('fontSize', 3)"><span class="material-icons-round" style="font-size:1rem">text_decrease</span></button>
                 <button class="fmt-btn" onclick="execCmd('fontSize', 5)"><span class="material-icons-round" style="font-size:1.4rem">text_increase</span></button>
+                
+                <!-- 新增：贴纸锁定按钮 -->
+                <div style="height:1px; background:var(--line-color); margin:5px 0;"></div>
+                <button id="btn-lock-stickers" class="fmt-btn" onclick="toggleStickerLock()">
+                    <span class="material-icons-round">lock</span>
+                </button>
             </div>
             
             <div id="sticker-btn" class="sticker-float-btn" onclick="openStickerDrawer()" style="display:none">
