@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V5.5 (增加贴纸锁定防误触)
+// script.js - 终极修复版 V5.6 (含贴纸锁定 & 底部遮挡修复)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -28,12 +28,12 @@ let state = {
     isDirty: false
 };
 
-// 新增：贴纸锁定状态 (默认为 true，即锁定不可动)
-let isStickersLocked = true;
-
 let supabaseClient = null;
 let isEditingDrawer = false;
 let globalMaxZIndex = 100; 
+
+// === 新增：贴纸锁定状态控制 ===
+let isStickersLocked = true; // 默认锁定，防止误触
 
 // ==========================================
 // 数据库 (AppDB)
@@ -302,21 +302,67 @@ async function restoreFromCloud() {
     } catch(e) { status.innerText = "❌ 恢复失败"; alert("恢复失败: " + e.message); }
 }
 
-/* ============ 核心功能 ============ */
+/* ============ 核心功能 (含贴纸锁定逻辑) ============ */
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 
-// 开启贴纸抽屉 (自动解锁以便编辑)
+// 切换贴纸锁定状态
+function toggleStickerLock() {
+    isStickersLocked = !isStickersLocked;
+    updateStickerLockUI();
+    if(isStickersLocked) {
+        showToast("贴纸已锁定 (防误触)");
+    } else {
+        showToast("贴纸已解锁 (可编辑)");
+    }
+}
+
+// 更新锁定 UI
+function updateStickerLockUI() {
+    const btn = document.getElementById('btn-lock-stickers');
+    const area = document.getElementById('diary-scroll-area');
+    if (!btn || !area) return;
+
+    if (isStickersLocked) {
+        area.classList.add('stickers-locked');
+        btn.classList.remove('unlocked');
+        btn.innerHTML = '<span class="material-icons-round">lock</span>';
+        // 锁定清除选中态
+        document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
+    } else {
+        area.classList.remove('stickers-locked');
+        btn.classList.add('unlocked');
+        btn.innerHTML = '<span class="material-icons-round">lock_open</span>';
+    }
+}
+
+// 打开贴纸抽屉：自动解锁贴纸 + 增加底部填充
 function openStickerDrawer() { 
+    // 1. 自动解锁
     isStickersLocked = false;
     updateStickerLockUI();
-    
+
+    // 2. 增加底部填充 (解决遮挡问题)
+    const scrollArea = document.getElementById('diary-scroll-area');
+    if(scrollArea) {
+        scrollArea.classList.add('drawer-open');
+        // 自动滚动到底部，方便查看被遮挡的贴纸
+        setTimeout(() => { scrollArea.scrollTop = scrollArea.scrollHeight; }, 100);
+    }
+
     renderStickerDrawer(); 
     document.getElementById('sticker-drawer').classList.add('open'); 
     document.getElementById('diary-input').classList.add('interaction-locked'); 
     toggleUI(false); 
 }
 
+// 关闭贴纸抽屉：移除底部填充
 function closeStickerDrawer() { 
+    // 1. 移除底部填充
+    const scrollArea = document.getElementById('diary-scroll-area');
+    if(scrollArea) {
+        scrollArea.classList.remove('drawer-open');
+    }
+
     document.getElementById('sticker-drawer').classList.remove('open'); 
     document.getElementById('diary-input').classList.remove('interaction-locked'); 
     isEditingDrawer = false; 
@@ -354,7 +400,6 @@ async function addStickerToPage(blob) {
     reader.readAsDataURL(blob); 
 }
 
-// 切换贴纸层级
 window.toggleLayer = function(e) {
     e.stopPropagation();
     e.preventDefault();
@@ -393,9 +438,6 @@ function attachStickerEvents(el) {
     let startDist = 0, startScaleWidth = 0, startRotation = 0; 
 
     const handleStart = (e) => {
-        // 如果贴纸锁定中，不响应事件
-        if(isStickersLocked) return;
-
         activateStickerElement(el); 
         const touches = e.touches; 
         const target = e.target; 
@@ -443,9 +485,6 @@ function attachStickerEvents(el) {
 
     const handleMove = (e) => { 
         if(!el.classList.contains('selected')) return; 
-        // 锁定时不移动
-        if(isStickersLocked) return;
-
         const touches = e.touches; 
         
         if (mode === 'gesture' && touches && touches.length === 2) { 
@@ -610,10 +649,11 @@ function renderCalendar() { const y=state.currentDate.getFullYear(),m=state.curr
 function changeMonth(v) { if(v) { const [y,m]=v.split('-'); state.currentDate=new Date(y,m-1,1); renderCalendar(); } }
 function selectDate(d) { state.selectedDate=d; renderCalendar(); document.getElementById('tab-date').textContent=`${d.getMonth()+1}/${d.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
 
-// 打开日记 (默认锁定贴纸)
+// 打开日记页面 (初始化逻辑)
 function openDiary(e) { 
-    isStickersLocked = true; // 默认锁定
-
+    // 默认开启锁定，防止误触
+    isStickersLocked = true;
+    
     if(e)e.stopPropagation(); 
     const k=formatDateKey(state.selectedDate); 
     document.getElementById('diary-date-display').textContent=state.selectedDate.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'}); 
@@ -653,7 +693,8 @@ function openDiary(e) {
     if(state.settings.enableSticker) document.getElementById('sticker-btn').style.display='flex'; 
     state.isDirty=false; 
     
-    updateStickerLockUI(); // 更新UI状态
+    // 应用锁定 UI 状态
+    updateStickerLockUI();
 }
 
 function closeDiary() { document.querySelectorAll('.sticker-item.selected').forEach(el=>el.classList.remove('selected')); saveDiaryManual(false); document.getElementById('diary-view').classList.add('hidden-right'); document.getElementById('fmt-bar').classList.remove('active'); document.getElementById('sticker-btn').style.display='none'; closeStickerDrawer(); toggleUI(true); updateTodoTabVisibility(); document.getElementById('index-tab').style.display = 'flex'; renderCalendar(); }
@@ -682,7 +723,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片 (已修复日期被背景遮挡) ===
+// === 核心逻辑：导出图片 ===
 async function exportDiaryImage() { 
     const d = document.getElementById('export-date-picker').value; 
     if(!d) return alert("请先选择日期"); 
@@ -733,13 +774,12 @@ async function exportDiaryImage() {
     const header = document.createElement('div');
     header.className = 'paper-header';
     header.style.background = 'none';
-    // 关键修复：强制设置定位和层级，确保在背景上方
     header.style.position = 'relative'; 
     header.style.zIndex = '50'; 
     header.innerHTML = `<span class="date-display">${d}</span>`;
     p.appendChild(header);
 
-    // 2. 创建内容容器 (相对定位，作为贴纸和文字的共同父级)
+    // 2. 创建内容容器 (相对定位)
     const contentArea = document.createElement('div');
     contentArea.style.position = 'relative';
     contentArea.style.width = '100%';
@@ -913,38 +953,5 @@ function applySettings() { document.body.className=`${state.settings.theme} ${st
 function formatDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function exportData() { const b=new Blob([JSON.stringify(state.diaryData)],{type:"application/json"}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`backup_${formatDateKey(new Date())}.json`; a.click(); }
 function importData(i) { const f=i.files[0]; if(f) { const r=new FileReader(); r.onload=e=>{ try{state.diaryData=JSON.parse(e.target.result);localStorage.setItem('myDiaryData_v2',JSON.stringify(state.diaryData));renderCalendar();alert("导入成功");}catch(x){alert("格式错误");} }; r.readAsText(f); } }
-
-// === 新增：贴纸锁定/解锁功能 ===
-function toggleStickerLock() {
-    isStickersLocked = !isStickersLocked;
-    updateStickerLockUI();
-    
-    if(isStickersLocked) {
-        showToast("贴纸已锁定 (防误触)");
-    } else {
-        showToast("贴纸已解锁 (可编辑)");
-    }
-}
-
-function updateStickerLockUI() {
-    const btn = document.getElementById('btn-lock-stickers');
-    const area = document.getElementById('diary-scroll-area');
-    
-    if (!btn || !area) return;
-
-    if (isStickersLocked) {
-        // 锁定状态
-        area.classList.add('stickers-locked');
-        btn.classList.remove('unlocked');
-        btn.innerHTML = '<span class="material-icons-round">lock</span>'; 
-        // 移除所有贴纸的选中状态
-        document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
-    } else {
-        // 解锁状态
-        area.classList.remove('stickers-locked');
-        btn.classList.add('unlocked');
-        btn.innerHTML = '<span class="material-icons-round">lock_open</span>'; 
-    }
-}
 
 init();
