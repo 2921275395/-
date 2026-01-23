@@ -413,3 +413,16 @@ body.dark-mode #lock-screen { background: rgba(0, 0, 0, 0.7); }
     position: fixed; top: 0; left: -9999px; 
     z-index: -1; pointer-events: none; 
 }
+/* ... 原有代码 ... */
+
+/* === 新增：贴纸锁定样式 === */
+/* 当容器拥有 stickers-locked 类时，内部的 sticker-item 忽略所有点击事件 */
+#diary-scroll-area.stickers-locked .sticker-item {
+    pointer-events: none; 
+}
+
+/* 锁定按钮激活（解锁状态）时的颜色提示 */
+#btn-lock-stickers.unlocked {
+    color: var(--primary-color);
+    background-color: rgba(0,0,0,0.05);
+}
