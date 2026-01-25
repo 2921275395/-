@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V5.6 (含贴纸锁定 & 底部遮挡修复)
+// script.js - 终极修复版 V5.7 (编辑模式互斥优化)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -32,8 +32,8 @@ let supabaseClient = null;
 let isEditingDrawer = false;
 let globalMaxZIndex = 100; 
 
-// === 新增：贴纸锁定状态控制 ===
-let isStickersLocked = true; // 默认锁定，防止误触
+// === 贴纸锁定状态控制 ===
+let isStickersLocked = true; // 默认锁定：只能写字，不能动贴纸
 
 // ==========================================
 // 数据库 (AppDB)
@@ -207,8 +207,12 @@ async function init() {
 function focusInput(e) {
     if(document.getElementById('diary-input').classList.contains('interaction-locked')) return;
     
-    if(e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input') {
-        document.getElementById('diary-input').focus();
+    // 只有当文字可编辑（未进入贴纸模式）时才聚焦
+    const inp = document.getElementById('diary-input');
+    if(inp.contentEditable === "true") {
+        if(e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input') {
+            inp.focus();
+        }
     }
 }
 
@@ -310,34 +314,55 @@ function toggleStickerLock() {
     isStickersLocked = !isStickersLocked;
     updateStickerLockUI();
     if(isStickersLocked) {
-        showToast("贴纸已锁定 (防误触)");
+        showToast("已切换：写字模式 (贴纸锁定)");
     } else {
-        showToast("贴纸已解锁 (可编辑)");
+        showToast("已切换：贴纸模式 (文字锁定)");
     }
 }
 
-// 更新锁定 UI
+// === 核心逻辑修改：更新 UI 状态 ===
 function updateStickerLockUI() {
     const btn = document.getElementById('btn-lock-stickers');
     const area = document.getElementById('diary-scroll-area');
-    if (!btn || !area) return;
+    const input = document.getElementById('diary-input'); // 获取文字层
+    
+    if (!btn || !area || !input) return;
 
     if (isStickersLocked) {
+        // === 模式 A：写字模式 (默认) ===
+        // 1. 贴纸不可交互 (CSS控制 .stickers-locked)
         area.classList.add('stickers-locked');
+        
+        // 2. 文字可编辑、可点击
+        input.contentEditable = "true";
+        input.style.pointerEvents = "auto";
+        input.style.userSelect = "text"; 
+
+        // 3. 按钮显示闭锁
         btn.classList.remove('unlocked');
         btn.innerHTML = '<span class="material-icons-round">lock</span>';
-        // 锁定清除选中态
+        
+        // 清除贴纸选中框
         document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
     } else {
+        // === 模式 B：贴纸模式 (点击解锁后) ===
+        // 1. 贴纸可交互
         area.classList.remove('stickers-locked');
+        
+        // 2. 文字不可编辑，且不拦截鼠标事件 (让点击穿透到下层贴纸)
+        input.contentEditable = "false";
+        input.style.pointerEvents = "none"; // 关键：让点击穿透文字层
+        input.style.userSelect = "none";
+
+        // 3. 按钮显示开锁
         btn.classList.add('unlocked');
         btn.innerHTML = '<span class="material-icons-round">lock_open</span>';
     }
 }
 
-// 打开贴纸抽屉：自动解锁贴纸 + 增加底部填充
+// 打开贴纸抽屉：自动进入贴纸模式 + 增加底部填充
 function openStickerDrawer() { 
-    // 1. 自动解锁
+    // 1. 自动切换到贴纸模式 (允许编辑贴纸)
     isStickersLocked = false;
     updateStickerLockUI();
 
@@ -345,7 +370,6 @@ function openStickerDrawer() {
     const scrollArea = document.getElementById('diary-scroll-area');
     if(scrollArea) {
         scrollArea.classList.add('drawer-open');
-        // 自动滚动到底部，方便查看被遮挡的贴纸
         setTimeout(() => { scrollArea.scrollTop = scrollArea.scrollHeight; }, 100);
     }
 
@@ -357,7 +381,6 @@ function openStickerDrawer() {
 
 // 关闭贴纸抽屉：移除底部填充
 function closeStickerDrawer() { 
-    // 1. 移除底部填充
     const scrollArea = document.getElementById('diary-scroll-area');
     if(scrollArea) {
         scrollArea.classList.remove('drawer-open');
