@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V5.8 (月度预览等比缩放修复)
+// script.js - 终极修复版 V5.8 (月度浏览渲染优化)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -207,7 +207,6 @@ async function init() {
 function focusInput(e) {
     if(document.getElementById('diary-input').classList.contains('interaction-locked')) return;
     
-    // 只有当文字可编辑（未进入贴纸模式）时才聚焦
     const inp = document.getElementById('diary-input');
     if(inp.contentEditable === "true") {
         if(e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input') {
@@ -301,10 +300,4 @@ async function restoreFromCloud() {
         status.innerText = "正在恢复...";
         if(data.diary_data) { state.diaryData = data.diary_data; await AppDB.bulkSaveEntries(state.diaryData); }
         if(data.todo_data) { state.todoData = data.todo_data; saveTodo(); }
-        status.innerText = "✅ 恢复完成"; showToast("恢复成功");
-        setTimeout(() => { renderCalendar(); renderTodoList(); applySettings(); closeSettings(); }, 500);
-    } catch(e) { status.innerText = "❌ 恢复失败"; alert("恢复失败: " + e.message); }
-}
-
-/* ============ 核心功能 (含贴纸锁定逻辑) ============ */
-function 
+        
