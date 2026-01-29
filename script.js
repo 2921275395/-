@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V5.8 (画廊等比缩放修复)
+// script.js - 终极修复版 V5.8 (画廊布局修复)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -33,7 +33,7 @@ let isEditingDrawer = false;
 let globalMaxZIndex = 100; 
 
 // === 贴纸锁定状态控制 ===
-let isStickersLocked = true; // 默认锁定
+let isStickersLocked = true; 
 
 // ==========================================
 // 数据库 (AppDB)
@@ -206,7 +206,6 @@ async function init() {
 
 function focusInput(e) {
     if(document.getElementById('diary-input').classList.contains('interaction-locked')) return;
-    
     const inp = document.getElementById('diary-input');
     if(inp.contentEditable === "true") {
         if(e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input') {
@@ -305,10 +304,9 @@ async function restoreFromCloud() {
     } catch(e) { status.innerText = "❌ 恢复失败"; alert("恢复失败: " + e.message); }
 }
 
-/* ============ 核心功能 (含贴纸锁定逻辑) ============ */
+/* ============ 核心功能 ============ */
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 
-// 切换贴纸锁定状态
 function toggleStickerLock() {
     isStickersLocked = !isStickersLocked;
     updateStickerLockUI();
@@ -319,11 +317,10 @@ function toggleStickerLock() {
     }
 }
 
-// 更新 UI 状态
 function updateStickerLockUI() {
     const btn = document.getElementById('btn-lock-stickers');
     const area = document.getElementById('diary-scroll-area');
-    const input = document.getElementById('diary-input'); // 获取文字层
+    const input = document.getElementById('diary-input'); 
     
     if (!btn || !area || !input) return;
 
@@ -332,45 +329,38 @@ function updateStickerLockUI() {
         input.contentEditable = "true";
         input.style.pointerEvents = "auto";
         input.style.userSelect = "text"; 
-
         btn.classList.remove('unlocked');
         btn.innerHTML = '<span class="material-icons-round">lock</span>';
         document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
     } else {
         area.classList.remove('stickers-locked');
         input.contentEditable = "false";
-        input.style.pointerEvents = "none"; // 让点击穿透文字层
+        input.style.pointerEvents = "none"; 
         input.style.userSelect = "none";
-
         btn.classList.add('unlocked');
         btn.innerHTML = '<span class="material-icons-round">lock_open</span>';
     }
 }
 
-// 打开贴纸抽屉：自动进入贴纸模式 + 增加底部填充
 function openStickerDrawer() { 
     isStickersLocked = false;
     updateStickerLockUI();
-
     const scrollArea = document.getElementById('diary-scroll-area');
     if(scrollArea) {
         scrollArea.classList.add('drawer-open');
         setTimeout(() => { scrollArea.scrollTop = scrollArea.scrollHeight; }, 100);
     }
-
     renderStickerDrawer(); 
     document.getElementById('sticker-drawer').classList.add('open'); 
     document.getElementById('diary-input').classList.add('interaction-locked'); 
     toggleUI(false); 
 }
 
-// 关闭贴纸抽屉
 function closeStickerDrawer() { 
     const scrollArea = document.getElementById('diary-scroll-area');
     if(scrollArea) {
         scrollArea.classList.remove('drawer-open');
     }
-
     document.getElementById('sticker-drawer').classList.remove('open'); 
     document.getElementById('diary-input').classList.remove('interaction-locked'); 
     isEditingDrawer = false; 
@@ -391,15 +381,12 @@ async function addStickerToPage(blob) {
         const wrapper = document.createElement('div'); 
         wrapper.className = 'sticker-item selected'; 
         wrapper.contentEditable = "false"; 
-        
         globalMaxZIndex++;
         wrapper.style.zIndex = globalMaxZIndex; 
         wrapper.dataset.layer = 'top';
-        
         wrapper.style.left = '50px'; 
         wrapper.style.top = '100px'; 
         wrapper.style.width = '150px'; 
-        
         wrapper.innerHTML = `<img src="${base64}" draggable="false"><div class="sticker-ctrl ctrl-del" onmousedown="removeSticker(event)" ontouchstart="removeSticker(event)">✕</div><div class="sticker-ctrl ctrl-layer" onmousedown="toggleLayer(event)" ontouchstart="toggleLayer(event)">⇩</div><div class="sticker-ctrl ctrl-resize" data-action="resize">↘</div>`; 
         document.getElementById('diary-scroll-area').appendChild(wrapper); 
         attachStickerEvents(wrapper); 
@@ -413,9 +400,7 @@ window.toggleLayer = function(e) {
     e.preventDefault();
     const wrapper = e.target.closest('.sticker-item');
     if(!wrapper) return;
-    
     const current = wrapper.dataset.layer || 'top';
-    
     if (current === 'top') {
         wrapper.dataset.layer = 'bottom';
         wrapper.style.zIndex = '1';
@@ -432,7 +417,6 @@ window.toggleLayer = function(e) {
 function activateStickerElement(el) {
     document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); 
     el.classList.add('selected');
-    
     if (!el.dataset.layer || el.dataset.layer === 'top') {
         globalMaxZIndex++;
         el.style.zIndex = globalMaxZIndex;
@@ -449,11 +433,9 @@ function attachStickerEvents(el) {
         activateStickerElement(el); 
         const touches = e.touches; 
         const target = e.target; 
-
         if (touches && touches.length === 2) { 
             mode = 'gesture'; 
-            e.preventDefault(); 
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             const rect = el.getBoundingClientRect(); 
             startScaleWidth = rect.width; 
             const style = window.getComputedStyle(el); 
@@ -464,11 +446,9 @@ function attachStickerEvents(el) {
         } else if (!touches || touches.length === 1) { 
             const clientX = touches ? touches[0].clientX : e.clientX;
             const clientY = touches ? touches[0].clientY : e.clientY;
-
             if (target.dataset.action === 'resize') { 
                 mode = 'resize'; 
-                e.preventDefault(); 
-                e.stopPropagation(); 
+                e.preventDefault(); e.stopPropagation(); 
                 const rect = el.getBoundingClientRect(); 
                 centerX = rect.left + rect.width / 2; 
                 centerY = rect.top + rect.height / 2; 
@@ -494,7 +474,6 @@ function attachStickerEvents(el) {
     const handleMove = (e) => { 
         if(!el.classList.contains('selected')) return; 
         const touches = e.touches; 
-        
         if (mode === 'gesture' && touches && touches.length === 2) { 
             e.preventDefault(); 
             const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); 
@@ -520,15 +499,13 @@ function attachStickerEvents(el) {
 
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('touchmove', handleMove, {passive: false});
-
     const handleEnd = () => { if(mode) state.isDirty = true; mode = ''; };
     document.addEventListener('mouseup', handleEnd);
     document.addEventListener('touchend', handleEnd);
 }
 
 window.removeSticker = function(e) { 
-    e.stopPropagation(); 
-    e.preventDefault(); 
+    e.stopPropagation(); e.preventDefault(); 
     e.target.closest('.sticker-item')?.remove(); 
     state.isDirty = true; 
 };
@@ -550,159 +527,108 @@ function updateTodoTabVisibility() { document.getElementById('todo-tab').style.d
 function openTodo() { document.getElementById('todo-view').classList.remove('hidden-right'); toggleUI(false); }
 function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); toggleUI(true); }
 function toggleTodoSetting() { state.settings.showTodo = !state.settings.showTodo; saveSettings(); applySettings(); }
-
-// 注册 Service Worker
 function registerRealSW() { 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('SW Registered', reg))
-            .catch(err => console.error('SW Error', err));
+        navigator.serviceWorker.register('sw.js').then(reg => console.log('SW Registered', reg)).catch(err => console.error('SW Error', err));
     }
 }
-
 function checkNotifyState() { if("Notification" in window && Notification.permission !== "granted") document.getElementById('perm-btn').style.display = 'block'; else document.getElementById('perm-btn').style.display = 'none'; }
 function requestNotifyPermission() { Notification.requestPermission().then(p => { if(p==="granted") { document.getElementById('perm-btn').style.display='none'; showToast("通知已开启"); } }); }
-
-// 测试通知
 function testNotification() { 
     if(Notification.permission==="granted") {
         try {
             if('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.ready.then(reg => {
-                    reg.showNotification("测试通知", {body:"功能正常 (SW)"});
-                });
-            } else {
-                new Notification("测试通知", {body:"功能正常 (本地)"}); 
-            }
-        } catch(e) {
-            alert("发送失败: " + e.message);
-        }
-    } else {
-        alert("请先点击上方开启通知权限"); 
-    }
+                navigator.serviceWorker.ready.then(reg => { reg.showNotification("测试通知", {body:"功能正常 (SW)"}); });
+            } else { new Notification("测试通知", {body:"功能正常 (本地)"}); }
+        } catch(e) { alert("发送失败: " + e.message); }
+    } else { alert("请先点击上方开启通知权限"); }
 }
-
 function addTodo() { const t=document.getElementById('new-todo-input').value.trim(); if(!t) return; state.todoData.unshift({id:Date.now(), text:t, done:false, date:'', time:'', notified:false}); document.getElementById('new-todo-input').value=''; saveTodo(); renderTodoList(); }
 function deleteTodo(id) { state.todoData = state.todoData.filter(t=>t.id!==id); saveTodo(); renderTodoList(); }
 function toggleTodo(id) { const t=state.todoData.find(i=>i.id===id); if(t) { t.done=!t.done; saveTodo(); renderTodoList(); } }
 function updateTodoData(id, k, v) { const t=state.todoData.find(i=>i.id===id); if(t) { t[k]=v; if(k==='time'||k==='date') t.notified=false; saveTodo(); renderTodoList(); } }
 function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
-
-// === 渲染排序逻辑 ===
 function renderTodoList() { 
-    const list=document.getElementById('todo-list'); 
-    list.innerHTML=''; 
-    
+    const list=document.getElementById('todo-list'); list.innerHTML=''; 
     state.todoData.sort((a,b) => {
         if (a.done !== b.done) return a.done ? 1 : -1;
         if (a.done) return b.id - a.id;
-        const noDateA = !a.date;
-        const noDateB = !b.date;
-        if (noDateA && !noDateB) return -1; 
-        if (!noDateA && noDateB) return 1;  
-        if (noDateA && noDateB) return b.id - a.id; 
+        const noDateA = !a.date; const noDateB = !b.date;
+        if (noDateA && !noDateB) return -1; if (!noDateA && noDateB) return 1; if (noDateA && noDateB) return b.id - a.id; 
         if (a.date !== b.date) return a.date.localeCompare(b.date);
-        const timeA = a.time || '00:00';
-        const timeB = b.time || '00:00';
+        const timeA = a.time || '00:00'; const timeB = b.time || '00:00';
         return timeA.localeCompare(timeB);
     });
-
     state.todoData.forEach(item => { 
-        const d = document.createElement('div'); 
-        d.className='todo-item-wrapper'; 
+        const d = document.createElement('div'); d.className='todo-item-wrapper'; 
         d.innerHTML=`<div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div><div class="todo-item-content ${item.done?'done':''}"><div class="todo-checkbox ${item.done?'checked':''}" onclick="toggleTodo(${item.id});event.stopPropagation()"></div><div class="todo-content-wrapper"><div class="todo-text">${item.text}</div><div class="todo-datetime"><input type="date" class="todo-picker" value="${item.date||''}" onchange="updateTodoData(${item.id},'date',this.value)"><input type="time" class="todo-picker" value="${item.time||''}" onchange="updateTodoData(${item.id},'time',this.value)"></div></div></div>`; 
-        attachSwipeEvents(d.querySelector('.todo-item-content')); 
-        list.appendChild(d); 
+        attachSwipeEvents(d.querySelector('.todo-item-content')); list.appendChild(d); 
     }); 
 }
-
 let currentOpenSwipe = null;
 function attachSwipeEvents(el) { let sX; el.addEventListener('touchstart',e=>{if(currentOpenSwipe&&currentOpenSwipe!==el){currentOpenSwipe.style.transform='translateX(0)';currentOpenSwipe=null}sX=e.touches[0].clientX;el.style.transition='none'},{passive:true}); el.addEventListener('touchmove',e=>{let d=e.touches[0].clientX-sX; if(d>0)d=0; if(d<-80)d=-80; el.style.transform=`translateX(${d}px)`},{passive:true}); el.addEventListener('touchend',e=>{el.style.transition='transform 0.2s'; if(e.changedTouches[0].clientX-sX<-40){el.style.transform='translateX(-80px)';currentOpenSwipe=el}else{el.style.transform='translateX(0)'}});}
 function resetAllSwipes() { if(currentOpenSwipe) { currentOpenSwipe.style.transform='translateX(0)'; currentOpenSwipe=null; } }
-
-// 通知的轮询检查
 function startNotificationCheck() { 
     if(notifyInterval) clearInterval(notifyInterval); 
     notifyInterval = setInterval(()=>{ 
         if(Notification.permission!=="granted") return; 
-        const now = new Date(); 
-        const m = now.getHours()*60 + now.getMinutes(); 
-        const d = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; 
-        
+        const now = new Date(); const m = now.getHours()*60 + now.getMinutes(); const d = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; 
         state.todoData.forEach(t => { 
             if(!t.done && t.date===d && t.time && !t.notified) { 
                 const [th,tm] = t.time.split(':').map(Number); 
                 if(Math.abs(m - (th*60 + tm)) <= 1) { 
-                    try {
-                        if('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                            navigator.serviceWorker.ready.then(reg => reg.showNotification("日记本提醒", {body: t.text}));
-                        } else {
-                            new Notification("日记本提醒", {body: t.text}); 
-                        }
-                    } catch(e) { console.error("Notify Error", e); }
-                    t.notified = true; 
-                    saveTodo(); 
+                    try { if('serviceWorker' in navigator && navigator.serviceWorker.controller) { navigator.serviceWorker.ready.then(reg => reg.showNotification("日记本提醒", {body: t.text})); } else { new Notification("日记本提醒", {body: t.text}); } } catch(e) {}
+                    t.notified = true; saveTodo(); 
                 } 
             } 
         }); 
     }, 5000); 
 }
 
-function openMonthGallery() { const v=document.getElementById('gallery-month-picker').value; if(!v) return alert("请选月份"); document.getElementById('month-gallery').classList.remove('hidden-right'); document.getElementById('settings-view').classList.add('hidden-right'); const c=document.getElementById('gallery-content'); c.innerHTML=''; const [y,m]=v.split('-'); const days=new Date(y,m,0).getDate(); let has=false; for(let d=1; d<=days; d++) { const k=`${y}-${m}-${String(d).padStart(2,'0')}`; if(state.diaryData[k]) { has=true; createGalleryCard(c, state.diaryData[k], `${parseInt(m)}/${d}`, k); } } if(!has) c.innerHTML='<div style="opacity:0.5;text-align:center;padding:20px;width:100%">暂无日记</div>'; }
+function openMonthGallery() { 
+    const v=document.getElementById('gallery-month-picker').value; 
+    if(!v) return alert("请选月份"); 
+    document.getElementById('month-gallery').classList.remove('hidden-right'); 
+    document.getElementById('settings-view').classList.add('hidden-right'); 
+    const c=document.getElementById('gallery-content'); c.innerHTML=''; 
+    const [y,m]=v.split('-'); const days=new Date(y,m,0).getDate(); let has=false; 
+    for(let d=1; d<=days; d++) { 
+        const k=`${y}-${m}-${String(d).padStart(2,'0')}`; 
+        if(state.diaryData[k]) { has=true; createGalleryCard(c, state.diaryData[k], `${parseInt(m)}/${d}`, k); } 
+    } 
+    if(!has) c.innerHTML='<div style="opacity:0.5;text-align:center;padding:20px;width:100%">暂无日记</div>'; 
+}
 
-// === 核心修复：画廊卡片渲染 (等比缩放) ===
+// === 修复的核心函数：生成卡片 ===
 function createGalleryCard(container, content, dateLabel, dateKey) { 
     const w = document.createElement('div'); 
     w.className = `gallery-card ${state.bgImage?'has-bg':''}`; 
-
-    // 创建一个裁切容器
-    const clipBox = document.createElement('div');
-    clipBox.style.width = '100%';
-    clipBox.style.height = '100%';
-    clipBox.style.overflow = 'hidden';
-    clipBox.style.position = 'relative';
-
-    // 实际内容层：模拟屏幕宽度
-    const contentLayer = document.createElement('div');
-    const screenW = window.innerWidth;
     
-    // 计算缩放比例：假设卡片宽度大约是屏幕宽度的 42% (两列布局减去间距)
-    // 这里的数字 0.42 是一个经验值，能保证缩略图看起来比较清晰
-    const cardW = (screenW - 60) / 2; 
-    const scale = cardW / screenW;
-
-    contentLayer.style.width = screenW + 'px'; 
-    contentLayer.style.minHeight = (cardW / scale) + 'px'; // 保持高度比例
-    contentLayer.style.position = 'absolute';
-    contentLayer.style.top = '0';
-    contentLayer.style.left = '0';
-    contentLayer.style.transform = `scale(${scale})`;
-    contentLayer.style.transformOrigin = 'top left';
-    contentLayer.style.pointerEvents = 'none'; // 预览模式禁止内部交互
-
-    // 注入内容
-    contentLayer.innerHTML = content;
-
-    // 清理贴纸的控制点，让预览更干净
-    contentLayer.querySelectorAll('.sticker-item').forEach(s => {
-         s.classList.remove('selected'); 
-         s.querySelectorAll('.sticker-ctrl').forEach(c => c.remove());
-    });
-
-    // 只有在没有全局背景图时，才显示日期标签
-    const dateDiv = document.createElement('div');
-    dateDiv.className = 'thumb-date';
-    dateDiv.innerText = dateLabel;
-
-    clipBox.appendChild(contentLayer);
-    w.appendChild(clipBox);
-    w.appendChild(dateDiv); 
-
-    w.onclick = () => { 
-        closeMonthGallery(); 
-        selectDate(new Date(dateKey)); 
-        setTimeout(openDiary,300); 
-    }; 
+    const thumbScaler = document.createElement('div'); 
+    thumbScaler.className = 'thumb-scaler'; 
+    if(state.bgImage) thumbScaler.style.backgroundImage = `url(${state.bgImage})`; 
+    
+    const dateDiv = document.createElement('div'); 
+    dateDiv.className = 'thumb-date'; 
+    dateDiv.innerText = dateLabel; 
+    
+    const textDiv = document.createElement('div'); 
+    textDiv.className = 'thumb-text'; 
+    textDiv.innerHTML = content; 
+    
+    // 修复：处理贴纸样式
+    textDiv.querySelectorAll('.sticker-item').forEach(s => { 
+        s.style.opacity = '0.4'; // 半透明
+        s.style.pointerEvents = 'none'; 
+        s.style.border = 'none';
+        s.querySelector('.sticker-ctrl')?.remove(); // 移除控件
+        s.classList.remove('selected');
+    }); 
+    
+    thumbScaler.appendChild(dateDiv); 
+    thumbScaler.appendChild(textDiv); 
+    w.appendChild(thumbScaler); 
+    w.onclick = () => { closeMonthGallery(); selectDate(new Date(dateKey)); setTimeout(openDiary,300); }; 
     container.appendChild(w); 
 }
 
@@ -713,29 +639,21 @@ function renderCalendar() { const y=state.currentDate.getFullYear(),m=state.curr
 function changeMonth(v) { if(v) { const [y,m]=v.split('-'); state.currentDate=new Date(y,m-1,1); renderCalendar(); } }
 function selectDate(d) { state.selectedDate=d; renderCalendar(); document.getElementById('tab-date').textContent=`${d.getMonth()+1}/${d.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
 
-// 打开日记页面 (初始化逻辑)
 function openDiary(e) { 
-    // 默认开启锁定，防止误触
     isStickersLocked = true;
-    
     if(e)e.stopPropagation(); 
     const k=formatDateKey(state.selectedDate); 
     document.getElementById('diary-date-display').textContent=state.selectedDate.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'}); 
-    
     const div = document.getElementById('diary-input'); 
     const scrollArea = document.getElementById('diary-scroll-area');
-    
     scrollArea.querySelectorAll('.sticker-item').forEach(el => el.remove());
-    
     const content = state.diaryData[k] || ''; 
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = content;
-    
     const stickers = tempDiv.querySelectorAll('.sticker-item');
     stickers.forEach(s => {
         const z = parseInt(s.style.zIndex || 0);
         if(z > globalMaxZIndex) globalMaxZIndex = z;
-        
         const isBottom = s.dataset.layer === 'bottom';
         const layerBtn = s.querySelector('.ctrl-layer');
         if(layerBtn) {
@@ -743,21 +661,16 @@ function openDiary(e) {
             layerBtn.setAttribute('onmousedown', 'toggleLayer(event)');
             layerBtn.setAttribute('ontouchstart', 'toggleLayer(event)');
         }
-
         scrollArea.appendChild(s);
         attachStickerEvents(s);
     });
-    
     div.innerHTML = tempDiv.innerHTML; 
-    
     document.getElementById('diary-view').classList.remove('hidden-right'); 
     toggleUI(false); 
     document.getElementById('todo-tab').style.display = 'none'; 
     document.getElementById('index-tab').style.display = 'none'; 
     if(state.settings.enableSticker) document.getElementById('sticker-btn').style.display='flex'; 
     state.isDirty=false; 
-    
-    // 应用锁定 UI 状态
     updateStickerLockUI();
 }
 
@@ -787,226 +700,72 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
-// === 核心逻辑：导出图片 ===
 async function exportDiaryImage() { 
     const d = document.getElementById('export-date-picker').value; 
     if(!d) return alert("请先选择日期"); 
     const k = d; 
     const c = state.diaryData[k]; 
     if(!c) return alert("日记内容为空"); 
-    
     showToast("正在分析图片比例..."); 
-    
-    const con = document.getElementById('screenshot-container'); 
-    con.innerHTML = ''; 
-    
+    const con = document.getElementById('screenshot-container'); con.innerHTML = ''; 
     const screenWidth = document.body.clientWidth;
     con.style.width = screenWidth + 'px';
-
     let singlePageHeight = window.innerHeight; 
-
     if (state.bgImage) {
         await new Promise((resolve) => {
-            const img = new Image();
-            img.src = state.bgImage;
-            img.onload = () => {
-                const ratio = img.naturalHeight / img.naturalWidth;
-                singlePageHeight = screenWidth * ratio;
-                resolve();
-            };
+            const img = new Image(); img.src = state.bgImage;
+            img.onload = () => { const ratio = img.naturalHeight / img.naturalWidth; singlePageHeight = screenWidth * ratio; resolve(); };
             img.onerror = () => { resolve(); };
         });
     }
-
     const p = document.createElement('div'); 
     p.className = `paper-container ${state.settings.theme} ${state.settings.paper}`; 
-    p.style.imageRendering = '-webkit-optimize-contrast';
-    p.style.position = 'relative'; 
-    p.style.borderRadius = '0'; 
-    p.style.overflow = 'hidden'; 
-    p.style.width = '100%'; 
-    
-    if (state.bgImage) {
-        p.style.background = 'transparent';
-    } else {
-        p.style.background = ''; 
-    }
-
+    p.style.imageRendering = '-webkit-optimize-contrast'; p.style.position = 'relative'; p.style.borderRadius = '0'; p.style.overflow = 'hidden'; p.style.width = '100%'; 
+    if (state.bgImage) { p.style.background = 'transparent'; } else { p.style.background = ''; }
     p.style.height = singlePageHeight + 'px';
 
-    // 1. 创建页眉 (独立于内容容器)
-    const header = document.createElement('div');
-    header.className = 'paper-header';
-    header.style.background = 'none';
-    header.style.position = 'relative'; 
-    header.style.zIndex = '50'; 
-    header.innerHTML = `<span class="date-display">${d}</span>`;
-    p.appendChild(header);
-
-    // 2. 创建内容容器 (相对定位)
-    const contentArea = document.createElement('div');
-    contentArea.style.position = 'relative';
-    contentArea.style.width = '100%';
-    contentArea.style.flex = '1';
-    p.appendChild(contentArea);
-
-    // 3. 准备文字层
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = c;
-    Array.from(tempDiv.querySelectorAll('.sticker-item')).forEach(el => el.remove()); 
-
-    const textDiv = document.createElement('div');
-    textDiv.className = 'paper-content';
-    textDiv.style.position = 'relative';
-    textDiv.style.zIndex = '10'; // 文字层级居中
-    textDiv.style.overflow = 'visible'; 
-    textDiv.style.paddingBottom = '50px';
-    textDiv.innerHTML = tempDiv.innerHTML;
-    
-    // 4. 将文字加入内容容器
+    const header = document.createElement('div'); header.className = 'paper-header'; header.style.background = 'none'; header.style.position = 'relative'; header.style.zIndex = '50'; header.innerHTML = `<span class="date-display">${d}</span>`; p.appendChild(header);
+    const contentArea = document.createElement('div'); contentArea.style.position = 'relative'; contentArea.style.width = '100%'; contentArea.style.flex = '1'; p.appendChild(contentArea);
+    const tempDiv = document.createElement('div'); tempDiv.innerHTML = c; Array.from(tempDiv.querySelectorAll('.sticker-item')).forEach(el => el.remove()); 
+    const textDiv = document.createElement('div'); textDiv.className = 'paper-content'; textDiv.style.position = 'relative'; textDiv.style.zIndex = '10'; textDiv.style.overflow = 'visible'; textDiv.style.paddingBottom = '50px'; textDiv.innerHTML = tempDiv.innerHTML;
     contentArea.appendChild(textDiv);
-
-    // 5. 准备贴纸
-    const rawDiv = document.createElement('div');
-    rawDiv.innerHTML = c;
-    const stickers = rawDiv.querySelectorAll('.sticker-item');
-    
-    stickers.forEach(s => {
-        if (s.dataset.layer === 'bottom') {
-            s.style.zIndex = '5';
-        } else {
-            s.style.zIndex = '20';
-        }
-        contentArea.appendChild(s);
-    });
-
+    const rawDiv = document.createElement('div'); rawDiv.innerHTML = c; const stickers = rawDiv.querySelectorAll('.sticker-item');
+    stickers.forEach(s => { if (s.dataset.layer === 'bottom') { s.style.zIndex = '5'; } else { s.style.zIndex = '20'; } contentArea.appendChild(s); });
     let maxContentBottom = textDiv.offsetHeight; 
-    stickers.forEach(s => {
-        const top = parseFloat(s.style.top) || 0;
-        const height = parseFloat(s.style.height) || s.offsetHeight || 100;
-        if (top + height > maxContentBottom) maxContentBottom = top + height;
-    });
-    
+    stickers.forEach(s => { const top = parseFloat(s.style.top) || 0; const height = parseFloat(s.style.height) || s.offsetHeight || 100; if (top + height > maxContentBottom) maxContentBottom = top + height; });
     const totalContentHeight = 80 + maxContentBottom + 60; 
-
-    let pagesNeeded = Math.ceil(totalContentHeight / singlePageHeight);
-    if (pagesNeeded < 1) pagesNeeded = 1;
-
-    const finalHeight = pagesNeeded * singlePageHeight;
-    p.style.height = finalHeight + 'px';
+    let pagesNeeded = Math.ceil(totalContentHeight / singlePageHeight); if (pagesNeeded < 1) pagesNeeded = 1;
+    const finalHeight = pagesNeeded * singlePageHeight; p.style.height = finalHeight + 'px';
 
     if(state.bgImage){
-        const bgContainer = document.createElement('div');
-        bgContainer.style.position = 'absolute';
-        bgContainer.style.top = '0';
-        bgContainer.style.left = '0';
-        bgContainer.style.width = '100%';
-        bgContainer.style.height = '100%';
-        bgContainer.style.zIndex = '0'; 
-        bgContainer.style.display = 'flex';
-        bgContainer.style.flexDirection = 'column';
-
-        for(let i=0; i<pagesNeeded; i++) {
-            const img = document.createElement('img');
-            img.src = state.bgImage;
-            img.style.width = '100%';
-            img.style.height = 'auto'; 
-            img.style.display = 'block'; 
-            img.style.pointerEvents = 'none';
-            img.style.flexShrink = '0'; 
-            bgContainer.appendChild(img);
-        }
-        
+        const bgContainer = document.createElement('div'); bgContainer.style.position = 'absolute'; bgContainer.style.top = '0'; bgContainer.style.left = '0'; bgContainer.style.width = '100%'; bgContainer.style.height = '100%'; bgContainer.style.zIndex = '0'; bgContainer.style.display = 'flex'; bgContainer.style.flexDirection = 'column';
+        for(let i=0; i<pagesNeeded; i++) { const img = document.createElement('img'); img.src = state.bgImage; img.style.width = '100%'; img.style.height = 'auto'; img.style.display = 'block'; img.style.pointerEvents = 'none'; img.style.flexShrink = '0'; bgContainer.appendChild(img); }
         p.insertBefore(bgContainer, p.firstChild);
     } 
-    
     con.appendChild(p); 
-
     showToast("正在生成高清图...");
-
     setTimeout(() => {
-        html2canvas(p,{
-            scale: 4, 
-            useCORS: true, 
-            logging: false,
-            backgroundColor: null, 
-            windowWidth: screenWidth 
-        }).then(cvs=>{ 
-            let quality = 1.0;
-            let dataUrl = cvs.toDataURL('image/jpeg', quality);
-            let sizeInBytes = Math.round(dataUrl.length * 0.75);
-            const maxBytes = 5 * 1024 * 1024; 
-            
-            if (sizeInBytes > maxBytes) {
-                while (sizeInBytes > maxBytes && quality > 0.3) {
-                    quality -= 0.05; 
-                    dataUrl = cvs.toDataURL('image/jpeg', quality);
-                    sizeInBytes = Math.round(dataUrl.length * 0.75);
-                }
-            }
-
-            const a = document.createElement('a'); 
-            a.download = `diary_${k}.jpg`; 
-            a.href = dataUrl; 
-            a.click(); 
-            con.innerHTML = ''; 
-            showToast(`已保存 (${(sizeInBytes/1024/1024).toFixed(2)}MB)`); 
+        html2canvas(p,{ scale: 4, useCORS: true, logging: false, backgroundColor: null, windowWidth: screenWidth }).then(cvs=>{ 
+            let quality = 1.0; let dataUrl = cvs.toDataURL('image/jpeg', quality); let sizeInBytes = Math.round(dataUrl.length * 0.75); const maxBytes = 5 * 1024 * 1024; 
+            if (sizeInBytes > maxBytes) { while (sizeInBytes > maxBytes && quality > 0.3) { quality -= 0.05; dataUrl = cvs.toDataURL('image/jpeg', quality); sizeInBytes = Math.round(dataUrl.length * 0.75); } }
+            const a = document.createElement('a'); a.download = `diary_${k}.jpg`; a.href = dataUrl; a.click(); con.innerHTML = ''; showToast(`已保存 (${(sizeInBytes/1024/1024).toFixed(2)}MB)`); 
         }); 
     }, 100);
 }
 
 function startCrop(i) { 
-    const f=i.files[0]; 
-    if(f) { 
-        const r=new FileReader(); 
-        r.onload=e=>{ 
-            document.getElementById('cropper-modal').style.display='flex'; 
-            document.getElementById('cropper-img').src=e.target.result; 
-            if(cropperInstance)cropperInstance.destroy(); 
-            
-            const screenRatio = window.innerWidth / window.innerHeight;
-
-            cropperInstance=new Cropper(document.getElementById('cropper-img'),{
-                viewMode:2,
-                dragMode:'move',
-                autoCropArea:1,
-                aspectRatio: screenRatio 
-            }); 
-        }; 
-        r.readAsDataURL(f); 
-        i.value=''; 
-    } 
+    const f=i.files[0]; if(f) { const r=new FileReader(); r.onload=e=>{ document.getElementById('cropper-modal').style.display='flex'; document.getElementById('cropper-img').src=e.target.result; if(cropperInstance)cropperInstance.destroy(); const screenRatio = window.innerWidth / window.innerHeight; cropperInstance=new Cropper(document.getElementById('cropper-img'),{ viewMode:2, dragMode:'move', autoCropArea:1, aspectRatio: screenRatio }); }; r.readAsDataURL(f); i.value=''; } 
 }
-
 function cancelCrop() { document.getElementById('cropper-modal').style.display='none'; if(cropperInstance)cropperInstance.destroy(); }
-
 function finishCrop() { 
     if(cropperInstance) { 
-        cropperInstance.getCroppedCanvas({ 
-            maxWidth: 4096, maxHeight: 4096, 
-            imageSmoothingQuality: 'high'
-        }).toBlob((blob) => {
-            AppDB.saveAsset('bgImage', blob).then(() => {
-                localStorage.removeItem('myDiaryBg_v2');
-                state.bgImage = URL.createObjectURL(blob);
-                applyBgImage();
-                cancelCrop();
-                showToast("高清背景已设置");
-            });
+        cropperInstance.getCroppedCanvas({ maxWidth: 4096, maxHeight: 4096, imageSmoothingQuality: 'high' }).toBlob((blob) => {
+            AppDB.saveAsset('bgImage', blob).then(() => { localStorage.removeItem('myDiaryBg_v2'); state.bgImage = URL.createObjectURL(blob); applyBgImage(); cancelCrop(); showToast("高清背景已设置"); });
         }, 'image/jpeg', 1.0); 
     } 
 }
-
 function applyBgImage() { const p=document.getElementById('paper-layer'); if(state.bgImage){p.style.backgroundImage=`url(${state.bgImage})`;p.classList.add('has-custom-bg')}else{p.style.backgroundImage='';p.classList.remove('has-custom-bg')} }
-
-function clearBgImage() { 
-    state.bgImage=null; 
-    localStorage.removeItem('myDiaryBg_v2'); 
-    AppDB.deleteAsset('bgImage'); 
-    applyBgImage(); 
-    showToast("已还原"); 
-}
-
+function clearBgImage() { state.bgImage=null; localStorage.removeItem('myDiaryBg_v2'); AppDB.deleteAsset('bgImage'); applyBgImage(); showToast("已还原"); }
 function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); toggleUI(false); document.getElementById('font-url-input').value=state.settings.customFont||''; }
 function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); toggleUI(true); saveSettings(); }
 function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
