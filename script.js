@@ -1,5 +1,5 @@
 // ==========================================
-// script.js - 终极修复版 V5.8 (月度视图等比缩放修复)
+// script.js - 终极修复版 V5.8 (画廊等比缩放修复)
 // ==========================================
 
 // 动态加载 Supabase SDK
@@ -31,6 +31,8 @@ let state = {
 let supabaseClient = null;
 let isEditingDrawer = false;
 let globalMaxZIndex = 100; 
+
+// === 贴纸锁定状态控制 ===
 let isStickersLocked = true; // 默认锁定
 
 // ==========================================
@@ -204,6 +206,7 @@ async function init() {
 
 function focusInput(e) {
     if(document.getElementById('diary-input').classList.contains('interaction-locked')) return;
+    
     const inp = document.getElementById('diary-input');
     if(inp.contentEditable === "true") {
         if(e.target.id === 'diary-scroll-area' || e.target.id === 'diary-input') {
@@ -305,17 +308,22 @@ async function restoreFromCloud() {
 /* ============ 核心功能 (含贴纸锁定逻辑) ============ */
 function toggleStickerSetting() { state.settings.enableSticker = !state.settings.enableSticker; saveSettings(); applySettings(); }
 
+// 切换贴纸锁定状态
 function toggleStickerLock() {
     isStickersLocked = !isStickersLocked;
     updateStickerLockUI();
-    if(isStickersLocked) showToast("已切换：写字模式 (贴纸锁定)");
-    else showToast("已切换：贴纸模式 (文字锁定)");
+    if(isStickersLocked) {
+        showToast("已切换：写字模式 (贴纸锁定)");
+    } else {
+        showToast("已切换：贴纸模式 (文字锁定)");
+    }
 }
 
+// 更新 UI 状态
 function updateStickerLockUI() {
     const btn = document.getElementById('btn-lock-stickers');
     const area = document.getElementById('diary-scroll-area');
-    const input = document.getElementById('diary-input'); 
+    const input = document.getElementById('diary-input'); // 获取文字层
     
     if (!btn || !area || !input) return;
 
@@ -324,36 +332,45 @@ function updateStickerLockUI() {
         input.contentEditable = "true";
         input.style.pointerEvents = "auto";
         input.style.userSelect = "text"; 
+
         btn.classList.remove('unlocked');
         btn.innerHTML = '<span class="material-icons-round">lock</span>';
         document.querySelectorAll('.sticker-item.selected').forEach(el => el.classList.remove('selected'));
     } else {
         area.classList.remove('stickers-locked');
         input.contentEditable = "false";
-        input.style.pointerEvents = "none"; 
+        input.style.pointerEvents = "none"; // 让点击穿透文字层
         input.style.userSelect = "none";
+
         btn.classList.add('unlocked');
         btn.innerHTML = '<span class="material-icons-round">lock_open</span>';
     }
 }
 
+// 打开贴纸抽屉：自动进入贴纸模式 + 增加底部填充
 function openStickerDrawer() { 
     isStickersLocked = false;
     updateStickerLockUI();
+
     const scrollArea = document.getElementById('diary-scroll-area');
     if(scrollArea) {
         scrollArea.classList.add('drawer-open');
         setTimeout(() => { scrollArea.scrollTop = scrollArea.scrollHeight; }, 100);
     }
+
     renderStickerDrawer(); 
     document.getElementById('sticker-drawer').classList.add('open'); 
     document.getElementById('diary-input').classList.add('interaction-locked'); 
     toggleUI(false); 
 }
 
+// 关闭贴纸抽屉
 function closeStickerDrawer() { 
     const scrollArea = document.getElementById('diary-scroll-area');
-    if(scrollArea) scrollArea.classList.remove('drawer-open');
+    if(scrollArea) {
+        scrollArea.classList.remove('drawer-open');
+    }
+
     document.getElementById('sticker-drawer').classList.remove('open'); 
     document.getElementById('diary-input').classList.remove('interaction-locked'); 
     isEditingDrawer = false; 
@@ -378,6 +395,7 @@ async function addStickerToPage(blob) {
         globalMaxZIndex++;
         wrapper.style.zIndex = globalMaxZIndex; 
         wrapper.dataset.layer = 'top';
+        
         wrapper.style.left = '50px'; 
         wrapper.style.top = '100px'; 
         wrapper.style.width = '150px'; 
@@ -395,16 +413,30 @@ window.toggleLayer = function(e) {
     e.preventDefault();
     const wrapper = e.target.closest('.sticker-item');
     if(!wrapper) return;
+    
     const current = wrapper.dataset.layer || 'top';
-    if (current === 'top') { wrapper.dataset.layer = 'bottom'; wrapper.style.zIndex = '1'; e.target.innerText = '⇧'; } 
-    else { wrapper.dataset.layer = 'top'; globalMaxZIndex++; wrapper.style.zIndex = globalMaxZIndex; e.target.innerText = '⇩'; }
+    
+    if (current === 'top') {
+        wrapper.dataset.layer = 'bottom';
+        wrapper.style.zIndex = '1';
+        e.target.innerText = '⇧'; 
+    } else {
+        wrapper.dataset.layer = 'top';
+        globalMaxZIndex++;
+        wrapper.style.zIndex = globalMaxZIndex;
+        e.target.innerText = '⇩'; 
+    }
     state.isDirty = true;
 };
 
 function activateStickerElement(el) {
     document.querySelectorAll('.sticker-item.selected').forEach(i => i.classList.remove('selected')); 
     el.classList.add('selected');
-    if (!el.dataset.layer || el.dataset.layer === 'top') { globalMaxZIndex++; el.style.zIndex = globalMaxZIndex; }
+    
+    if (!el.dataset.layer || el.dataset.layer === 'top') {
+        globalMaxZIndex++;
+        el.style.zIndex = globalMaxZIndex;
+    }
 }
 
 function attachStickerEvents(el) { 
@@ -417,32 +449,52 @@ function attachStickerEvents(el) {
         activateStickerElement(el); 
         const touches = e.touches; 
         const target = e.target; 
+
         if (touches && touches.length === 2) { 
-            mode = 'gesture'; e.preventDefault(); e.stopPropagation();
-            const rect = el.getBoundingClientRect(); startScaleWidth = rect.width; 
-            const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform); 
+            mode = 'gesture'; 
+            e.preventDefault(); 
+            e.stopPropagation();
+            const rect = el.getBoundingClientRect(); 
+            startScaleWidth = rect.width; 
+            const style = window.getComputedStyle(el); 
+            const matrix = new WebKitCSSMatrix(style.transform); 
             startRotation = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI)); 
             startDist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); 
             startAngle = Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX); 
         } else if (!touches || touches.length === 1) { 
             const clientX = touches ? touches[0].clientX : e.clientX;
             const clientY = touches ? touches[0].clientY : e.clientY;
+
             if (target.dataset.action === 'resize') { 
-                mode = 'resize'; e.preventDefault(); e.stopPropagation(); 
-                const rect = el.getBoundingClientRect(); centerX = rect.left + rect.width / 2; centerY = rect.top + rect.height / 2; 
-                startWidth = rect.width; startHeight = rect.height; startAngle = Math.atan2(clientY - centerY, clientX - centerX); 
-                const style = window.getComputedStyle(el); const matrix = new WebKitCSSMatrix(style.transform); 
+                mode = 'resize'; 
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                const rect = el.getBoundingClientRect(); 
+                centerX = rect.left + rect.width / 2; 
+                centerY = rect.top + rect.height / 2; 
+                startWidth = rect.width; 
+                startHeight = rect.height; 
+                startAngle = Math.atan2(clientY - centerY, clientX - centerX); 
+                const style = window.getComputedStyle(el); 
+                const matrix = new WebKitCSSMatrix(style.transform); 
                 initialAngle = Math.round(Math.atan2(matrix.b, matrix.a) * (180/Math.PI)); 
             } else if(!target.classList.contains('sticker-ctrl')) { 
-                mode = 'move'; startX = clientX; startY = clientY; startLeft = el.offsetLeft; startTop = el.offsetTop; 
+                mode = 'move'; 
+                startX = clientX; 
+                startY = clientY; 
+                startLeft = el.offsetLeft; 
+                startTop = el.offsetTop; 
             } 
         } 
     };
-    el.addEventListener('mousedown', handleStart); el.addEventListener('touchstart', handleStart, {passive: false}); 
+
+    el.addEventListener('mousedown', handleStart); 
+    el.addEventListener('touchstart', handleStart, {passive: false}); 
 
     const handleMove = (e) => { 
         if(!el.classList.contains('selected')) return; 
         const touches = e.touches; 
+        
         if (mode === 'gesture' && touches && touches.length === 2) { 
             e.preventDefault(); 
             const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); 
@@ -453,7 +505,8 @@ function attachStickerEvents(el) {
             e.preventDefault(); 
             const clientX = touches ? touches[0].clientX : e.clientX;
             const clientY = touches ? touches[0].clientY : e.clientY;
-            el.style.left = (startLeft + (clientX - startX)) + 'px'; el.style.top = (startTop + (clientY - startY)) + 'px'; 
+            el.style.left = (startLeft + (clientX - startX)) + 'px'; 
+            el.style.top = (startTop + (clientY - startY)) + 'px'; 
         } else if (mode === 'resize' && (!touches || touches.length === 1)) { 
             e.preventDefault(); 
             const clientX = touches ? touches[0].clientX : e.clientX;
@@ -464,12 +517,22 @@ function attachStickerEvents(el) {
             el.style.transform = `rotate(${initialAngle + (currentAngle - startAngle) * (180 / Math.PI)}deg)`; 
         } 
     };
-    document.addEventListener('mousemove', handleMove); document.addEventListener('touchmove', handleMove, {passive: false});
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('touchmove', handleMove, {passive: false});
+
     const handleEnd = () => { if(mode) state.isDirty = true; mode = ''; };
-    document.addEventListener('mouseup', handleEnd); document.addEventListener('touchend', handleEnd);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchend', handleEnd);
 }
 
-window.removeSticker = function(e) { e.stopPropagation(); e.preventDefault(); e.target.closest('.sticker-item')?.remove(); state.isDirty = true; };
+window.removeSticker = function(e) { 
+    e.stopPropagation(); 
+    e.preventDefault(); 
+    e.target.closest('.sticker-item')?.remove(); 
+    state.isDirty = true; 
+};
+
 function compressImage(file, maxWidth, quality) { return new Promise((resolve) => { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); let w = img.width, h = img.height; if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth; } canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL(file.type, quality)); }; img.src = e.target.result; }; reader.readAsDataURL(file); }); }
 function performSearch(query) { const container = document.getElementById('search-results'); container.innerHTML = ''; if(!query.trim()) return; const results = []; const tempDiv = document.createElement('div'); Object.keys(state.diaryData).sort().reverse().forEach(dateKey => { tempDiv.innerHTML = state.diaryData[dateKey]; if(tempDiv.innerText.toLowerCase().includes(query.toLowerCase())) results.push({ date: dateKey, text: tempDiv.innerText }); }); if(!results.length) { container.innerHTML = '<div class="no-results">无结果</div>'; return; } results.forEach(item => { const el = document.createElement('div'); el.className = 'search-item'; const idx = item.text.toLowerCase().indexOf(query.toLowerCase()); const snippet = item.text.substring(Math.max(0, idx-10), Math.min(item.text.length, idx+query.length+20)); el.innerHTML = `<div class="search-date">${item.date}</div><div class="search-snippet">...${snippet.replace(new RegExp(`(${query})`,'gi'), '<span class="highlight-text">$1</span>')}...</div>`; el.onclick = () => { document.getElementById('search-input').value = ''; container.innerHTML = ''; closeSettings(); selectDate(new Date(item.date)); setTimeout(openDiary, 300); }; container.appendChild(el); }); }
 function checkLockStatus() { if (state.security.enabled) { document.getElementById('lock-screen').classList.add('active'); updatePinDots(); if (state.security.biometrics && state.security.credentialId) setTimeout(tryBiometric, 500); } else { document.getElementById('lock-screen').classList.remove('active'); } }
@@ -488,6 +551,7 @@ function openTodo() { document.getElementById('todo-view').classList.remove('hid
 function closeTodo() { document.getElementById('todo-view').classList.add('hidden-right'); toggleUI(true); }
 function toggleTodoSetting() { state.settings.showTodo = !state.settings.showTodo; saveSettings(); applySettings(); }
 
+// 注册 Service Worker
 function registerRealSW() { 
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js')
@@ -499,13 +563,23 @@ function registerRealSW() {
 function checkNotifyState() { if("Notification" in window && Notification.permission !== "granted") document.getElementById('perm-btn').style.display = 'block'; else document.getElementById('perm-btn').style.display = 'none'; }
 function requestNotifyPermission() { Notification.requestPermission().then(p => { if(p==="granted") { document.getElementById('perm-btn').style.display='none'; showToast("通知已开启"); } }); }
 
+// 测试通知
 function testNotification() { 
     if(Notification.permission==="granted") {
         try {
-            if('serviceWorker' in navigator && navigator.serviceWorker.controller) navigator.serviceWorker.ready.then(reg => { reg.showNotification("测试通知", {body:"功能正常 (SW)"}); });
-            else new Notification("测试通知", {body:"功能正常 (本地)"}); 
-        } catch(e) { alert("发送失败: " + e.message); }
-    } else alert("请先点击上方开启通知权限"); 
+            if('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.ready.then(reg => {
+                    reg.showNotification("测试通知", {body:"功能正常 (SW)"});
+                });
+            } else {
+                new Notification("测试通知", {body:"功能正常 (本地)"}); 
+            }
+        } catch(e) {
+            alert("发送失败: " + e.message);
+        }
+    } else {
+        alert("请先点击上方开启通知权限"); 
+    }
 }
 
 function addTodo() { const t=document.getElementById('new-todo-input').value.trim(); if(!t) return; state.todoData.unshift({id:Date.now(), text:t, done:false, date:'', time:'', notified:false}); document.getElementById('new-todo-input').value=''; saveTodo(); renderTodoList(); }
@@ -514,126 +588,121 @@ function toggleTodo(id) { const t=state.todoData.find(i=>i.id===id); if(t) { t.d
 function updateTodoData(id, k, v) { const t=state.todoData.find(i=>i.id===id); if(t) { t[k]=v; if(k==='time'||k==='date') t.notified=false; saveTodo(); renderTodoList(); } }
 function saveTodo() { localStorage.setItem('myDiaryTodo_v2', JSON.stringify(state.todoData)); }
 
+// === 渲染排序逻辑 ===
 function renderTodoList() { 
-    const list=document.getElementById('todo-list'); list.innerHTML=''; 
-    state.todoData.sort((a,b) => { if (a.done !== b.done) return a.done ? 1 : -1; if (a.done) return b.id - a.id; const noDateA = !a.date; const noDateB = !b.date; if (noDateA && !noDateB) return -1; if (!noDateA && noDateB) return 1; if (noDateA && noDateB) return b.id - a.id; if (a.date !== b.date) return a.date.localeCompare(b.date); const timeA = a.time || '00:00'; const timeB = b.time || '00:00'; return timeA.localeCompare(timeB); });
-    state.todoData.forEach(item => { const d = document.createElement('div'); d.className='todo-item-wrapper'; d.innerHTML=`<div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div><div class="todo-item-content ${item.done?'done':''}"><div class="todo-checkbox ${item.done?'checked':''}" onclick="toggleTodo(${item.id});event.stopPropagation()"></div><div class="todo-content-wrapper"><div class="todo-text">${item.text}</div><div class="todo-datetime"><input type="date" class="todo-picker" value="${item.date||''}" onchange="updateTodoData(${item.id},'date',this.value)"><input type="time" class="todo-picker" value="${item.time||''}" onchange="updateTodoData(${item.id},'time',this.value)"></div></div></div>`; attachSwipeEvents(d.querySelector('.todo-item-content')); list.appendChild(d); }); 
+    const list=document.getElementById('todo-list'); 
+    list.innerHTML=''; 
+    
+    state.todoData.sort((a,b) => {
+        if (a.done !== b.done) return a.done ? 1 : -1;
+        if (a.done) return b.id - a.id;
+        const noDateA = !a.date;
+        const noDateB = !b.date;
+        if (noDateA && !noDateB) return -1; 
+        if (!noDateA && noDateB) return 1;  
+        if (noDateA && noDateB) return b.id - a.id; 
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        const timeA = a.time || '00:00';
+        const timeB = b.time || '00:00';
+        return timeA.localeCompare(timeB);
+    });
+
+    state.todoData.forEach(item => { 
+        const d = document.createElement('div'); 
+        d.className='todo-item-wrapper'; 
+        d.innerHTML=`<div class="todo-delete-bg" onclick="deleteTodo(${item.id})">删除</div><div class="todo-item-content ${item.done?'done':''}"><div class="todo-checkbox ${item.done?'checked':''}" onclick="toggleTodo(${item.id});event.stopPropagation()"></div><div class="todo-content-wrapper"><div class="todo-text">${item.text}</div><div class="todo-datetime"><input type="date" class="todo-picker" value="${item.date||''}" onchange="updateTodoData(${item.id},'date',this.value)"><input type="time" class="todo-picker" value="${item.time||''}" onchange="updateTodoData(${item.id},'time',this.value)"></div></div></div>`; 
+        attachSwipeEvents(d.querySelector('.todo-item-content')); 
+        list.appendChild(d); 
+    }); 
 }
 
 let currentOpenSwipe = null;
 function attachSwipeEvents(el) { let sX; el.addEventListener('touchstart',e=>{if(currentOpenSwipe&&currentOpenSwipe!==el){currentOpenSwipe.style.transform='translateX(0)';currentOpenSwipe=null}sX=e.touches[0].clientX;el.style.transition='none'},{passive:true}); el.addEventListener('touchmove',e=>{let d=e.touches[0].clientX-sX; if(d>0)d=0; if(d<-80)d=-80; el.style.transform=`translateX(${d}px)`},{passive:true}); el.addEventListener('touchend',e=>{el.style.transition='transform 0.2s'; if(e.changedTouches[0].clientX-sX<-40){el.style.transform='translateX(-80px)';currentOpenSwipe=el}else{el.style.transform='translateX(0)'}});}
 function resetAllSwipes() { if(currentOpenSwipe) { currentOpenSwipe.style.transform='translateX(0)'; currentOpenSwipe=null; } }
 
+// 通知的轮询检查
 function startNotificationCheck() { 
     if(notifyInterval) clearInterval(notifyInterval); 
-    notifyInterval = setInterval(()=>{ if(Notification.permission!=="granted") return; const now = new Date(); const m = now.getHours()*60 + now.getMinutes(); const d = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; state.todoData.forEach(t => { if(!t.done && t.date===d && t.time && !t.notified) { const [th,tm] = t.time.split(':').map(Number); if(Math.abs(m - (th*60 + tm)) <= 1) { try { if('serviceWorker' in navigator && navigator.serviceWorker.controller) navigator.serviceWorker.ready.then(reg => reg.showNotification("日记本提醒", {body: t.text})); else new Notification("日记本提醒", {body: t.text}); } catch(e) { console.error("Notify Error", e); } t.notified = true; saveTodo(); } } }); }, 5000); 
+    notifyInterval = setInterval(()=>{ 
+        if(Notification.permission!=="granted") return; 
+        const now = new Date(); 
+        const m = now.getHours()*60 + now.getMinutes(); 
+        const d = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; 
+        
+        state.todoData.forEach(t => { 
+            if(!t.done && t.date===d && t.time && !t.notified) { 
+                const [th,tm] = t.time.split(':').map(Number); 
+                if(Math.abs(m - (th*60 + tm)) <= 1) { 
+                    try {
+                        if('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                            navigator.serviceWorker.ready.then(reg => reg.showNotification("日记本提醒", {body: t.text}));
+                        } else {
+                            new Notification("日记本提醒", {body: t.text}); 
+                        }
+                    } catch(e) { console.error("Notify Error", e); }
+                    t.notified = true; 
+                    saveTodo(); 
+                } 
+            } 
+        }); 
+    }, 5000); 
 }
 
-// === 修复：月度画廊逻辑 ===
-function openMonthGallery() { 
-    const v = document.getElementById('gallery-month-picker').value; 
-    if(!v) return alert("请选月份"); 
-    
-    document.getElementById('month-gallery').classList.remove('hidden-right'); 
-    document.getElementById('settings-view').classList.add('hidden-right'); 
-    
-    const c = document.getElementById('gallery-content'); 
-    c.innerHTML = ''; 
-    
-    // 清理一下样式，确保两列布局
-    c.style.display = 'grid';
-    c.style.gridTemplateColumns = '1fr 1fr'; 
-    c.style.gap = '15px';
-    c.style.padding = '15px';
-    c.style.overflowY = 'auto';
+function openMonthGallery() { const v=document.getElementById('gallery-month-picker').value; if(!v) return alert("请选月份"); document.getElementById('month-gallery').classList.remove('hidden-right'); document.getElementById('settings-view').classList.add('hidden-right'); const c=document.getElementById('gallery-content'); c.innerHTML=''; const [y,m]=v.split('-'); const days=new Date(y,m,0).getDate(); let has=false; for(let d=1; d<=days; d++) { const k=`${y}-${m}-${String(d).padStart(2,'0')}`; if(state.diaryData[k]) { has=true; createGalleryCard(c, state.diaryData[k], `${parseInt(m)}/${d}`, k); } } if(!has) c.innerHTML='<div style="opacity:0.5;text-align:center;padding:20px;width:100%">暂无日记</div>'; }
 
-    const [y,m] = v.split('-'); 
-    const days = new Date(y, m, 0).getDate(); 
-    let has = false; 
-    
-    for(let d=1; d<=days; d++) { 
-        const k = `${y}-${m}-${String(d).padStart(2,'0')}`; 
-        if(state.diaryData[k]) { 
-            has = true; 
-            createGalleryCard(c, state.diaryData[k], `${parseInt(m)}/${d}`, k); 
-        } 
-    } 
-    
-    if(!has) {
-        c.style.display = 'flex';
-        c.innerHTML = '<div style="opacity:0.5;text-align:center;padding:20px;width:100%">暂无日记</div>'; 
-    }
-}
-
-// === 核心修复：创建等比例缩小的卡片 ===
+// === 核心修复：画廊卡片渲染 (等比缩放) ===
 function createGalleryCard(container, content, dateLabel, dateKey) { 
     const w = document.createElement('div'); 
-    w.className = 'gallery-card'; 
-    w.style.position = 'relative';
-    w.style.height = '200px'; 
-    w.style.overflow = 'hidden'; 
-    w.style.borderRadius = '12px';
-    w.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
-    w.style.background = '#fff';
-    w.style.cursor = 'pointer';
+    w.className = `gallery-card ${state.bgImage?'has-bg':''}`; 
 
-    // 模拟全屏容器
-    const screenWidth = window.innerWidth;
-    const scale = 0.35; // 缩放比例 (大约1/3)
+    // 创建一个裁切容器
+    const clipBox = document.createElement('div');
+    clipBox.style.width = '100%';
+    clipBox.style.height = '100%';
+    clipBox.style.overflow = 'hidden';
+    clipBox.style.position = 'relative';
+
+    // 实际内容层：模拟屏幕宽度
+    const contentLayer = document.createElement('div');
+    const screenW = window.innerWidth;
     
-    const scaler = document.createElement('div');
-    scaler.style.width = screenWidth + 'px';
-    scaler.style.height = (200 / scale) + 'px'; // 相应放大高度，以便缩放后填满
-    scaler.style.position = 'absolute';
-    scaler.style.top = '0';
-    scaler.style.left = '0';
-    scaler.style.transform = `scale(${scale})`;
-    scaler.style.transformOrigin = 'top left';
-    scaler.style.pointerEvents = 'none'; // 禁止在预览图里操作贴纸
-    scaler.style.overflow = 'hidden';
-    
-    // 如果有背景图，应用到模拟容器上
-    if(state.bgImage) {
-        scaler.style.backgroundImage = `url(${state.bgImage})`;
-        scaler.style.backgroundSize = 'cover';
-    } else {
-        // 应用当前的信纸样式类
-        scaler.className = state.settings.paper; 
-    }
+    // 计算缩放比例：假设卡片宽度大约是屏幕宽度的 42% (两列布局减去间距)
+    // 这里的数字 0.42 是一个经验值，能保证缩略图看起来比较清晰
+    const cardW = (screenW - 60) / 2; 
+    const scale = cardW / screenW;
+
+    contentLayer.style.width = screenW + 'px'; 
+    contentLayer.style.minHeight = (cardW / scale) + 'px'; // 保持高度比例
+    contentLayer.style.position = 'absolute';
+    contentLayer.style.top = '0';
+    contentLayer.style.left = '0';
+    contentLayer.style.transform = `scale(${scale})`;
+    contentLayer.style.transformOrigin = 'top left';
+    contentLayer.style.pointerEvents = 'none'; // 预览模式禁止内部交互
 
     // 注入内容
-    scaler.innerHTML = content;
-    
-    // 强制修正贴纸层级和显示
-    const stickers = scaler.querySelectorAll('.sticker-item');
-    stickers.forEach(s => {
-        s.style.border = 'none'; // 去掉选中框（如果有）
-        // 保持原始位置，不需要动
-    });
-    
-    // 日期标签 (浮在最上层)
-    const dateBadge = document.createElement('div');
-    dateBadge.innerText = dateLabel;
-    dateBadge.style.position = 'absolute';
-    dateBadge.style.bottom = '10px';
-    dateBadge.style.right = '10px';
-    dateBadge.style.background = 'rgba(0,0,0,0.6)';
-    dateBadge.style.color = '#fff';
-    dateBadge.style.padding = '4px 8px';
-    dateBadge.style.borderRadius = '10px';
-    dateBadge.style.fontSize = '12px';
-    dateBadge.style.zIndex = '10';
-    dateBadge.style.pointerEvents = 'none';
+    contentLayer.innerHTML = content;
 
-    w.appendChild(scaler);
-    w.appendChild(dateBadge);
-    
+    // 清理贴纸的控制点，让预览更干净
+    contentLayer.querySelectorAll('.sticker-item').forEach(s => {
+         s.classList.remove('selected'); 
+         s.querySelectorAll('.sticker-ctrl').forEach(c => c.remove());
+    });
+
+    // 只有在没有全局背景图时，才显示日期标签
+    const dateDiv = document.createElement('div');
+    dateDiv.className = 'thumb-date';
+    dateDiv.innerText = dateLabel;
+
+    clipBox.appendChild(contentLayer);
+    w.appendChild(clipBox);
+    w.appendChild(dateDiv); 
+
     w.onclick = () => { 
         closeMonthGallery(); 
         selectDate(new Date(dateKey)); 
-        setTimeout(openDiary, 300); 
+        setTimeout(openDiary,300); 
     }; 
-    
     container.appendChild(w); 
 }
 
@@ -644,14 +713,18 @@ function renderCalendar() { const y=state.currentDate.getFullYear(),m=state.curr
 function changeMonth(v) { if(v) { const [y,m]=v.split('-'); state.currentDate=new Date(y,m-1,1); renderCalendar(); } }
 function selectDate(d) { state.selectedDate=d; renderCalendar(); document.getElementById('tab-date').textContent=`${d.getMonth()+1}/${d.getDate()}`; document.getElementById('index-tab').classList.add('visible'); }
 
+// 打开日记页面 (初始化逻辑)
 function openDiary(e) { 
+    // 默认开启锁定，防止误触
     isStickersLocked = true;
+    
     if(e)e.stopPropagation(); 
     const k=formatDateKey(state.selectedDate); 
     document.getElementById('diary-date-display').textContent=state.selectedDate.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'}); 
     
     const div = document.getElementById('diary-input'); 
     const scrollArea = document.getElementById('diary-scroll-area');
+    
     scrollArea.querySelectorAll('.sticker-item').forEach(el => el.remove());
     
     const content = state.diaryData[k] || ''; 
@@ -662,6 +735,7 @@ function openDiary(e) {
     stickers.forEach(s => {
         const z = parseInt(s.style.zIndex || 0);
         if(z > globalMaxZIndex) globalMaxZIndex = z;
+        
         const isBottom = s.dataset.layer === 'bottom';
         const layerBtn = s.querySelector('.ctrl-layer');
         if(layerBtn) {
@@ -669,17 +743,21 @@ function openDiary(e) {
             layerBtn.setAttribute('onmousedown', 'toggleLayer(event)');
             layerBtn.setAttribute('ontouchstart', 'toggleLayer(event)');
         }
+
         scrollArea.appendChild(s);
         attachStickerEvents(s);
     });
     
     div.innerHTML = tempDiv.innerHTML; 
+    
     document.getElementById('diary-view').classList.remove('hidden-right'); 
     toggleUI(false); 
     document.getElementById('todo-tab').style.display = 'none'; 
     document.getElementById('index-tab').style.display = 'none'; 
     if(state.settings.enableSticker) document.getElementById('sticker-btn').style.display='flex'; 
     state.isDirty=false; 
+    
+    // 应用锁定 UI 状态
     updateStickerLockUI();
 }
 
@@ -709,6 +787,7 @@ function applyFont() { const u=document.getElementById('font-url-input').value.t
 function resetFont() { state.settings.customFont=""; document.getElementById('font-url-input').value=""; document.documentElement.style.removeProperty('--font-main'); saveSettings(); alert("已还原"); }
 function loadCustomFont(u) { const f=new FontFace('MyCustomFont', `url(${u})`); f.load().then(lf=>{document.fonts.add(lf);document.documentElement.style.setProperty('--font-main', '"MyCustomFont", "Nunito", sans-serif')}); }
 
+// === 核心逻辑：导出图片 ===
 async function exportDiaryImage() { 
     const d = document.getElementById('export-date-picker').value; 
     if(!d) return alert("请先选择日期"); 
@@ -720,15 +799,21 @@ async function exportDiaryImage() {
     
     const con = document.getElementById('screenshot-container'); 
     con.innerHTML = ''; 
+    
     const screenWidth = document.body.clientWidth;
     con.style.width = screenWidth + 'px';
+
     let singlePageHeight = window.innerHeight; 
 
     if (state.bgImage) {
         await new Promise((resolve) => {
             const img = new Image();
             img.src = state.bgImage;
-            img.onload = () => { const ratio = img.naturalHeight / img.naturalWidth; singlePageHeight = screenWidth * ratio; resolve(); };
+            img.onload = () => {
+                const ratio = img.naturalHeight / img.naturalWidth;
+                singlePageHeight = screenWidth * ratio;
+                resolve();
+            };
             img.onerror = () => { resolve(); };
         });
     }
@@ -736,53 +821,136 @@ async function exportDiaryImage() {
     const p = document.createElement('div'); 
     p.className = `paper-container ${state.settings.theme} ${state.settings.paper}`; 
     p.style.imageRendering = '-webkit-optimize-contrast';
-    p.style.position = 'relative'; p.style.borderRadius = '0'; p.style.overflow = 'hidden'; p.style.width = '100%'; 
-    if (state.bgImage) p.style.background = 'transparent'; else p.style.background = ''; 
+    p.style.position = 'relative'; 
+    p.style.borderRadius = '0'; 
+    p.style.overflow = 'hidden'; 
+    p.style.width = '100%'; 
+    
+    if (state.bgImage) {
+        p.style.background = 'transparent';
+    } else {
+        p.style.background = ''; 
+    }
+
     p.style.height = singlePageHeight + 'px';
 
+    // 1. 创建页眉 (独立于内容容器)
     const header = document.createElement('div');
-    header.className = 'paper-header'; header.style.background = 'none'; header.style.position = 'relative'; header.style.zIndex = '50'; 
+    header.className = 'paper-header';
+    header.style.background = 'none';
+    header.style.position = 'relative'; 
+    header.style.zIndex = '50'; 
     header.innerHTML = `<span class="date-display">${d}</span>`;
     p.appendChild(header);
 
+    // 2. 创建内容容器 (相对定位)
     const contentArea = document.createElement('div');
-    contentArea.style.position = 'relative'; contentArea.style.width = '100%'; contentArea.style.flex = '1';
+    contentArea.style.position = 'relative';
+    contentArea.style.width = '100%';
+    contentArea.style.flex = '1';
     p.appendChild(contentArea);
 
-    const tempDiv = document.createElement('div'); tempDiv.innerHTML = c;
+    // 3. 准备文字层
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = c;
     Array.from(tempDiv.querySelectorAll('.sticker-item')).forEach(el => el.remove()); 
 
     const textDiv = document.createElement('div');
-    textDiv.className = 'paper-content'; textDiv.style.position = 'relative'; textDiv.style.zIndex = '10'; textDiv.style.overflow = 'visible'; textDiv.style.paddingBottom = '50px';
+    textDiv.className = 'paper-content';
+    textDiv.style.position = 'relative';
+    textDiv.style.zIndex = '10'; // 文字层级居中
+    textDiv.style.overflow = 'visible'; 
+    textDiv.style.paddingBottom = '50px';
     textDiv.innerHTML = tempDiv.innerHTML;
+    
+    // 4. 将文字加入内容容器
     contentArea.appendChild(textDiv);
 
-    const rawDiv = document.createElement('div'); rawDiv.innerHTML = c;
+    // 5. 准备贴纸
+    const rawDiv = document.createElement('div');
+    rawDiv.innerHTML = c;
     const stickers = rawDiv.querySelectorAll('.sticker-item');
-    stickers.forEach(s => { if (s.dataset.layer === 'bottom') s.style.zIndex = '5'; else s.style.zIndex = '20'; contentArea.appendChild(s); });
+    
+    stickers.forEach(s => {
+        if (s.dataset.layer === 'bottom') {
+            s.style.zIndex = '5';
+        } else {
+            s.style.zIndex = '20';
+        }
+        contentArea.appendChild(s);
+    });
 
     let maxContentBottom = textDiv.offsetHeight; 
-    stickers.forEach(s => { const top = parseFloat(s.style.top) || 0; const height = parseFloat(s.style.height) || s.offsetHeight || 100; if (top + height > maxContentBottom) maxContentBottom = top + height; });
+    stickers.forEach(s => {
+        const top = parseFloat(s.style.top) || 0;
+        const height = parseFloat(s.style.height) || s.offsetHeight || 100;
+        if (top + height > maxContentBottom) maxContentBottom = top + height;
+    });
     
     const totalContentHeight = 80 + maxContentBottom + 60; 
-    let pagesNeeded = Math.ceil(totalContentHeight / singlePageHeight); if (pagesNeeded < 1) pagesNeeded = 1;
+
+    let pagesNeeded = Math.ceil(totalContentHeight / singlePageHeight);
+    if (pagesNeeded < 1) pagesNeeded = 1;
+
     const finalHeight = pagesNeeded * singlePageHeight;
     p.style.height = finalHeight + 'px';
 
     if(state.bgImage){
         const bgContainer = document.createElement('div');
-        bgContainer.style.position = 'absolute'; bgContainer.style.top = '0'; bgContainer.style.left = '0'; bgContainer.style.width = '100%'; bgContainer.style.height = '100%'; bgContainer.style.zIndex = '0'; bgContainer.style.display = 'flex'; bgContainer.style.flexDirection = 'column';
-        for(let i=0; i<pagesNeeded; i++) { const img = document.createElement('img'); img.src = state.bgImage; img.style.width = '100%'; img.style.height = 'auto'; img.style.display = 'block'; img.style.pointerEvents = 'none'; img.style.flexShrink = '0'; bgContainer.appendChild(img); }
+        bgContainer.style.position = 'absolute';
+        bgContainer.style.top = '0';
+        bgContainer.style.left = '0';
+        bgContainer.style.width = '100%';
+        bgContainer.style.height = '100%';
+        bgContainer.style.zIndex = '0'; 
+        bgContainer.style.display = 'flex';
+        bgContainer.style.flexDirection = 'column';
+
+        for(let i=0; i<pagesNeeded; i++) {
+            const img = document.createElement('img');
+            img.src = state.bgImage;
+            img.style.width = '100%';
+            img.style.height = 'auto'; 
+            img.style.display = 'block'; 
+            img.style.pointerEvents = 'none';
+            img.style.flexShrink = '0'; 
+            bgContainer.appendChild(img);
+        }
+        
         p.insertBefore(bgContainer, p.firstChild);
     } 
+    
     con.appendChild(p); 
+
     showToast("正在生成高清图...");
 
     setTimeout(() => {
-        html2canvas(p,{ scale: 4, useCORS: true, logging: false, backgroundColor: null, windowWidth: screenWidth }).then(cvs=>{ 
-            let quality = 1.0; let dataUrl = cvs.toDataURL('image/jpeg', quality); let sizeInBytes = Math.round(dataUrl.length * 0.75); const maxBytes = 5 * 1024 * 1024; 
-            if (sizeInBytes > maxBytes) { while (sizeInBytes > maxBytes && quality > 0.3) { quality -= 0.05; dataUrl = cvs.toDataURL('image/jpeg', quality); sizeInBytes = Math.round(dataUrl.length * 0.75); } }
-            const a = document.createElement('a'); a.download = `diary_${k}.jpg`; a.href = dataUrl; a.click(); con.innerHTML = ''; showToast(`已保存 (${(sizeInBytes/1024/1024).toFixed(2)}MB)`); 
+        html2canvas(p,{
+            scale: 4, 
+            useCORS: true, 
+            logging: false,
+            backgroundColor: null, 
+            windowWidth: screenWidth 
+        }).then(cvs=>{ 
+            let quality = 1.0;
+            let dataUrl = cvs.toDataURL('image/jpeg', quality);
+            let sizeInBytes = Math.round(dataUrl.length * 0.75);
+            const maxBytes = 5 * 1024 * 1024; 
+            
+            if (sizeInBytes > maxBytes) {
+                while (sizeInBytes > maxBytes && quality > 0.3) {
+                    quality -= 0.05; 
+                    dataUrl = cvs.toDataURL('image/jpeg', quality);
+                    sizeInBytes = Math.round(dataUrl.length * 0.75);
+                }
+            }
+
+            const a = document.createElement('a'); 
+            a.download = `diary_${k}.jpg`; 
+            a.href = dataUrl; 
+            a.click(); 
+            con.innerHTML = ''; 
+            showToast(`已保存 (${(sizeInBytes/1024/1024).toFixed(2)}MB)`); 
         }); 
     }, 100);
 }
@@ -795,23 +963,50 @@ function startCrop(i) {
             document.getElementById('cropper-modal').style.display='flex'; 
             document.getElementById('cropper-img').src=e.target.result; 
             if(cropperInstance)cropperInstance.destroy(); 
+            
             const screenRatio = window.innerWidth / window.innerHeight;
-            cropperInstance=new Cropper(document.getElementById('cropper-img'),{ viewMode:2, dragMode:'move', autoCropArea:1, aspectRatio: screenRatio }); 
+
+            cropperInstance=new Cropper(document.getElementById('cropper-img'),{
+                viewMode:2,
+                dragMode:'move',
+                autoCropArea:1,
+                aspectRatio: screenRatio 
+            }); 
         }; 
-        r.readAsDataURL(f); i.value=''; 
+        r.readAsDataURL(f); 
+        i.value=''; 
     } 
 }
 
 function cancelCrop() { document.getElementById('cropper-modal').style.display='none'; if(cropperInstance)cropperInstance.destroy(); }
+
 function finishCrop() { 
     if(cropperInstance) { 
-        cropperInstance.getCroppedCanvas({ maxWidth: 4096, maxHeight: 4096, imageSmoothingQuality: 'high' }).toBlob((blob) => {
-            AppDB.saveAsset('bgImage', blob).then(() => { localStorage.removeItem('myDiaryBg_v2'); state.bgImage = URL.createObjectURL(blob); applyBgImage(); cancelCrop(); showToast("高清背景已设置"); });
+        cropperInstance.getCroppedCanvas({ 
+            maxWidth: 4096, maxHeight: 4096, 
+            imageSmoothingQuality: 'high'
+        }).toBlob((blob) => {
+            AppDB.saveAsset('bgImage', blob).then(() => {
+                localStorage.removeItem('myDiaryBg_v2');
+                state.bgImage = URL.createObjectURL(blob);
+                applyBgImage();
+                cancelCrop();
+                showToast("高清背景已设置");
+            });
         }, 'image/jpeg', 1.0); 
     } 
 }
+
 function applyBgImage() { const p=document.getElementById('paper-layer'); if(state.bgImage){p.style.backgroundImage=`url(${state.bgImage})`;p.classList.add('has-custom-bg')}else{p.style.backgroundImage='';p.classList.remove('has-custom-bg')} }
-function clearBgImage() { state.bgImage=null; localStorage.removeItem('myDiaryBg_v2'); AppDB.deleteAsset('bgImage'); applyBgImage(); showToast("已还原"); }
+
+function clearBgImage() { 
+    state.bgImage=null; 
+    localStorage.removeItem('myDiaryBg_v2'); 
+    AppDB.deleteAsset('bgImage'); 
+    applyBgImage(); 
+    showToast("已还原"); 
+}
+
 function openSettings() { document.getElementById('settings-view').classList.remove('hidden-right'); toggleUI(false); document.getElementById('font-url-input').value=state.settings.customFont||''; }
 function closeSettings() { document.getElementById('settings-view').classList.add('hidden-right'); toggleUI(true); saveSettings(); }
 function saveSettings() { localStorage.setItem('myDiarySettings_v2', JSON.stringify(state.settings)); }
@@ -823,4 +1018,4 @@ function formatDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).
 function exportData() { const b=new Blob([JSON.stringify(state.diaryData)],{type:"application/json"}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`backup_${formatDateKey(new Date())}.json`; a.click(); }
 function importData(i) { const f=i.files[0]; if(f) { const r=new FileReader(); r.onload=e=>{ try{state.diaryData=JSON.parse(e.target.result);localStorage.setItem('myDiaryData_v2',JSON.stringify(state.diaryData));renderCalendar();alert("导入成功");}catch(x){alert("格式错误");} }; r.readAsText(f); } }
 
-init();```
+init();
